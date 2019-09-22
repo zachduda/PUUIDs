@@ -9,6 +9,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import com.zach_attack.puuids.Main;
@@ -406,7 +407,61 @@ public class PUUIDS {
 		} catch (IOException e) {}
 	}
 	
-	public static List<String> getList(Plugin pl, Player p, String location) {
+	public static void setNCList(Plugin pl, Player p, String location, List<?> input) {
+		String plname = pl.getName();
+		
+		if(!getPlugins().contains(plname)) {
+			return;
+		}		
+		
+		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+		File f = new File(cache, File.separator + "" + p.getUniqueId().toString() + ".yml");
+		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+		
+		setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
+		try {
+			setcache.save(f);
+		} catch (IOException e) {}
+	}
+	
+	public static List<?> getNCList(Plugin pl, Player p, String location) {
+		String plname = pl.getName();
+		
+		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+		File f = new File(cache, File.separator + "" + p.getUniqueId().toString() + ".yml");
+		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+		
+		return setcache.getList("Plugins." + plname.toUpperCase() + "." + location);
+	}
+	
+	public static void setItemStack(Plugin pl, Player p, String location, ItemStack input) {
+		String plname = pl.getName();
+		
+		if(!getPlugins().contains(plname)) {
+			return;
+		}		
+		
+		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+		File f = new File(cache, File.separator + "" + p.getUniqueId().toString() + ".yml");
+		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+		
+		setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
+		try {
+			setcache.save(f);
+		} catch (IOException e) {}
+	}
+	
+	public static ItemStack getItemStack(Plugin pl, Player p, String location) {
+		String plname = pl.getName();
+		
+		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+		File f = new File(cache, File.separator + "" + p.getUniqueId().toString() + ".yml");
+		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+		
+		return setcache.getItemStack("Plugins." + plname.toUpperCase() + "." + location);
+	}
+	
+	public static List<String> getStringList(Plugin pl, Player p, String location) {
 		String plname = pl.getName();
 		
 		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
@@ -447,8 +502,8 @@ public class PUUIDS {
 		return allplayers;
 	}
 	// Start of List -------
-	
-	// Null shit
+
+	// Null
 	public static void setNull(Plugin pl, String uuid, String location) {
 		String plname = pl.getName();
 		
@@ -469,7 +524,7 @@ public class PUUIDS {
 			setcache.save(f);
 		} catch (IOException e) {}
 	}
-	// End of Null Shit
+	// End of Null
 	
 	// Start of Lists
 }

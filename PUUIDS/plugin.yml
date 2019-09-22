@@ -1,7 +1,7 @@
 name: PUUIDS
 main: com.zach_attack.puuids.Main
-website: https://www.spigotmc.org/resources/puuids.71496/
+website: https://www.spigotmc.org/resources/api-puuids.71496/
 author: zach_attack
-version: 1.1
+version: 1.2
 api-version: 1.13
 load: STARTUP
