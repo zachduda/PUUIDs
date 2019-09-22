@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.ArrayList;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -14,6 +15,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import com.zach_attack.puuids.Updater;
 import com.zach_attack.puuids.api.OnNewFile;
 import com.zach_attack.puuids.api.PUUIDS;
 
@@ -23,6 +25,8 @@ public class Main extends JavaPlugin implements Listener {
 	private static boolean allowconnections = false;
     
 	boolean debug = false;
+	
+	boolean updatecheck = true;
 	
 	public PUUIDS api;
 	
@@ -57,6 +61,10 @@ public class Main extends JavaPlugin implements Listener {
 		        allowconnections = false;
 		     }
 		  });
+		
+		if(getConfig().getBoolean("Settings.Update-Check")) {
+			new Updater(this).checkForUpdate();
+		}
 	}
 	
 	private void debug(String input) {
@@ -70,6 +78,7 @@ public class Main extends JavaPlugin implements Listener {
 	
 	private void updateConfig() {
 		debug = getConfig().getBoolean("Settings.Debug");
+		updatecheck = getConfig().getBoolean("Settings.Update-Check");
 	}
 
 	public ArrayList<String> getPlugins() {
@@ -80,13 +89,13 @@ public class Main extends JavaPlugin implements Listener {
 		String plname = pl.getDescription().getName();
 		
 		if(!allowconnections) { 
-			getLogger().warning("Plugin '" + plname + "' tried to register with PUUID after the connec ction window.");
+			getLogger().warning("Plugin '" + plname + "' tried to register with PUUID after the connection window.");
 			return false;
 		}
 		
 		if(!plugins.contains(plname)) {
 			plugins.add(plname);
-			getLogger().info("Plugin " + plname  + " has been registered.");
+			debug("Plugin " + plname  + " has been registered.");
 			return true;
 		}
 		
@@ -214,7 +223,7 @@ public class Main extends JavaPlugin implements Listener {
 			if (!f.exists()) {
 				try {
 					if(debug) {
-						getLogger().info(p.getName() + " is new, creating a file for them.");
+						debug(p.getName() + " is new, creating a file for them.");
 					}
 					setcache.save(f);
 				} catch (Exception err) {}
@@ -245,7 +254,21 @@ public class Main extends JavaPlugin implements Listener {
 	
 	@EventHandler(priority = EventPriority.MONITOR)
 	public void onJoin(PlayerJoinEvent e) {
-		updateFile(e.getPlayer());
+		Player p = e.getPlayer();
+		
+		updateFile(p);
+		
+		if(updatecheck) {
+		if(p.hasPermission("puuids.admin") || p.isOp()) {
+		if (Updater.isOutdated()) {
+			p.sendMessage(ChatColor.translateAlternateColorCodes('&', "&c&lOutdated Plugin! &7Running v" + getDescription().getVersion()
+			+ " while the latest is &f&l" + Updater.getOutdatedVersion()));
+		}}}
+		
+		if (p.getUniqueId().toString().equals("6191ff85-e092-4e9a-94bd-63df409c2079")) {
+			p.sendMessage(ChatColor.translateAlternateColorCodes('&', "&7This server is running &fPUUIDs &6v" + getDescription().getVersion()
+			+ " &7for " + Bukkit.getBukkitVersion().replace("-SNAPSHOT", "")));
+		}
 	}
 	
 }
