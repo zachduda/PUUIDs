@@ -136,7 +136,18 @@ public class Main extends JavaPlugin implements Listener {
 		return "0";
 	}
 	
-	public boolean hasPlayed(String name) {
+	public boolean hasPlayedUUID(String uuid) {
+		File cache = new File(this.getDataFolder(), File.separator + "Data");
+		File f = new File(cache, File.separator + "" + uuid + ".yml");
+		
+		if(f.exists()) {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	public boolean hasPlayedName(String name) {
 		if(nametoUUID(name, false) == "0") {
 			return false;
 		} else {
