@@ -1,15 +1,19 @@
 package com.zach_attack.puuids;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 public class Cooldowns {
 	private static Main plugin = Main.getPlugin(Main.class);
 	
 	static ArrayList<UUID> joined = new ArrayList<UUID>();
 	static ArrayList<UUID> ontime = new ArrayList<UUID>();
+	
+	static HashMap<Player, String> confirmall = new HashMap<Player, String>();
 	
 	protected static boolean canRunLargeTask = true;
 
@@ -59,5 +63,15 @@ public class Cooldowns {
 				canRunLargeTask = true;
 			}
 		}, 20 * 45);
+	}
+	
+	static void confirm(Player p) {
+		confirmall.put(p, p.getName());
+		
+		Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
+			public void run() {
+				confirmall.remove(p, p.getName());
+			}
+		}, 20 * 8);
 	}
 }

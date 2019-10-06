@@ -253,9 +253,9 @@ public class Main extends JavaPlugin implements Listener {
 	}
 	
 	private void updateConfig() {
-		debug = getConfig().getBoolean("Settings.Debug");
-		updatecheck = getConfig().getBoolean("Settings.Update-Checking");
-		prefix = getConfig().getString("Settings.Prefix");
+		debug = getConfig().getBoolean("Settings.Debug", false);
+		updatecheck = getConfig().getBoolean("Settings.Update-Checking", true);
+		prefix = getConfig().getString("Settings.Prefix", "&8[&e&lPUUIDs&8]");
 		
 		if(isSupported()) {
 			sounds = true;
@@ -557,6 +557,8 @@ public class Main extends JavaPlugin implements Listener {
 		} else {
 			debug(p.getName() + "'s file won't be refreshed, it was updated less than 60s ago. [Quit]");
 		}
+		
+		Cooldowns.confirmall.remove(p);
 	}
 	
 	private void bass(CommandSender sender) {
@@ -654,14 +656,14 @@ public class Main extends JavaPlugin implements Listener {
 					return true;
 				}
 				
-				Cooldowns.startLargeTask();
-				Msgs.send(sender, "&7");
-				Msgs.send(sender, "&e&lPUUIDs");
-				Msgs.send(sender, "&8&l> &7&oPlease wait... this may take a long time.");
-				Msgs.send(sender, "&7");
-				thinking(sender);
-				
 				if(args[1].equalsIgnoreCase("ontime")) {
+					Cooldowns.startLargeTask();
+					Msgs.send(sender, "&7");
+					Msgs.send(sender, "&e&lPUUIDs");
+					Msgs.send(sender, "&8&l> &7&oPlease wait... this may take a long time.");
+					Msgs.send(sender, "&7");
+					thinking(sender);
+					
 					asyncrunning = true;
 					
 					Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
@@ -704,6 +706,33 @@ public class Main extends JavaPlugin implements Listener {
 				}
 				
 				if(args[1].equalsIgnoreCase("all")) {
+					if(!(sender instanceof Player)) {
+						Msgs.sendPrefix(sender, "&6&lFOR SECURITY REASONS: &fOnly a player with permission & op may run this command.");
+						return true;
+					}
+					
+					Player p = (Player)sender;
+					
+					if(!p.hasPermission("puuids.admin") || !p.isOp()) {
+						bass(p);
+						Msgs.sendPrefix(p, "&6&lFor Saftey: &fYou must have the &7puuids.admin&f permission & be OP to do this.");
+						return true;
+					}
+					
+					if(!Cooldowns.confirmall.containsKey(p)) {
+						thinking(p);
+						Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fThis will erase ALL player plugin data from your PUUID's data folder. Do &7&l/puuids reset all &fagain to confirm.");
+						Cooldowns.confirm(p);
+						return true;
+					}
+					
+					Cooldowns.startLargeTask();
+					Msgs.send(sender, "&7");
+					Msgs.send(sender, "&e&lPUUIDs");
+					Msgs.send(sender, "&8&l> &7&oPlease wait... this may take a long time.");
+					Msgs.send(sender, "&7");
+					thinking(sender);
+					
 					asyncrunning = true;
 					
 					Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
@@ -713,19 +742,7 @@ public class Main extends JavaPlugin implements Listener {
 						File f = new File(AllData.getPath());
 						
 						FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-						final String name = setcache.getString("Username");
-						final String uuid = setcache.getString("UUID");
-						final String ip = setcache.getString("IP");
-						
-						f.delete();
-						try {
-							setcache.save(f);
-						} catch(Exception err) {}
-						
-						setcache.set("Username", name);
-						setcache.set("UUID", uuid);
-						setcache.set("IP", ip);
-						setcache.set("Last-On", System.currentTimeMillis());
+						setcache.set("Plugins", null);
 						
 						debug("Reset" + setcache.getString("Username") + "'s file back to basics. (" + f.getName() + ")");
 						
@@ -806,7 +823,7 @@ public class Main extends JavaPlugin implements Listener {
 					return true;
 				}
 					Player p = (Player)sender;
-					Msgs.sendPrefix(sender, "So far, you've played for &7&l" + PUUIDS.getFormatedPlayTime(p.getUniqueId().toString()));
+					Msgs.sendPrefix(sender, "&6So far, you've played for &f&l" + PUUIDS.getFormatedPlayTime(p.getUniqueId().toString()));
 					pop(p);
 					Cooldowns.onTime(p.getUniqueId());
 					return true;
