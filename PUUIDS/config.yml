@@ -1,3 +1,15 @@
 Settings:
+  Prefix: '&8[&e&lPUUIDs&8]'
   Update-Checking: true
+
+  Cooldowns:
+    On-Time:
+      Enabled: true
+      Seconds: 5
+  File-Cleanup:
+    Enabled: true
+    Max-Days: 365
+  Metrics: true
   Debug: false
+Messages:
+  No-Permission: '&c&lSorry! &fYou are not able to do that.'

@@ -15,12 +15,12 @@ import java.net.URL;
 // https://github.com/Benz56/Async-Update-Checker/blob/master/UpdateChecker.java
 
 public class Updater {
-
+	
     private final JavaPlugin javaPlugin;
     private final String localPluginVersion;
     
-    private static String outdatedversion;
-	private static boolean outdated = false;
+    static String outdatedversion = "???";
+	static boolean outdated = false;
 
     private static final int ID = 71496;
     private static final long CHECK_INTERVAL = 1_728_000; //In ticks.
@@ -41,17 +41,18 @@ public class Updater {
                         connection.setRequestMethod("GET");
                         outdatedversion = new BufferedReader(new InputStreamReader(connection.getInputStream())).readLine();
                     } catch (final IOException e) {
-                        Bukkit.getServer().getConsoleSender().sendMessage("[PUUIDS] &cUnable to check for updates. Is your server online?");
+                        Bukkit.getConsoleSender().sendMessage("[PUUIDS] &cUnable to check for updates. Is your server online?");
                         cancel();
                         return;
                     }
 
                     if (("v" + localPluginVersion).equalsIgnoreCase(outdatedversion)) {
+                    	Bukkit.getConsoleSender().sendMessage("[PUUIDS] You are running the latest version. Hooray!");
                     	return;
                     }
                     
                     outdated = true;
-                    Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.translateAlternateColorCodes('&', "&r[PUUIDS] &e&lUpdate Available: &rYou're running &7v" + localPluginVersion + "&r, while the latest is &a" + outdatedversion));
+                    Bukkit.getConsoleSender().sendMessage(ChatColor.translateAlternateColorCodes('&', "&r[PUUIDS] &e&lUpdate Available: &rYou're running &7v" + localPluginVersion + "&r, while the latest is &a" + outdatedversion));
                     cancel(); //Cancel the runnable as an update has been found.
                 });
             }
@@ -60,12 +61,4 @@ public class Updater {
     		javaPlugin.getLogger().warning("Error. There was a problem checking for updates.");
     	}
     }
-
-	public static boolean isOutdated() {
-		return outdated;
-	}
-	
-	public static String getOutdatedVersion() {
-		return Updater.getOutdatedVersion();
-	}
 }

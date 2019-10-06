@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.regex.Pattern;
 
-import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.libs.org.apache.commons.io.IOUtils;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
@@ -15,9 +14,7 @@ public class Mojang {
 	private static final Pattern FORMATED = Pattern.compile("(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})");
 	
     static String getUUIDfromName(String name) {
-    	if(plugin.debug) {
-    	Bukkit.getLogger().info("Had to fetch " + name + "'s UUID from Mojang.");
-    	}
+    	plugin.debug("Had to fetch " + name + "'s UUID from Mojang.");
     	
         String url = "https://api.mojang.com/users/profiles/minecraft/"+name;
         try {

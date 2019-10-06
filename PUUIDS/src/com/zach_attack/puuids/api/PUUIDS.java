@@ -11,14 +11,11 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
+import com.google.common.io.Files;
 import com.zach_attack.puuids.Main;
 
 public class PUUIDS {
 	private static Main plugin = Main.getPlugin(Main.class);
-	
-	public static ArrayList<String> getPlugins() {
-		return plugin.getPlugins();
-	}
 	
 	public static boolean connect(Plugin pl) {
 		if(plugin.connect(pl)) {
@@ -40,47 +37,60 @@ public class PUUIDS {
 		return plugin.hasPlayedUUID(uuid);
 	}
 	
-	public static void updateName(Plugin pl, String uuid, String name) {
-		String plname = pl.getDescription().getName();
-		if(getPlugins().contains(plname)) {
-			plugin.updateName(uuid, name);
-			plugin.getLogger().info("Updating Name & UUID values for " + name + " from " + plname + "...");
-		} else {
-			plugin.getLogger().warning("Unauthorized attempt to change user data (updateName) by plugin: " + plname + "");
-		}
-	}
-	
 	public static long getLastOn(String uuid) {
-		// REQUIRES a UUID
 		return plugin.getLastOn(uuid);
 	}
 	
 	public static String getIP(String uuid) {
-		// REQUIRES a UUID
 		return plugin.getPlayerIP(uuid);
 	}
 	
+	public static long getPlayTime(String uuid) {
+		return plugin.getPlayTime(uuid);
+	}
+	
+	public static String getFormatedPlayTime(String uuid) {
+		long time = getPlayTime(uuid);
+		String ans = secsToFormatTime(time);
+		return ans;
+	}
+	
+	public static String secsToFormatTime(long secs) {
+		if(secs == 0) {
+			return "Nothing Yet!";
+		} else if(secs < 60) {
+			if(secs == 1) { 
+				return secs + " second";
+			} else {
+				return secs + " seconds";
+			}
+		} else if(secs < 3600) {
+			final long min = secs/60;
+			if(min == 1) {
+				return min + " minute";
+			} else {
+				return min + " minutes";
+			}
+		} else if(secs < 86400) {
+			final long hours = secs/86400;
+			if(hours == 1) {
+				return hours + " hour";
+			} else {
+				return hours + " hours";
+			}
+		} else {
+			final long days = secs/86400;
+			if(days == 1) {
+				return days + " day";
+			} else {
+				return days + " days";	
+			}
+		}
+	}
 	
 	// GETTING & SETTING PLUGIN DATA ------------------------------------------
 	
 	// Strings -------------
-	@Deprecated
-	public static void setString(Plugin pl, String uuid, String location, String input) {
-		String plname = pl.getName();
-		
-		if(!getPlugins().contains(plname)) {
-			return;
-		}
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" + uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-		try {
-			setcache.save(f);
-		} catch (IOException e) {}
-	}
 	
 	public static String getString(Plugin pl, String uuid, String location) {
 		String plname = pl.getName();
@@ -94,25 +104,7 @@ public class PUUIDS {
 	
 	// End of Strings ------------
 	
-	// Booleans --------------
-	@Deprecated
-	public static void setBoolean(Plugin pl, String uuid, String location, boolean input) {
-		String plname = pl.getName();
-		
-		if(!getPlugins().contains(plname)) {
-			return;
-		}
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" + uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-		try {
-			setcache.save(f);
-		} catch (IOException e) {}
-	}
-	
+	// Booleans --------------	
 	public static boolean getBoolean(Plugin pl, String uuid, String location) {
 		String plname = pl.getName();
 		
@@ -123,36 +115,36 @@ public class PUUIDS {
 		return setcache.getBoolean("Plugins." + plname.toUpperCase() + "." + location);
 	}
 	
-	public static ArrayList<String> getAllWithBoolean(Plugin pl, String location) {
+	public static ArrayList<String> getAllWithBoolean(Plugin pl, String location, boolean quickmode) {
 		String plname = pl.getName();
 		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 		
 		ArrayList<String> allplayers = new ArrayList<String>();
 		
-		for (String playeruuid : getAllPlayerUUIDs(plugin)) {
+		for (String playeruuid : getAllPlayerUUIDs(plugin, quickmode)) {
 			File f = new File(cache, File.separator + "" + playeruuid + ".yml");
 			FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 			
-			if(setcache.getBoolean("Plugins." + plname.toUpperCase() + "." + location) == true) {
-				allplayers.add((String) setcache.get("Username"));
+			if(setcache.getBoolean("Plugins." + plname.toUpperCase() + "." + location)) {
+				allplayers.add(setcache.getString("Username"));
 			}
 		}
 		
 		return allplayers;
 	}
 	
-	public static ArrayList<String> getAllWithoutBoolean(Plugin pl, String location) {
+	public static ArrayList<String> getAllWithoutBoolean(Plugin pl, String location, boolean quickmode) {
 		String plname = pl.getName();
 		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 		
 		ArrayList<String> allplayers = new ArrayList<String>();
 		
-		for (String playeruuid : getAllPlayerUUIDs(plugin)) {
+		for (String playeruuid : getAllPlayerUUIDs(plugin, quickmode)) {
 			File f = new File(cache, File.separator + "" + playeruuid + ".yml");
 			FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 			
-			if(setcache.getBoolean("Plugins." + plname.toUpperCase() + "." + location) == false) {
-				allplayers.add((String) setcache.get("Username"));
+			if(!setcache.getBoolean("Plugins." + plname.toUpperCase() + "." + location)) {
+				allplayers.add(setcache.getString("Username"));
 			}
 		}
 		
@@ -162,23 +154,6 @@ public class PUUIDS {
 	// End of Booleans -------
 	
 	// Start of Int --------------
-	@Deprecated
-	public static void setInt(Plugin pl, String uuid, String location, int input) {
-		String plname = pl.getName();
-		
-		if(!getPlugins().contains(plname)) {
-			return;
-		}
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" + uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-		try {
-			setcache.save(f);
-		} catch (IOException e) {}
-	}
 	
 	public static int getInt(Plugin pl, String uuid, String location) {
 		String plname = pl.getName();
@@ -191,25 +166,7 @@ public class PUUIDS {
 	}
 	// End of Int -------
 	
-	// Start of Double --------------
-	@Deprecated
-	public static void setDouble(Plugin pl, String uuid, String location, double input) {
-		String plname = pl.getName();
-		
-		if(!getPlugins().contains(plname)) {
-			return;
-		}
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" + uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-		try {
-			setcache.save(f);
-		} catch (IOException e) {}
-	}
-	
+	// Start of Double --------------	
 	public static double getDouble(Plugin pl, String uuid, String location) {
 		String plname = pl.getName();
 		
@@ -219,26 +176,10 @@ public class PUUIDS {
 		
 		return setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location);
 	}
+	
 	// End of Double -------
 	
 	// Start of Long --------------
-	@Deprecated
-	public static void setLong(Plugin pl, String uuid, String location, long input) {
-		String plname = pl.getName();
-		
-		if(!getPlugins().contains(plname)) {
-			return;
-		}
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" + uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-		try {
-			setcache.save(f);
-		} catch (IOException e) {}
-	}
 	
 	public static long getLong(Plugin pl, String uuid, String location) {
 		String plname = pl.getName();
@@ -251,42 +192,8 @@ public class PUUIDS {
 	}
 	// End of Long -------
 	
-	// Start of List --------------
-	@Deprecated
-	public static void setStringList(Plugin pl, String uuid, String location, List<String> input) {
-		String plname = pl.getName();
-		
-		if(!getPlugins().contains(plname)) {
-			return;
-		}		
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" + uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-		try {
-			setcache.save(f);
-		} catch (IOException e) {}
-	}
 	
-	@Deprecated
-	public static void setNCList(Plugin pl, String uuid, String location, List<?> input) {
-		String plname = pl.getName();
-		
-		if(!getPlugins().contains(plname)) {
-			return;
-		}		
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" + uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-		try {
-			setcache.save(f);
-		} catch (IOException e) {}
-	}
+	// Start of List --------------
 	
 	public static List<?> getNCList(Plugin pl, String uuid, String location) {
 		String plname = pl.getName();
@@ -296,24 +203,6 @@ public class PUUIDS {
 		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 		
 		return setcache.getList("Plugins." + plname.toUpperCase() + "." + location);
-	}
-	
-	@Deprecated
-	public static void setItemStack(Plugin pl, String uuid, String location, ItemStack[] input) {
-		String plname = pl.getName();
-		
-		if(!getPlugins().contains(plname)) {
-			return;
-		}		
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" +  uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-		try {
-			setcache.save(f);
-		} catch (IOException e) {}
 	}
 	
 	public static ItemStack getItemStack(Plugin pl, String uuid, String location) {
@@ -343,58 +232,48 @@ public class PUUIDS {
 		
 		ArrayList<String> allplayers = new ArrayList<String>();
 		
-		Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
 		for (File cachefile : cache.listFiles()) {
-			File f = new File(cachefile.getPath());
+			String path = cachefile.getPath();
+			
+			if(!Files.getFileExtension(path).equalsIgnoreCase("yml")) {
+				// NOT A VALID FILE
+			} else {
+				
+			File f = new File(path);
 			FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-			allplayers.add((String) setcache.get("Username"));
-		}});
+			allplayers.add(setcache.getString("Username"));
+		}}
 		
 		return allplayers;
 	}
 	
 	
-	public static ArrayList<String> getAllPlayerUUIDs(Plugin pl) {
+	public static ArrayList<String> getAllPlayerUUIDs(Plugin pl, boolean quickmode) {
 		// Gets a list of all the uuids we have a record of.
 		
 		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 		
 		ArrayList<String> allplayers = new ArrayList<String>();
 		
-		Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
 		for (File cachefile : cache.listFiles()) {
-			File f = new File(cachefile.getPath());
-			FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-			allplayers.add((String) setcache.get("UUID"));
-		}});
+			String path = cachefile.getPath();
+			
+			if(!Files.getFileExtension(path).equalsIgnoreCase("yml")) {
+				// NOT A VALID FILE
+			} else {
+				
+			File f = new File(path);
+			if(quickmode) {
+				allplayers.add(f.getName().replace(".yml", ""));
+			} else {
+				FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+				allplayers.add(setcache.getString("UUID"));
+			}}
+		}
 		
 		return allplayers;
 	}
-	// Start of List -------
-
-	// Null
-	@Deprecated
-	public static void setNull(Plugin pl, String uuid, String location) {
-		String plname = pl.getName();
-		
-		if(!getPlugins().contains(plname)) {
-			return;
-		}		
-		
-		if(uuid == null || uuid == "0") {
-			return;
-		}
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" + uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location, null);
-		try {
-			setcache.save(f);
-		} catch (IOException e) {}
-	}
-	// End of Null
+	// End of List -------
 	
 	// Contains
 	public static boolean contains(Plugin pl, String uuid, String location) {
@@ -412,11 +291,30 @@ public class PUUIDS {
 	}
 	// End of Contains.
 	
-	// v1.3 new SET
-	public static void set(Plugin pl, String uuid, String location, Object input) {
+	
+	// GET (v1.4 and +)
+	public static Object get(Plugin pl, String uuid, String location) {
 		String plname = pl.getName();
 		
-		if(!getPlugins().contains(plname)) {
+		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+		File f = new File(cache, File.separator + "" + uuid + ".yml");
+		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+		
+		return setcache.get("Plugins." + plname.toUpperCase() + "." + location);
+	}
+	// END GET
+	
+	
+	// SET (v1.3 and +)
+	public static void set(Plugin pl, String uuid, String location, Object input) {
+        if(!Bukkit.isPrimaryThread()) {
+            throw new IllegalStateException("Cannot set data ASYNC when using PUUIDs set method. Stopping to prevent corruption!");
+        }
+        
+		long start = System.currentTimeMillis();
+		String plname = pl.getName();
+		
+		if(!plugin.getPlugins().contains(plname)) {
 			return;
 		}		
 		
@@ -425,9 +323,16 @@ public class PUUIDS {
 		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 		
 		setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-		try {
-			setcache.save(f);
-		} catch (IOException e) {}
+		
+		if(plugin.asyncrunning) {
+			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
+		} else {
+			try {
+				setcache.save(f);
+			} catch (IOException e) {}
+		}
+		
+		plugin.setTime = System.currentTimeMillis()-start;
 	}
-	// End of new v1.3 SET
+	// End of SET
 }
