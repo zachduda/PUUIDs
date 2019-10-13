@@ -24,6 +24,7 @@ import com.google.common.io.Files;
 import com.zach_attack.puuids.Updater;
 import com.zach_attack.puuids.api.OnNewFile;
 import com.zach_attack.puuids.api.PUUIDS;
+import com.zach_attack.puuids.api.Utils;
 
 public class Main extends JavaPlugin implements Listener {
 	
@@ -159,6 +160,20 @@ public class Main extends JavaPlugin implements Listener {
 		     }
 		  });
 		
+		Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+			// This can run async w/o problems, we only access it on start / end.
+			File system = new File(this.getDataFolder(), File.separator + "Storage.yml");
+			FileConfiguration set = YamlConfiguration.loadConfiguration(system);
+		
+			if(!system.exists()) {
+				try {
+					set.save(system);
+				} catch (Exception err) {}
+				debug("Created a new system file...");
+				set.options().header("This file is used by PUUIDs to help the plugin run smoothly.\n PLEASE, DO NOT TOUCH THIS FILE.");
+			}
+		});
+		
 		if(updatecheck) {
 			new Updater(this).checkForUpdate();
 		}
@@ -233,6 +248,7 @@ public class Main extends JavaPlugin implements Listener {
 			if(onlinenum >= 1) {
 				for(Player online : Bukkit.getOnlinePlayers()) {
 						updateFile(online, true, true);
+						Cooldowns.clearAll(online);
 					}
 				debug("Shutting down... Updating " + onlinenum + " players files.");
 			}
@@ -241,13 +257,21 @@ public class Main extends JavaPlugin implements Listener {
 		}
 		
 		plugins.clear();
-		
-		Cooldowns.joined.clear();
-		Cooldowns.ontime.clear();
 		queuedJoinUpdates.clear();
 		
 		setTime = 0;
 		allowconnections = false;
+		
+		try {
+		File system = new File(this.getDataFolder(), File.separator + "Storage.yml");
+		FileConfiguration set = YamlConfiguration.loadConfiguration(system);
+			
+		set.set("Stats.Set", Utils.getSetTimes());
+		set.set("Stats.Get", Utils.getGetTimes());
+		set.save(system);
+		} catch (Exception err) {
+			debug("Was unable to save stats last minute. Oh well.");
+		}
 		
 		getLogger().info("Successfully disabled in " + Long.toString(System.currentTimeMillis()-start) + "ms");
 	}
@@ -847,7 +871,6 @@ public class Main extends JavaPlugin implements Listener {
 			}
 			
 			if (args.length >= 1 && args[0].equalsIgnoreCase("debug")) {
-				reloadConfig();
 				Msgs.send(sender, "");
 				Msgs.send(sender, "&e&lPUUIDs");
 				final int active = getPlugins().size()-1;
@@ -861,6 +884,10 @@ public class Main extends JavaPlugin implements Listener {
 				} else {
 					Msgs.send(sender, "&8&l> &fSet Information: &e&l" + setTime + "ms");
 				}
+				
+				Msgs.send(sender, "&8&l> &fSet Requests: &e&l" + Utils.getSetTimes());
+				Msgs.send(sender, "&8&l> &fGet Requests: &e&l" + Utils.getGetTimes());
+				
 				if(status) {
 					if(setTime < 100) {
 						Msgs.send(sender, "&8&l> &fDatabase Health: &a&lGREAT");

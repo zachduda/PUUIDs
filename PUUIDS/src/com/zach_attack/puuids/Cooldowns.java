@@ -17,6 +17,13 @@ public class Cooldowns {
 	
 	protected static boolean canRunLargeTask = true;
 
+	static void clearAll(Player p) {
+		joined.clear();
+		ontime.clear();
+		confirmall.remove(p);
+		// Doesn't include queued join updates or plugin lists. 
+	}
+	
 	static void justJoined(UUID p) {
 		if(joined.contains(p)) {
 			return;
