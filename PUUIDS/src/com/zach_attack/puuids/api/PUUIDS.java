@@ -515,7 +515,7 @@ public class PUUIDS {
 		String plname = pl.getName();
 		
         
-        if(plugin.allowConnections()) {
+        if(!plugin.allowConnections()) {
         	plugin.debug(plname + " tried to set addToAllWithout method AFTER startup, this isn't allowed.");
         	return;
         }
