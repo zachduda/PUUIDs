@@ -508,7 +508,17 @@ public class PUUIDS {
 			return;
 		}
 		
+        if(!Bukkit.isPrimaryThread()) {
+            throw new IllegalStateException("Cannot set data ASYNC when using PUUIDs addToAllWithout method. Stopping to prevent corruption!");
+        }
+		
 		String plname = pl.getName();
+		
+        
+        if(plugin.allowConnections()) {
+        	plugin.debug(plname + " tried to set addToAllWithout method AFTER startup, this isn't allowed.");
+        	return;
+        }
 		
 		if(!plugin.getPlugins().contains(plname)) {
 			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");

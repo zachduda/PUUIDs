@@ -432,6 +432,10 @@ public class Main extends JavaPlugin implements Listener {
 		return setcache.getString("IP");
 	}
 	
+	public boolean allowConnections() {
+		return allowconnections;
+	}
+	
 	public String UUIDtoname(String inputsearch) {
 		File folder = new File(this.getDataFolder(), File.separator + "Data");
 		File f = new File(folder, File.separator + "" + inputsearch + ".yml");
