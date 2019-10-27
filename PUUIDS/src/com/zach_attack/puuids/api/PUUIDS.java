@@ -488,7 +488,7 @@ public class PUUIDS {
 			} catch (IOException e) {}
 		}
 		
-		plugin.setTime = System.currentTimeMillis()-start;
+		plugin.setTimeMS = System.currentTimeMillis()-start;
 		wasSet();
 		return true;
 	}
@@ -553,11 +553,11 @@ public class PUUIDS {
 	
 	// General
 	private static void wasSet() {
-		Utils.addSetTimes();
+		plugin.setTimes++;
 	}
 	
 	private static void wasGet() {
-		Utils.addGetTimes();
+		plugin.getTimes++;
 	}
 	// End of General
 }

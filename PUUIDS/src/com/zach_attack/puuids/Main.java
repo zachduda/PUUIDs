@@ -3,6 +3,7 @@ package com.zach_attack.puuids;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -24,13 +25,12 @@ import com.google.common.io.Files;
 import com.zach_attack.puuids.Updater;
 import com.zach_attack.puuids.api.OnNewFile;
 import com.zach_attack.puuids.api.PUUIDS;
-import com.zach_attack.puuids.api.Utils;
 
 public class Main extends JavaPlugin implements Listener {
 	
 	private String version = Bukkit.getBukkitVersion();
 	
-    private static ArrayList<String> plugins = new ArrayList<String>();
+    private static HashSet<String> plugins = new HashSet<String>();
     private static ArrayList<Player> queuedJoinUpdates = new ArrayList<Player>();
     
 	private static boolean allowconnections = false;
@@ -43,7 +43,11 @@ public class Main extends JavaPlugin implements Listener {
 	
 	public boolean debug = false;
 	public boolean asyncrunning = false;
-	public long setTime = 0;
+	public long setTimeMS = 0; // how long in ms for file saving
+	public int setTimes = 0;
+	public int getTimes = 0;
+
+	private int systemsaveid = 0;
 	
 	public PUUIDS api;
 	
@@ -51,6 +55,11 @@ public class Main extends JavaPlugin implements Listener {
 		status = true;
 		statusreason = "0";
 		asyncrunning = true;
+		
+		setTimes = 0;
+		getTimes = 0;
+		setTimeMS = 0;
+		
 		boolean useclean = getConfig().getBoolean("Settings.File-Cleanup.Enabled");
 			
 		
@@ -68,7 +77,6 @@ public class Main extends JavaPlugin implements Listener {
 			String path = cachefile.getPath();
 			
 			File f = new File(path);
-					
 			if(!Files.getFileExtension(path).equalsIgnoreCase("yml")) {
 				unknownfiles.add(f.getName());
 			} else {
@@ -172,6 +180,8 @@ public class Main extends JavaPlugin implements Listener {
 				debug("Created a new system file...");
 				set.options().header("This file is used by PUUIDs to help the plugin run smoothly.\n PLEASE, DO NOT TOUCH THIS FILE.");
 			}
+			
+			startSystemStatsTimer();
 		});
 		
 		if(updatecheck) {
@@ -240,38 +250,67 @@ public class Main extends JavaPlugin implements Listener {
 		return false;
 	}
 	
+	// Is only deprecated due to a "misleading" name... we are okay to use this! :)
+	@SuppressWarnings("deprecation")
+	public void startSystemStatsTimer() {
+		if(systemsaveid == 0) {
+			// alreadying auto-saving/runnings
+			return;
+		}
+		
+        int autosave = Bukkit.getScheduler().scheduleAsyncRepeatingTask(this, new Runnable(){
+            @Override
+            public void run() {
+        		try {
+        			File system = new File(getDataFolder(), File.separator + "Storage.yml");
+        			FileConfiguration set = YamlConfiguration.loadConfiguration(system);
+        					
+        			set.set("Stats.Set", set.getInt("Stats.Set")+setTimes);
+        			set.set("Stats.Get", set.getInt("Stats.Get")+getTimes);
+        			set.save(system);
+        		} catch (Exception err) {
+        			debug("Couldn't save system stats... This isn't too important, but still a bummer.");
+        		}
+        		
+        		setTimes = 0;
+        		getTimes = 0;
+        		
+            }
+            }, 864000, 864000); // Every 864,000 ticks (12 hours) we reset the /puuids debug count and save to file.
+        systemsaveid = autosave;
+        debug("Started the auto-reset system stats save timer (#" + autosave + ") async every 12hrs.");
+	}
+	
+	public void stopSystemStatsTimer() {
+		if(systemsaveid == 0) {
+			return;
+		}
+		try {
+			Bukkit.getScheduler().cancelTask(systemsaveid);
+		
+			File system = new File(getDataFolder(), File.separator + "Storage.yml");
+			FileConfiguration set = YamlConfiguration.loadConfiguration(system);
+					
+			set.set("Stats.Set", set.getInt("Stats.Set")+setTimes);
+			set.set("Stats.Get", set.getInt("Stats.Get")+getTimes);
+			set.save(system);
+		} catch (Exception err) {
+			debug("Couldn't save system stats at the last minute....");
+		}
+	}
+	
 	public void onDisable() {
 		final long start = System.currentTimeMillis();
-		
-		try {
-			int onlinenum = Bukkit.getOnlinePlayers().size();
-			if(onlinenum >= 1) {
-				for(Player online : Bukkit.getOnlinePlayers()) {
-						updateFile(online, true, true);
-						Cooldowns.clearAll(online);
-					}
-				debug("Shutting down... Updating " + onlinenum + " players files.");
-			}
-		} catch (Exception err) {
-			debug("Couldn't save player data at the last minute, oh well...");
-		}
 		
 		plugins.clear();
 		queuedJoinUpdates.clear();
 		
-		setTime = 0;
-		allowconnections = false;
+		stopSystemStatsTimer();
+		setTimes = 0;
+		getTimes = 0;
+		setTimeMS= 0;
 		
-		try {
-		File system = new File(this.getDataFolder(), File.separator + "Storage.yml");
-		FileConfiguration set = YamlConfiguration.loadConfiguration(system);
-			
-		set.set("Stats.Set", Utils.getSetTimes());
-		set.set("Stats.Get", Utils.getGetTimes());
-		set.save(system);
-		} catch (Exception err) {
-			debug("Was unable to save stats last minute. Oh well.");
-		}
+		allowconnections = false;
 		
 		getLogger().info("Successfully disabled in " + Long.toString(System.currentTimeMillis()-start) + "ms");
 	}
@@ -289,7 +328,7 @@ public class Main extends JavaPlugin implements Listener {
 		}
 	}
 
-	public ArrayList<String> getPlugins() {
+	public HashSet<String> getPlugins() {
 		return plugins;
 	}
 	
@@ -425,7 +464,7 @@ public class Main extends JavaPlugin implements Listener {
 			return "0";
 		}
 		
-		if(!setcache.contains("IP")) {
+		if(!setcache.contains("IP") || setcache.getString("IP") == null) {
 			return "0";
 		}
 		
@@ -883,17 +922,17 @@ public class Main extends JavaPlugin implements Listener {
 				} else {
 					Msgs.send(sender, "&8&l> &fHooked Plugins: &7&l0");	
 				}
-				if(setTime == 0) {
+				if(setTimeMS == 0) {
 					Msgs.send(sender, "&8&l> &fSet Information: &7&l--ms");
 				} else {
-					Msgs.send(sender, "&8&l> &fSet Information: &e&l" + setTime + "ms");
+					Msgs.send(sender, "&8&l> &fSet Information: &e&l" + setTimeMS + "ms");
 				}
 				
-				Msgs.send(sender, "&8&l> &fSet Requests: &e&l" + Utils.getSetTimes());
-				Msgs.send(sender, "&8&l> &fGet Requests: &e&l" + Utils.getGetTimes());
+				Msgs.send(sender, "&8&l> &fSet Requests: &e&l" + setTimes);
+				Msgs.send(sender, "&8&l> &fGet Requests: &e&l" + getTimes);
 				
 				if(status) {
-					if(setTime < 100) {
+					if(setTimeMS < 25) {
 						Msgs.send(sender, "&8&l> &fDatabase Health: &a&lGREAT");
 					} else {
 						Msgs.send(sender, "&8&l> &fDatabase Health: &e&lFAIR &7(Slow Set Time)");
