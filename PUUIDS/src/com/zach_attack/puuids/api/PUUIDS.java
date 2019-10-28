@@ -351,9 +351,9 @@ public class PUUIDS {
 		File f = new File(cache, File.separator + "" +  uuid + ".yml");
 		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 		
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location + ".X", input.getBlockX());
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location + ".Y", input.getBlockY());
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location + ".Z", input.getBlockZ());
+		setcache.set("Plugins." + plname.toUpperCase() + "." + location + ".X", input.getX());
+		setcache.set("Plugins." + plname.toUpperCase() + "." + location + ".Y", input.getY());
+		setcache.set("Plugins." + plname.toUpperCase() + "." + location + ".Z", input.getZ());
 		setcache.set("Plugins." + plname.toUpperCase() + "." + location + ".Pitch", input.getPitch());
 		setcache.set("Plugins." + plname.toUpperCase() + "." + location + ".Yaw", input.getYaw());
 		

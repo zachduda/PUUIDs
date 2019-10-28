@@ -268,6 +268,7 @@ public class Main extends JavaPlugin implements Listener {
         			set.set("Stats.Set", set.getInt("Stats.Set")+setTimes);
         			set.set("Stats.Get", set.getInt("Stats.Get")+getTimes);
         			set.save(system);
+        			debug("Saved Set/Get stats to file, reset debug counter. (12hr cycle)");
         		} catch (Exception err) {
         			debug("Couldn't save system stats... This isn't too important, but still a bummer.");
         		}
