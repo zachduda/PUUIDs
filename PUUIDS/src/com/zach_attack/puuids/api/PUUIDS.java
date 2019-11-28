@@ -156,7 +156,7 @@ public class PUUIDS {
 		
 		ArrayList<String> allplayers = new ArrayList<String>();
 		
-		for (String playeruuid : getAllPlayerUUIDs(plugin, quickmode)) {
+		for (String playeruuid : getAllPlayerUUIDs(pl, quickmode)) {
 			File f = new File(cache, File.separator + "" + playeruuid + ".yml");
 			FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 			
@@ -175,7 +175,7 @@ public class PUUIDS {
 		
 		ArrayList<String> allplayers = new ArrayList<String>();
 		
-		for (String playeruuid : getAllPlayerUUIDs(plugin, quickmode)) {
+		for (String playeruuid : getAllPlayerUUIDs(pl, quickmode)) {
 			File f = new File(cache, File.separator + "" + playeruuid + ".yml");
 			FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 			
@@ -445,6 +445,97 @@ public class PUUIDS {
 	}
 	// END GET
 	
+	// NULL SET v1.4.3+
+	/**
+	 * Sets a value as null
+	 * 
+	 * @param pl Your plugin (usually "this"). Must be authenticated via PUUIDS.connect(this);
+	 * @param uuid The UUID of the player as a String.
+	 * @param location Where under the player file to save as? (Similar to Configuration save paths)
+	 * @return The UUID of a player as a String
+	 */
+	public static boolean setNull(Plugin pl, String uuid, String location) {
+		if(pl == null || uuid == null || location == null) {
+			return false;
+		}
+		
+        if(!Bukkit.isPrimaryThread()) {
+            throw new IllegalStateException("Cannot set data ASYNC when using PUUIDs set method. Stopping to prevent corruption!");
+        }
+		
+		String plname = pl.getName();
+		
+		if(!plugin.getPlugins().contains(plname)) {
+			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
+			return false;
+		}
+		
+		long start = System.currentTimeMillis();
+		
+		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+		File f = new File(cache, File.separator + "" +  uuid + ".yml");
+		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+		
+		setcache.set("Plugins." + plname.toUpperCase() + "." + location, null);
+		
+		if(plugin.asyncrunning) {
+			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
+		} else {
+			try {
+				setcache.save(f);
+			} catch (IOException e) {}
+		}
+		
+		plugin.setTimeMS = System.currentTimeMillis()-start;
+		wasSet();
+		return true;
+	}
+	
+	/**
+	 * Removes ALL set values for your plugin.L
+	 * 
+	 * @param pl Your plugin (usually "this"). Must be authenticated via PUUIDS.connect(this);
+	 * @param uuid The UUID of the player as a String.
+	 * @return The UUID of a player as a String
+	 */
+	public static boolean setNull(Plugin pl, String uuid) {
+		if(pl == null || uuid == null) {
+			return false;
+		}
+		
+        if(!Bukkit.isPrimaryThread()) {
+            throw new IllegalStateException("Cannot set data ASYNC when using PUUIDs set method. Stopping to prevent corruption!");
+        }
+		
+		String plname = pl.getName();
+		
+		if(!plugin.getPlugins().contains(plname)) {
+			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
+			return false;
+		}
+		
+		long start = System.currentTimeMillis();
+		
+		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+		File f = new File(cache, File.separator + "" +  uuid + ".yml");
+		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+		
+		setcache.set("Plugins." + plname.toUpperCase(), null);
+		
+		if(plugin.asyncrunning) {
+			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
+		} else {
+			try {
+				setcache.save(f);
+			} catch (IOException e) {}
+		}
+		
+		plugin.setTimeMS = System.currentTimeMillis()-start;
+		wasSet();
+		return true;
+	}
+	// End of NULL set
+	
 	
 	// SET (v1.3 and +)
 	/**
@@ -529,7 +620,7 @@ public class PUUIDS {
 		
 		int total = 0;
 		
-		for (String playeruuid : getAllPlayerUUIDs(plugin, false)) {
+		for (String playeruuid : getAllPlayerUUIDs(pl, false)) {
 			try {
 			File f = new File(cache, File.separator + "" + playeruuid + ".yml");
 			FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);

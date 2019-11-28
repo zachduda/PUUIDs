@@ -28,7 +28,7 @@ import com.zach_attack.puuids.api.PUUIDS;
 
 public class Main extends JavaPlugin implements Listener {
 	
-	private String version = Bukkit.getBukkitVersion();
+	private String version = Bukkit.getBukkitVersion().replace("-SNAPSHOT", "");
 	
     private static HashSet<String> plugins = new HashSet<String>();
     private static ArrayList<Player> queuedJoinUpdates = new ArrayList<Player>();
