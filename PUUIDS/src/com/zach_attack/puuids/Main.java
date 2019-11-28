@@ -287,14 +287,14 @@ public class Main extends JavaPlugin implements Listener {
 			return;
 		}
 		try {
-			Bukkit.getScheduler().cancelTask(systemsaveid);
-		
 			File system = new File(getDataFolder(), File.separator + "Storage.yml");
 			FileConfiguration set = YamlConfiguration.loadConfiguration(system);
 					
 			set.set("Stats.Set", set.getInt("Stats.Set")+setTimes);
 			set.set("Stats.Get", set.getInt("Stats.Get")+getTimes);
 			set.save(system);
+			
+			Bukkit.getScheduler().cancelTask(systemsaveid);
 		} catch (Exception err) {
 			debug("Couldn't save system stats at the last minute....");
 		}
@@ -302,6 +302,10 @@ public class Main extends JavaPlugin implements Listener {
 	
 	public void onDisable() {
 		final long start = System.currentTimeMillis();
+		
+		for(Player p : Bukkit.getOnlinePlayers()) {
+			updateFile(p, true, true);
+		}
 		
 		plugins.clear();
 		queuedJoinUpdates.clear();
