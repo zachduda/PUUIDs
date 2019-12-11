@@ -727,7 +727,7 @@ public class PUUIDS {
 	 * @param add The int you want to remove and save to that player file.
 	 * @return A boolean of weather or not the operation was successful.
 	 */
-	public static Result removeToIntList(Plugin pl, String uuid, String location, int add) {
+	public static Result removeFromIntList(Plugin pl, String uuid, String location, int add) {
 		if(pl == null || uuid == null || location == null) {
 			return Result.ERR_MISSING_DATA;
 		}
