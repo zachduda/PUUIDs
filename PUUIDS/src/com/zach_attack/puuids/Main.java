@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Random;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -25,10 +26,23 @@ import com.google.common.io.Files;
 import com.zach_attack.puuids.Updater;
 import com.zach_attack.puuids.api.OnNewFile;
 import com.zach_attack.puuids.api.PUUIDS;
+import com.zach_attack.puuids.api.PUUIDS.APIVersion;
+import com.zach_attack.puuids.api.VersionManager;
+import com.zach_attack.puuids.api.VersionManager.VersionTest;
 
 public class Main extends JavaPlugin implements Listener {
 	
 	private String version = Bukkit.getBukkitVersion().replace("-SNAPSHOT", "");
+	public static enum Result {
+		 ERR_SYSTEM_BUSY,
+		 ERR_SAVE,
+		 ERR_NOT_CONNECTED,
+		 ERR_ASYNC_SAVE,
+		 ERR_MISSING_DATA,
+		 ERR_OTHER,
+		 ERR_AFTER_STARTUP,
+		 SUCCESS
+	}
 	
     private static HashSet<String> plugins = new HashSet<String>();
     private static ArrayList<Player> queuedJoinUpdates = new ArrayList<Player>();
@@ -239,6 +253,10 @@ public class Main extends JavaPlugin implements Listener {
 	
 	private boolean isSupported() {
 		
+		if(version.contains("1.15")) {
+			return true;
+		}
+		
 		if(version.contains("1.14")) {
 			return true;
 		}
@@ -337,8 +355,29 @@ public class Main extends JavaPlugin implements Listener {
 		return plugins;
 	}
 	
-	public boolean connect(Plugin pl) {
-		String plname = pl.getDescription().getName();
+	public boolean connect(Plugin pl, APIVersion vers) {
+		if(pl == null) {
+			debug("A plugin tried to register with PUUIDs as 'null', this is not allowed.");
+			return false;
+		}
+		
+		String plname = pl.getName();
+		
+		VersionTest vt = VersionManager.checks(plname, vers);
+		if(vt == VersionTest.FAIL || vers == null) {
+			// Plugin will NOT work with this version.
+			getLogger().warning("Plugin " + plname + " is unable to use PUUIDs, for they are using an outdated version.");
+			return false;
+		}
+		
+		if(vt == VersionTest.LEGACY) {
+			// Plugin may not be 100% compatiable.
+			debug(plname + " needs to upate their plugin to work better with PUUIDs");
+		} else {
+			debug(plname + " PASSED the PUUIDs Compatibility Test.");
+			// Passed Version test for FULL support.
+		}
+		
 		
 		if(!allowconnections) {
 			if(!plugins.contains(plname)) {
@@ -589,33 +628,28 @@ public class Main extends JavaPlugin implements Listener {
 	
 	@EventHandler(priority = EventPriority.MONITOR)
 	public void onJoin(PlayerJoinEvent e) {
-		Player p = e.getPlayer();
+		Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+			Player p = e.getPlayer();
+			updateFile(p, false, false);
+			Cooldowns.justJoined(p.getUniqueId());
 		
-		updateFile(p, false, false);
-		Cooldowns.justJoined(p.getUniqueId());
-		
-		if(updatecheck) {
-		if(p.hasPermission("puuids.admin") || p.isOp()) {
-		if (Updater.outdated) {
-			Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable()
-			  {
-			    public void run()
-			     {
-			    	try {
-			    		Msgs.sendPrefix(p, "&c&lOutdated Plugin! &7Running v" + getDescription().getVersion()
+			if(updatecheck) {
+				if(p.hasPermission("puuids.admin") || p.isOp()) {
+					if (Updater.outdated) {
+						try {
+							Msgs.sendPrefix(p, "&c&lOutdated Plugin! &7Running v" + getDescription().getVersion()
 							+ " while the latest is &f&l" + Updater.outdatedversion);
-			    		pop(p);
-			    	} catch (Exception err) {
-			    		sounds = false;
-			    		debug("Error on update notif. on join: "); err.printStackTrace();
-			    	}
-			}}, 50L);
+							pop(p);
+						} catch (Exception err) {
+							sounds = false;
+							debug("Error on update notif. on join: "); err.printStackTrace();
+						}
 		}}}
 		
 		if (p.getUniqueId().toString().equals("6191ff85-e092-4e9a-94bd-63df409c2079")) {
 			Msgs.send(p, "&7This server is running &fPUUIDs &6v" + getDescription().getVersion()
 			+ " &7for " + Bukkit.getBukkitVersion().replace("-SNAPSHOT", ""));
-		}
+	   }});
 	}
 	
 	@EventHandler(priority = EventPriority.MONITOR)
@@ -631,6 +665,20 @@ public class Main extends JavaPlugin implements Listener {
 		}
 		
 		Cooldowns.confirmall.remove(p);
+	}
+	
+	private String randomString() {
+	    int leftLimit = 97; // A
+	    int rightLimit = 122; // to Z
+	    int length = 5;
+	    Random random = new Random();
+	    StringBuilder buffer = new StringBuilder(length);
+	    for (int i = 0; i < length; i++) {
+	        int randomLimitedInt = leftLimit + (int) 
+	          (random.nextFloat() * (rightLimit - leftLimit + 1));
+	        buffer.append((char) randomLimitedInt);
+	    }
+	    return buffer.toString();
 	}
 	
 	private void bass(CommandSender sender) {
@@ -792,10 +840,25 @@ public class Main extends JavaPlugin implements Listener {
 					}
 					
 					if(!Cooldowns.confirmall.containsKey(p)) {
+						String key = randomString();
 						thinking(p);
-						Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fThis will erase ALL player plugin data from your PUUID's data folder. Do &7&l/puuids reset all &fagain to confirm.");
-						Cooldowns.confirm(p);
+						Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fThis will erase ALL player data from your PUUID's data folder. Do &7&l/puuids reset all " + key + "&f in 10s to confirm.");
+						Cooldowns.confirm(p, key);
 						return true;
+					} else {
+						// Has reset all confirmation key active v v v
+						if(args.length == 2) {
+							Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fType &7&l/puuids reset all " + Cooldowns.confirmall.get(p) + "&f to confirm.");
+							thinking(p);
+							return true;
+						} else if(args.length >= 3) {
+							if(!args[2].equalsIgnoreCase(Cooldowns.confirmall.get(p))) {
+								bass(p);
+								Msgs.sendPrefix(p, "&6&lReset Canceled. &fThat was an invalid reset key.");
+								Cooldowns.confirmall.remove(p);
+								return true;
+							}
+						}
 					}
 					
 					Cooldowns.startLargeTask();

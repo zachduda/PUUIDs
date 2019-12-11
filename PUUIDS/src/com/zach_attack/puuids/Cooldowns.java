@@ -72,13 +72,13 @@ public class Cooldowns {
 		}, 20 * 45);
 	}
 	
-	static void confirm(Player p) {
-		confirmall.put(p, p.getName());
+	static void confirm(Player p, String key) {
+		confirmall.put(p, key);
 		
 		Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
 			public void run() {
-				confirmall.remove(p, p.getName());
+				confirmall.remove(p, key);
 			}
-		}, 20 * 8);
+		}, 20 * 10);
 	}
 }

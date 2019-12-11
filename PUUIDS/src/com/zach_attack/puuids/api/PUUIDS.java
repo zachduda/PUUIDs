@@ -18,18 +18,34 @@ import com.zach_attack.puuids.Main;
 public class PUUIDS {
 	private static Main plugin = Main.getPlugin(Main.class);
 	
+	
+	public static enum APIVersion {
+		 V1
+	}
+	
+	static enum Result {
+		 ERR_SYSTEM_BUSY,
+		 ERR_SAVE,
+		 ERR_NOT_CONNECTED,
+		 ERR_ASYNC_SAVE,
+		 ERR_MISSING_DATA,
+		 ERR_OTHER,
+		 ERR_AFTER_STARTUP,
+		 SUCCESS
+	}
+	
    /**
     * Authorizes with PUUIDs. While not required for some functions, it is required for getting / setting plugin data. 
     * 
 	* @param pl Your plugin, most of the time, you can just put "this"
 	* @return Returns true or false if the connection was successful.
 	*/
-	public static boolean connect(Plugin pl) {
-		if(plugin.connect(pl)) {
+	public static boolean connect(Plugin pl, APIVersion vers) {
+		if(plugin.connect(pl, vers)) {
 			return true;
-		} else {
-			return false;
 		}
+		
+		return false;
 	}
 	
 	/**
@@ -331,20 +347,21 @@ public class PUUIDS {
 	
 	// Start of Location ----
 	
-	public static void setLocation(Plugin pl, String uuid, String location, Location input) {
-        if(!Bukkit.isPrimaryThread()) {
-            throw new IllegalStateException("Cannot set data ASYNC when using PUUIDs set method. Stopping to prevent corruption!");
-        }
-        
+	public static Result setLocation(Plugin pl, String uuid, String location, Location input) {
 		if(pl == null || uuid == null || location == null) {
-			return;
+			return Result.ERR_MISSING_DATA;
 		}
 		
 		String plname = pl.getName();
 		
+        if(!Bukkit.isPrimaryThread()) {
+            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs setLocation method. Stopping to prevent corruption!");
+            return Result.ERR_ASYNC_SAVE;
+        }
+		
 		if(!plugin.getPlugins().contains(plname)) {
 			plugin.debug("Not allowing " + pl.getName() + " to save data. They didn't connect properly.");
-			return;
+			return Result.ERR_NOT_CONNECTED;
 		}
 		
 		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
@@ -359,12 +376,15 @@ public class PUUIDS {
 		
 		if(plugin.asyncrunning) {
 			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
-		} else {
-			try {
-				setcache.save(f);
-			} catch (IOException e) {}
+			return Result.ERR_SYSTEM_BUSY;
 		}
+		
+		try {
+			setcache.save(f);
+		} catch (IOException e) {return Result.ERR_SAVE;}
+
 		wasSet();
+		return Result.SUCCESS;
 	}
 	
 	public static Location getLocation(Plugin pl, String uuid, String location, String world) {
@@ -454,20 +474,21 @@ public class PUUIDS {
 	 * @param location Where under the player file to save as? (Similar to Configuration save paths)
 	 * @return The UUID of a player as a String
 	 */
-	public static boolean setNull(Plugin pl, String uuid, String location) {
+	public static Result setNull(Plugin pl, String uuid, String location) {
 		if(pl == null || uuid == null || location == null) {
-			return false;
+			return Result.ERR_MISSING_DATA;
 		}
-		
-        if(!Bukkit.isPrimaryThread()) {
-            throw new IllegalStateException("Cannot set data ASYNC when using PUUIDs set method. Stopping to prevent corruption!");
-        }
 		
 		String plname = pl.getName();
 		
+        if(!Bukkit.isPrimaryThread()) {
+            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs setNull method. Stopping to prevent corruption!");
+            return Result.ERR_ASYNC_SAVE;
+        }
+		
 		if(!plugin.getPlugins().contains(plname)) {
 			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
-			return false;
+			return Result.ERR_NOT_CONNECTED;
 		}
 		
 		long start = System.currentTimeMillis();
@@ -480,38 +501,40 @@ public class PUUIDS {
 		
 		if(plugin.asyncrunning) {
 			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
-		} else {
-			try {
-				setcache.save(f);
-			} catch (IOException e) {}
+			return Result.ERR_SYSTEM_BUSY;
 		}
+		
+		try {
+			setcache.save(f);
+		} catch (IOException e) {return Result.ERR_SAVE;}
 		
 		plugin.setTimeMS = System.currentTimeMillis()-start;
 		wasSet();
-		return true;
+		return Result.SUCCESS;
 	}
 	
 	/**
-	 * Removes ALL set values for your plugin.L
+	 * Removes ALL set values for your plugin.
 	 * 
 	 * @param pl Your plugin (usually "this"). Must be authenticated via PUUIDS.connect(this);
 	 * @param uuid The UUID of the player as a String.
 	 * @return The UUID of a player as a String
 	 */
-	public static boolean setNull(Plugin pl, String uuid) {
+	public static Result setNull(Plugin pl, String uuid) {
 		if(pl == null || uuid == null) {
-			return false;
+			return Result.ERR_MISSING_DATA;
 		}
-		
-        if(!Bukkit.isPrimaryThread()) {
-            throw new IllegalStateException("Cannot set data ASYNC when using PUUIDs set method. Stopping to prevent corruption!");
-        }
 		
 		String plname = pl.getName();
 		
+        if(!Bukkit.isPrimaryThread()) {
+            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs setNull method. Stopping to prevent corruption!");
+            return Result.ERR_ASYNC_SAVE;
+        }
+		
 		if(!plugin.getPlugins().contains(plname)) {
 			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
-			return false;
+			return Result.ERR_NOT_CONNECTED;
 		}
 		
 		long start = System.currentTimeMillis();
@@ -524,17 +547,228 @@ public class PUUIDS {
 		
 		if(plugin.asyncrunning) {
 			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
-		} else {
-			try {
-				setcache.save(f);
-			} catch (IOException e) {}
+			return Result.ERR_SYSTEM_BUSY;
 		}
+		
+		try {
+			setcache.save(f);
+		} catch (IOException e) {return Result.ERR_SAVE;}
 		
 		plugin.setTimeMS = System.currentTimeMillis()-start;
 		wasSet();
-		return true;
+		return Result.SUCCESS;
 	}
 	// End of NULL set
+	
+	// v1.4.5 and + add to list
+	/**
+	 * Add a string to an existing list.
+	 * 
+	 * @param pl Your plugin (usually "this"). Must be authenticated via PUUIDS.connect(this);
+	 * @param uuid The UUID of the player as a String.
+	 * @param location Where under the player file to save as? (Similar to Configuration save paths)
+	 * @param add The string you want to add and save to that player file.
+	 * @return A boolean of weather or not the operation was successful.
+	 */
+	public static Result addToStringList(Plugin pl, String uuid, String location, String add) {
+		if(pl == null || uuid == null || location == null) {
+			return Result.ERR_MISSING_DATA;
+		}
+		
+		String plname = pl.getName();
+		
+        if(!Bukkit.isPrimaryThread()) {
+            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs addToStringList method. Stopping to prevent corruption!");
+            return Result.ERR_ASYNC_SAVE;
+        }
+		
+		if(!plugin.getPlugins().contains(plname)) {
+			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
+			return Result.ERR_NOT_CONNECTED;
+		}
+		
+		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+		File f = new File(cache, File.separator + "" + uuid + ".yml");
+		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+		
+		try {
+			List<String> input = setcache.getStringList("Plugins." + plname.toUpperCase() + "." + location);
+			input.add(add);
+			setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
+		} catch(Exception err) {return Result.ERR_OTHER;}
+		
+		if(plugin.asyncrunning) {
+			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
+			return Result.ERR_SYSTEM_BUSY;
+		}
+		
+		try {
+			setcache.save(f);
+		} catch (IOException e) {return Result.ERR_SAVE;}
+		
+		wasSet();
+		return Result.SUCCESS;
+	}
+	// End of List Add
+	
+	// v1.4.5 and + add to int list
+	/**
+	 * Add a int to an existing int list.
+	 * 
+	 * @param pl Your plugin (usually "this"). Must be authenticated via PUUIDS.connect(this);
+	 * @param uuid The UUID of the player as a String.
+	 * @param location Where under the player file to save as? (Similar to Configuration save paths)
+	 * @param add The int you want to add and save to that player file.
+	 * @return A boolean of weather or not the operation was successful.
+	 */
+	public static Result addToIntList(Plugin pl, String uuid, String location, int add) {
+		if(pl == null || uuid == null || location == null) {
+			return Result.ERR_MISSING_DATA;
+		}
+		
+		String plname = pl.getName();
+		
+        if(!Bukkit.isPrimaryThread()) {
+            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs addToIntList method. Stopping to prevent corruption!");
+            return Result.ERR_ASYNC_SAVE;
+        }
+		
+		if(!plugin.getPlugins().contains(plname)) {
+			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
+			return Result.ERR_NOT_CONNECTED;
+		}
+		
+		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+		File f = new File(cache, File.separator + "" + uuid + ".yml");
+		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+		
+		try {
+			List<Integer> input = setcache.getIntegerList("Plugins." + plname.toUpperCase() + "." + location);
+			input.add(add);
+			setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
+		} catch(Exception err) {return Result.ERR_OTHER;}
+				
+		if(plugin.asyncrunning) {
+			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
+			return Result.ERR_SYSTEM_BUSY;
+		}
+		
+		try {
+			setcache.save(f);
+		} catch (IOException e) {return Result.ERR_SAVE;}
+		
+		
+		wasSet();
+		return Result.SUCCESS;
+	}
+	// End of List Add
+	
+	
+	// v1.4.5 and + remove to list
+	/**
+	 * Remove a string to an existing list.
+	 * 
+	 * @param pl Your plugin (usually "this"). Must be authenticated via PUUIDS.connect(this);
+	 * @param uuid The UUID of the player as a String.
+	 * @param location Where under the player file to save as? (Similar to Configuration save paths)
+	 * @param add The string you want to remove and save to that player file.
+	 * @return A boolean of weather or not the operation was successful.
+	 */
+	public static Result removeFromStringList(Plugin pl, String uuid, String location, String add) {
+		if(pl == null || uuid == null || location == null) {
+			return Result.ERR_MISSING_DATA;
+		}
+		
+		String plname = pl.getName();
+		
+        if(!Bukkit.isPrimaryThread()) {
+            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs removeFromStringList method. Stopping to prevent corruption!");
+            return Result.ERR_ASYNC_SAVE;
+        }
+		
+		if(!plugin.getPlugins().contains(plname)) {
+			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
+			return Result.ERR_NOT_CONNECTED;
+		}
+		
+		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+		File f = new File(cache, File.separator + "" + uuid + ".yml");
+		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+		
+		try {
+			List<String> input = setcache.getStringList("Plugins." + plname.toUpperCase() + "." + location);
+			input.remove(add);
+			setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
+		} catch(Exception err) {
+			return Result.ERR_OTHER;
+		}
+		
+		if(plugin.asyncrunning) {
+			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
+			return Result.ERR_SYSTEM_BUSY;
+		}
+		
+		try {
+			setcache.save(f);
+		} catch (IOException e) {return Result.ERR_SAVE;}
+		
+		wasSet();
+		return Result.SUCCESS;
+	}
+	// End of List Add
+	
+	// v1.4.5 and + remove to int list
+	/**
+	 * Remove an int to an existing int list.
+	 * 
+	 * @param pl Your plugin (usually "this"). Must be authenticated via PUUIDS.connect(this);
+	 * @param uuid The UUID of the player as a String.
+	 * @param location Where under the player file to save as? (Similar to Configuration save paths)
+	 * @param add The int you want to remove and save to that player file.
+	 * @return A boolean of weather or not the operation was successful.
+	 */
+	public static Result removeToIntList(Plugin pl, String uuid, String location, int add) {
+		if(pl == null || uuid == null || location == null) {
+			return Result.ERR_MISSING_DATA;
+		}
+
+		String plname = pl.getName();
+		
+        if(!Bukkit.isPrimaryThread()) {
+            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs removeToIntList method. Stopping to prevent corruption!");
+            return Result.ERR_ASYNC_SAVE;
+        }
+		
+		if(!plugin.getPlugins().contains(plname)) {
+			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
+			return Result.ERR_NOT_CONNECTED;
+		}
+		
+		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+		File f = new File(cache, File.separator + "" + uuid + ".yml");
+		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+		
+		try {
+			List<Integer> input = setcache.getIntegerList("Plugins." + plname.toUpperCase() + "." + location);
+			input.add(add);
+			setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
+		} catch(Exception err) {
+			return Result.ERR_OTHER;
+		}
+		
+		if(plugin.asyncrunning) {
+			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
+			return Result.ERR_SYSTEM_BUSY;
+		}
+		
+		try {
+			setcache.save(f);
+		} catch (IOException e) {return Result.ERR_SAVE;}
+		
+		wasSet();
+		return Result.SUCCESS;
+	}
+	// End of List Remove
 	
 	
 	// SET (v1.3 and +)
@@ -547,20 +781,21 @@ public class PUUIDS {
 	 * @param input Accepts a boolean/int/long or other value to set.
 	 * @return The UUID of a player as a String
 	 */
-	public static boolean set(Plugin pl, String uuid, String location, Object input) {
+	public static Result set(Plugin pl, String uuid, String location, Object input) {
 		if(pl == null || uuid == null || location == null) {
-			return false;
+			return Result.ERR_MISSING_DATA;
 		}
-		
-        if(!Bukkit.isPrimaryThread()) {
-            throw new IllegalStateException("Cannot set data ASYNC when using PUUIDs set method. Stopping to prevent corruption!");
-        }
 		
 		String plname = pl.getName();
 		
+        if(!Bukkit.isPrimaryThread()) {
+            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs set method. Stopping to prevent corruption!");
+            return Result.ERR_ASYNC_SAVE;
+        }
+		
 		if(!plugin.getPlugins().contains(plname)) {
 			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
-			return false;
+			return Result.ERR_NOT_CONNECTED;
 		}
 		
 		long start = System.currentTimeMillis();
@@ -573,15 +808,16 @@ public class PUUIDS {
 		
 		if(plugin.asyncrunning) {
 			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
-		} else {
-			try {
-				setcache.save(f);
-			} catch (IOException e) {}
+			return Result.ERR_SYSTEM_BUSY;
 		}
+		
+		try {
+			setcache.save(f);
+		} catch (IOException e) {return Result.ERR_SAVE;}
 		
 		plugin.setTimeMS = System.currentTimeMillis()-start;
 		wasSet();
-		return true;
+		return Result.SUCCESS;
 	}
 	// End of SET
 	
@@ -594,26 +830,26 @@ public class PUUIDS {
 	 * @param location Where do you want the value to be set?
 	 * @param input What to set the default value as?
 	 */
-	public static void addToAllWithout(Plugin pl, String location, Object input) {
+	public static Result addToAllWithout(Plugin pl, String location, Object input) {
 		if(pl == null || location == null || location == null || input == null) {
-			return;
+			return Result.ERR_MISSING_DATA;
 		}
-		
-        if(!Bukkit.isPrimaryThread()) {
-            throw new IllegalStateException("Cannot set data ASYNC when using PUUIDs addToAllWithout method. Stopping to prevent corruption!");
-        }
 		
 		String plname = pl.getName();
 		
+        if(!Bukkit.isPrimaryThread()) {
+            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs addToAllWithout method. Stopping to prevent corruption!");
+            return Result.ERR_ASYNC_SAVE;
+        }
         
         if(!plugin.allowConnections()) {
         	plugin.debug(plname + " tried to set addToAllWithout method AFTER startup, this isn't allowed.");
-        	return;
+        	return Result.ERR_AFTER_STARTUP;
         }
 		
 		if(!plugin.getPlugins().contains(plname)) {
 			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
-			return;
+			return Result.ERR_NOT_CONNECTED;
 		}
 		
 		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
@@ -630,13 +866,14 @@ public class PUUIDS {
 				setcache.save(f);
 				total++;
 			}
-			} catch (Exception err) {}
+			} catch (Exception err) {return Result.ERR_SAVE;}
 		}
 		
 		if(total != 0) {
 		plugin.debug(plname + " updated " + total + " files with their missing values.");
 		}
 		total = 0;
+		return Result.SUCCESS;
 	}
 	
 	// End of Updates
