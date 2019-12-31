@@ -1,7 +1,6 @@
 package com.zach_attack.puuids.api;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,10 +19,12 @@ public class PUUIDS {
 	
 	
 	public static enum APIVersion {
-		 V1
+		 @Deprecated V1,
+		 V2
 	}
 	
-	static enum Result {
+	public static enum Result {
+		 ERR,
 		 ERR_SYSTEM_BUSY,
 		 ERR_SAVE,
 		 ERR_NOT_CONNECTED,
@@ -55,9 +56,15 @@ public class PUUIDS {
 	 * @param usemojang If we're having trouble, should PUUIDs ask Mojang for help when getting UUIDs. (Resource Intensive)
 	 * @return The UUID of a player as a String
 	 */
+	@Deprecated
 	public static String getUUID(String name, boolean usemojang) {
 		wasGet();
 		return plugin.nametoUUID(name, usemojang);
+	}
+	
+	public static String getUUID(String name) {
+		wasGet();
+		return plugin.nametoUUID(name);
 	}
 	
 	/**
@@ -262,6 +269,17 @@ public class PUUIDS {
 		return setcache.getList("Plugins." + plname.toUpperCase() + "." + location);
 	}
 	
+	public static List<Integer> getIntList(Plugin pl, String uuid, String location) {
+		String plname = pl.getName();
+		
+		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+		File f = new File(cache, File.separator + "" + uuid + ".yml");
+		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+		
+		wasGet();
+		return setcache.getIntegerList("Plugins." + plname.toUpperCase() + "." + location);
+	}
+	
 	public static ItemStack getItemStack(Plugin pl, String uuid, String location) {
 		String plname = pl.getName();
 		
@@ -354,36 +372,17 @@ public class PUUIDS {
 		
 		String plname = pl.getName();
 		
-        if(!Bukkit.isPrimaryThread()) {
-            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs setLocation method. Stopping to prevent corruption!");
-            return Result.ERR_ASYNC_SAVE;
-        }
-		
 		if(!plugin.getPlugins().contains(plname)) {
 			plugin.debug("Not allowing " + pl.getName() + " to save data. They didn't connect properly.");
 			return Result.ERR_NOT_CONNECTED;
 		}
 		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" +  uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location + ".X", input.getX());
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location + ".Y", input.getY());
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location + ".Z", input.getZ());
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location + ".Pitch", input.getPitch());
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location + ".Yaw", input.getYaw());
-		
-		if(plugin.asyncrunning) {
-			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
-			return Result.ERR_SYSTEM_BUSY;
-		}
-		
-		try {
-			setcache.save(f);
-		} catch (IOException e) {return Result.ERR_SAVE;}
+		plugin.set(plname, uuid, location + ".X", input.getX());
+		plugin.set(plname, uuid, location + ".Y", input.getY());
+		plugin.set(plname, uuid, location + ".Z", input.getZ());
+		plugin.set(plname, uuid, location + ".Pitch", input.getPitch());
+		plugin.set(plname, uuid, location + ".Yaw", input.getYaw());
 
-		wasSet();
 		return Result.SUCCESS;
 	}
 	
@@ -476,40 +475,11 @@ public class PUUIDS {
 	 */
 	public static Result setNull(Plugin pl, String uuid, String location) {
 		if(pl == null || uuid == null || location == null) {
-			return Result.ERR_MISSING_DATA;
+			return Result.ERR;
 		}
 		
 		String plname = pl.getName();
-		
-        if(!Bukkit.isPrimaryThread()) {
-            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs setNull method. Stopping to prevent corruption!");
-            return Result.ERR_ASYNC_SAVE;
-        }
-		
-		if(!plugin.getPlugins().contains(plname)) {
-			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
-			return Result.ERR_NOT_CONNECTED;
-		}
-		
-		long start = System.currentTimeMillis();
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" +  uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location, null);
-		
-		if(plugin.asyncrunning) {
-			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
-			return Result.ERR_SYSTEM_BUSY;
-		}
-		
-		try {
-			setcache.save(f);
-		} catch (IOException e) {return Result.ERR_SAVE;}
-		
-		plugin.setTimeMS = System.currentTimeMillis()-start;
-		wasSet();
+		plugin.set(plname, uuid, location, null);
 		return Result.SUCCESS;
 	}
 	
@@ -522,40 +492,11 @@ public class PUUIDS {
 	 */
 	public static Result setNull(Plugin pl, String uuid) {
 		if(pl == null || uuid == null) {
-			return Result.ERR_MISSING_DATA;
+			return Result.ERR;
 		}
 		
 		String plname = pl.getName();
-		
-        if(!Bukkit.isPrimaryThread()) {
-            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs setNull method. Stopping to prevent corruption!");
-            return Result.ERR_ASYNC_SAVE;
-        }
-		
-		if(!plugin.getPlugins().contains(plname)) {
-			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
-			return Result.ERR_NOT_CONNECTED;
-		}
-		
-		long start = System.currentTimeMillis();
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" +  uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		setcache.set("Plugins." + plname.toUpperCase(), null);
-		
-		if(plugin.asyncrunning) {
-			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
-			return Result.ERR_SYSTEM_BUSY;
-		}
-		
-		try {
-			setcache.save(f);
-		} catch (IOException e) {return Result.ERR_SAVE;}
-		
-		plugin.setTimeMS = System.currentTimeMillis()-start;
-		wasSet();
+		plugin.set(plname, uuid, null);
 		return Result.SUCCESS;
 	}
 	// End of NULL set
@@ -572,41 +513,14 @@ public class PUUIDS {
 	 */
 	public static Result addToStringList(Plugin pl, String uuid, String location, String add) {
 		if(pl == null || uuid == null || location == null) {
-			return Result.ERR_MISSING_DATA;
+			return Result.ERR;
 		}
 		
 		String plname = pl.getName();
 		
-        if(!Bukkit.isPrimaryThread()) {
-            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs addToStringList method. Stopping to prevent corruption!");
-            return Result.ERR_ASYNC_SAVE;
-        }
-		
-		if(!plugin.getPlugins().contains(plname)) {
-			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
-			return Result.ERR_NOT_CONNECTED;
-		}
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" + uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		try {
-			List<String> input = setcache.getStringList("Plugins." + plname.toUpperCase() + "." + location);
-			input.add(add);
-			setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-		} catch(Exception err) {return Result.ERR_OTHER;}
-		
-		if(plugin.asyncrunning) {
-			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
-			return Result.ERR_SYSTEM_BUSY;
-		}
-		
-		try {
-			setcache.save(f);
-		} catch (IOException e) {return Result.ERR_SAVE;}
-		
-		wasSet();
+		List<String> input = getStringList(pl, uuid, location);
+		input.add(add);
+		plugin.set(plname, uuid, location, input);
 		return Result.SUCCESS;
 	}
 	// End of List Add
@@ -623,42 +537,12 @@ public class PUUIDS {
 	 */
 	public static Result addToIntList(Plugin pl, String uuid, String location, int add) {
 		if(pl == null || uuid == null || location == null) {
-			return Result.ERR_MISSING_DATA;
+			return Result.ERR;
 		}
-		
-		String plname = pl.getName();
-		
-        if(!Bukkit.isPrimaryThread()) {
-            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs addToIntList method. Stopping to prevent corruption!");
-            return Result.ERR_ASYNC_SAVE;
-        }
-		
-		if(!plugin.getPlugins().contains(plname)) {
-			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
-			return Result.ERR_NOT_CONNECTED;
-		}
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" + uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		try {
-			List<Integer> input = setcache.getIntegerList("Plugins." + plname.toUpperCase() + "." + location);
+			String plname = pl.getName();
+			List<Integer> input = getIntList(pl, uuid, location);
 			input.add(add);
-			setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-		} catch(Exception err) {return Result.ERR_OTHER;}
-				
-		if(plugin.asyncrunning) {
-			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
-			return Result.ERR_SYSTEM_BUSY;
-		}
-		
-		try {
-			setcache.save(f);
-		} catch (IOException e) {return Result.ERR_SAVE;}
-		
-		
-		wasSet();
+			plugin.set(plname, uuid, location, input);
 		return Result.SUCCESS;
 	}
 	// End of List Add
@@ -676,43 +560,13 @@ public class PUUIDS {
 	 */
 	public static Result removeFromStringList(Plugin pl, String uuid, String location, String add) {
 		if(pl == null || uuid == null || location == null) {
-			return Result.ERR_MISSING_DATA;
+			return Result.ERR;
 		}
 		
 		String plname = pl.getName();
-		
-        if(!Bukkit.isPrimaryThread()) {
-            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs removeFromStringList method. Stopping to prevent corruption!");
-            return Result.ERR_ASYNC_SAVE;
-        }
-		
-		if(!plugin.getPlugins().contains(plname)) {
-			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
-			return Result.ERR_NOT_CONNECTED;
-		}
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" + uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		try {
-			List<String> input = setcache.getStringList("Plugins." + plname.toUpperCase() + "." + location);
-			input.remove(add);
-			setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-		} catch(Exception err) {
-			return Result.ERR_OTHER;
-		}
-		
-		if(plugin.asyncrunning) {
-			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
-			return Result.ERR_SYSTEM_BUSY;
-		}
-		
-		try {
-			setcache.save(f);
-		} catch (IOException e) {return Result.ERR_SAVE;}
-		
-		wasSet();
+		List<String> input = getStringList(pl, uuid, location);
+		input.remove(add);
+		plugin.set(plname, uuid, location, input);
 		return Result.SUCCESS;
 	}
 	// End of List Add
@@ -729,43 +583,14 @@ public class PUUIDS {
 	 */
 	public static Result removeFromIntList(Plugin pl, String uuid, String location, int add) {
 		if(pl == null || uuid == null || location == null) {
-			return Result.ERR_MISSING_DATA;
+			return Result.ERR;
 		}
 
 		String plname = pl.getName();
-		
-        if(!Bukkit.isPrimaryThread()) {
-            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs removeToIntList method. Stopping to prevent corruption!");
-            return Result.ERR_ASYNC_SAVE;
-        }
-		
-		if(!plugin.getPlugins().contains(plname)) {
-			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
-			return Result.ERR_NOT_CONNECTED;
-		}
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" + uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		try {
-			List<Integer> input = setcache.getIntegerList("Plugins." + plname.toUpperCase() + "." + location);
-			input.add(add);
-			setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-		} catch(Exception err) {
-			return Result.ERR_OTHER;
-		}
-		
-		if(plugin.asyncrunning) {
-			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
-			return Result.ERR_SYSTEM_BUSY;
-		}
-		
-		try {
-			setcache.save(f);
-		} catch (IOException e) {return Result.ERR_SAVE;}
-		
-		wasSet();
+
+		List<Integer> input = getIntList(pl, uuid, location);
+		input.add(add);
+		plugin.set(plname, uuid, location, input);
 		return Result.SUCCESS;
 	}
 	// End of List Remove
@@ -783,40 +608,11 @@ public class PUUIDS {
 	 */
 	public static Result set(Plugin pl, String uuid, String location, Object input) {
 		if(pl == null || uuid == null || location == null) {
-			return Result.ERR_MISSING_DATA;
+			return Result.ERR;
 		}
 		
 		String plname = pl.getName();
-		
-        if(!Bukkit.isPrimaryThread()) {
-            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs set method. Stopping to prevent corruption!");
-            return Result.ERR_ASYNC_SAVE;
-        }
-		
-		if(!plugin.getPlugins().contains(plname)) {
-			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
-			return Result.ERR_NOT_CONNECTED;
-		}
-		
-		long start = System.currentTimeMillis();
-		
-		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-		File f = new File(cache, File.separator + "" +  uuid + ".yml");
-		FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-		
-		setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-		
-		if(plugin.asyncrunning) {
-			plugin.debug("Blocking " + plname + " from setting info, PUUIDs is running a large task async.");
-			return Result.ERR_SYSTEM_BUSY;
-		}
-		
-		try {
-			setcache.save(f);
-		} catch (IOException e) {return Result.ERR_SAVE;}
-		
-		plugin.setTimeMS = System.currentTimeMillis()-start;
-		wasSet();
+		plugin.set(plname, uuid, location, input);
 		return Result.SUCCESS;
 	}
 	// End of SET
@@ -880,10 +676,7 @@ public class PUUIDS {
 	
 	
 	// General
-	private static void wasSet() {
-		plugin.setTimes++;
-	}
-	
+
 	private static void wasGet() {
 		plugin.getTimes++;
 	}
