@@ -36,23 +36,22 @@ public class Main extends JavaPlugin implements Listener {
 
     private String version = Bukkit.getBukkitVersion().replace("-SNAPSHOT", "");
 
-    private static HashSet <String> plugins = new HashSet <String> ();
+    private static HashSet<String> plugins = new HashSet<String>();
 
     private static boolean allowconnections = false;
     private boolean sounds;
     private boolean status;
     private String statusreason = "0";
 
-    protected boolean updatecheck = true;
-    protected String prefix = "&8[&e&lPUUIDs&8]";
+    private boolean updatecheck = true;
 
-    public boolean debug = false;
-    public boolean asyncrunning = false;
-    public long setTimeMS = 0; // how long in ms for file saving
-    public int setTimes = 0;
+    boolean debug = false;
+    boolean asyncrunning = false;
+    long setTimeMS = 0; // how long in ms for file saving
+    int setTimes = 0;
     public int getTimes = 0;
-    public long qTimesMS = 0;
-    public int setQRequests = 0;
+    long qTimesMS = 0;
+    int setQRequests = 0;
 
     private boolean isFullySupported = (version.contains("1.15") || version.contains("1.14") || version.contains("1.13")) ? true : false;
     private int taskresetid = 0;
@@ -162,7 +161,7 @@ public class Main extends JavaPlugin implements Listener {
         updateConfig();
 
         api = new PUUIDS();
-
+        
         Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
             public void run() {
 
@@ -260,7 +259,7 @@ public class Main extends JavaPlugin implements Listener {
     private void updateConfig() {
         debug = getConfig().getBoolean("Settings.Debug", false);
         updatecheck = getConfig().getBoolean("Settings.Update-Checking", true);
-        prefix = getConfig().getString("Settings.Prefix", "&8[&e&lPUUIDs&8]");
+        Msgs.prefix = getConfig().getString("Settings.Prefix", "&8[&e&lPUUIDs&8]");
         
         if(getConfig().getLong("Advanced.Save-Rate-Ticks", 10) != 0) {
         	Timer.processrate = getConfig().getLong("Advanced.Save-Rate-Ticks", 10);
@@ -283,6 +282,7 @@ public class Main extends JavaPlugin implements Listener {
             debug("Sounds have been disabled, this is an older verison of Minecraft.");
         }
     }
+    
 
     public HashSet <String> getPlugins() {
         return plugins;
