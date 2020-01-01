@@ -261,7 +261,21 @@ public class Main extends JavaPlugin implements Listener {
         debug = getConfig().getBoolean("Settings.Debug", false);
         updatecheck = getConfig().getBoolean("Settings.Update-Checking", true);
         prefix = getConfig().getString("Settings.Prefix", "&8[&e&lPUUIDs&8]");
-
+        
+        if(getConfig().getLong("Advanced.Save-Rate-Ticks", 10) != 0) {
+        	Timer.processrate = getConfig().getLong("Advanced.Save-Rate-Ticks", 10);
+        } else {
+        	Timer.processrate = 10;
+        	getLogger().warning("Save Rate was set to 0 ticks in the config, this will cause damage. Defaulting to 10 ticks.");
+        }
+        
+        if(getConfig().getLong("Advanced.Max-Processes-Per-Queue", 15) != 0) {
+        Timer.sizelimit = getConfig().getInt("Advanced.Max-Processes-Per-Queue", 15);
+        } else {
+        	Timer.processrate = 15;
+        	getLogger().warning("Max-Processes-Per-Queue was set to 0 in the config, this will prevent data from being set. Defaulting to 15.");
+        }
+        
         if (isFullySupported) {
             sounds = true;
         } else {
@@ -876,11 +890,12 @@ public class Main extends JavaPlugin implements Listener {
             }
 
             if (args.length >= 1 && args[0].equalsIgnoreCase("reload")) {
+            	final long start = System.currentTimeMillis();
                 reloadConfig();
                 updateConfig();
                 Msgs.send(sender, "");
                 Msgs.send(sender, "&e&lPUUIDs");
-                Msgs.send(sender, "&8&l> &fConfiguration has been reloaded.");
+                Msgs.send(sender, "&8&l> &fConfiguration has been reloaded in &6" + Long.toString(System.currentTimeMillis()-start) + "ms");
                 Msgs.send(sender, "");
                 pop(sender);
                 return true;

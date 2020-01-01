@@ -14,7 +14,8 @@ import com.google.common.collect.Multimap;
 public class Timer {
     private static Main plugin = Main.getPlugin(Main.class);
 
-    static boolean timeractive = false;
+    static long processrate = 10;
+    static int sizelimit = 15;
     private static boolean busy = false;
 
     // K, V                    UUID,   PLUGIN                               UUID,    PLUGIN
@@ -48,6 +49,10 @@ public class Timer {
             		return;
             	}
             	
+            	busy = true;
+            	
+    	        final File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+            	
             	// internal puuids updates
             	if (ssize != 0) {
             	    for (int i = 0; i < ssize; i++) {
@@ -58,9 +63,14 @@ public class Timer {
             	        final String uuid = p.getUniqueId().toString();
             	        final String name = p.getName();
 
-            	        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
             	        File f = new File(cache, File.separator + "" + uuid + ".yml");
             	        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+            	        
+                        if(!f.exists()) {
+                        	try {
+                        		setcache.save(f);
+                        	} catch (Exception err) {}
+                    	}
 
             	        final long lefttime = System.currentTimeMillis();
 
@@ -92,14 +102,13 @@ public class Timer {
             	
             	
                 final long start = System.currentTimeMillis();
-                int processed = 0;
-            	busy = true;
+                int processed = 0; // Proccessed non-puuids requests
                 plugin.setQRequests = updateinfo.size();
             	
                 for (int i = 0; i < size; i++) {
                 	final long startset = System.currentTimeMillis();
-                	if(processed > 10) {
-                		plugin.debug("Q reached size limit of 10... sending other updates to next run.");
+                	if(processed > sizelimit) {
+                		plugin.debug("Q reached size limit of " + sizelimit + "... sending other updates to next run.");
                 		break;
                 	}
                 	
@@ -110,9 +119,15 @@ public class Timer {
                     updateplayers.remove(uuid, plname);
                     updateinfo.remove(path, value);
 
-                    File cache = new File(plugin.getDataFolder(), File.separator + "Data");
                     File f = new File(cache, File.separator + "" + uuid + ".yml");
                     FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+                    
+                    if(!f.exists()) {
+                    	try {
+                    		setcache.save(f);
+                    	} catch (Exception err) {}
+                	}
+                    
                     if(path.equals("PUUIDS_SET_AS_ALL_NULL")) {
                     	setcache.set("Plugins." + plname, null);
                     } else {
@@ -143,7 +158,7 @@ public class Timer {
                 processed = 0;
                 busy = false;
             }
-        }, 20L, 20L);
+        }, processrate, processrate);
 
     static void stopTimer() {
 		Timer.timer.cancel();
@@ -175,6 +190,5 @@ public class Timer {
         
         updateplayers.clear();
         updateinfo.clear();
-        busy = true;
     }
 }

@@ -79,7 +79,7 @@ public class PUUIDS {
 	}
 	
 	/**
-	 * Runs getName() w/o Mojang, and if it returns "0", we return false.
+	 * Checks the player UUID from cache and if it returns "0", we return false.
 	 * 
 	 * @param uuid The UUID of the player.
 	 * @return If a player has a data file. (Usually it's yes)
@@ -160,6 +160,11 @@ public class PUUIDS {
 	}
 	
 	// End of Strings ------------
+	
+	// Config Keys
+	
+	
+	// End of Config Keys
 	
 	// Booleans --------------	
 	public static boolean getBoolean(Plugin pl, String uuid, String location) {
