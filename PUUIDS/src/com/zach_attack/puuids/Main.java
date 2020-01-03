@@ -279,11 +279,11 @@ public class Main extends JavaPlugin implements Listener {
         	getLogger().warning("Save Rate was set to 0 ticks in the config, this will cause damage. Defaulting to 10 ticks.");
         }
         
-        if(getConfig().getLong("Advanced.Max-Processes-Per-Queue", 15) != 0) {
-        Timer.sizelimit = getConfig().getInt("Advanced.Max-Processes-Per-Queue", 15);
+        if(getConfig().getLong("Advanced.Max-Processes-Per-Queue", 25) != 0) {
+        Timer.sizelimit = getConfig().getInt("Advanced.Max-Processes-Per-Queue", 25);
         } else {
-        	Timer.processrate = 15;
-        	getLogger().warning("Max-Processes-Per-Queue was set to 0 in the config, this will prevent data from being set. Defaulting to 15.");
+        	Timer.processrate = 25;
+        	getLogger().warning("Max-Processes-Per-Queue was set to 0 in the config, this will prevent data from being set. Defaulting to 25.");
         }
         
         if (isFullySupported) {
