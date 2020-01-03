@@ -15,7 +15,7 @@ public class Timer {
     private static Main plugin = Main.getPlugin(Main.class);
 
     static long processrate = 10;
-    static int sizelimit = 15;
+    static int sizelimit = 25;
     private static boolean busy = false;
 
     // K, V                    UUID,   PLUGIN                               UUID,    PLUGIN

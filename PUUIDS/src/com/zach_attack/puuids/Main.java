@@ -708,7 +708,10 @@ public class Main extends JavaPlugin implements Listener {
                 Msgs.send(sender, "&8&l> &f&l/puuids version &7Get the current version of your PUUIDs system.");
                 Msgs.send(sender, "&8&l> &f&l/puuids ontime (player) &7See how long you or someone else been playing.");
                 Msgs.send(sender, "&8&l> &f&l/puuids reload &7Reload your config.yml.");
-                Msgs.send(sender, "&8&l> &f&l/puuids debug &7Shows you how fast/slow your system is running.");
+                Msgs.send(sender, "&8&l> &f&l/puuids info &7Shows you how fast/slow your system is running.");
+                if(debug) {
+                	Msgs.send(sender, "&8&l> &f&l/puuids debug &7Shows detailed system information.");	
+                }
                 Msgs.send(sender, "&8&l> &f&l/puuids plugins &7Shows connected plugins.");
                 Msgs.send(sender, "&8&l> &f&l/puuids reset all &7Resets everything except UUIDs/IPs/Names");
                 Msgs.send(sender, "&8&l> &f&l/puuids reset ontime &7Set everyone's total play-time back to 0.");
@@ -724,7 +727,7 @@ public class Main extends JavaPlugin implements Listener {
                     return true;
                 }
                 final int size = plugins.size()-1;
-                Msgs.sendPrefix(sender, "&fThere are &e&l" + size + " &fplugins connected:");
+                Msgs.sendPrefix(sender, "&fThere are &6&l" + size + " &fplugins connected:");
                 for (String plname: plugins) {
                 	if(!plname.equalsIgnoreCase("puuids")) {
                 		Msgs.send(sender, "&r     &8&l> &e&l" + plname);
@@ -734,7 +737,7 @@ public class Main extends JavaPlugin implements Listener {
                 return true;
             }
             
-            if (args.length >= 1 && args[0].equalsIgnoreCase("info")) {
+            if (args.length >= 1 && args[0].equalsIgnoreCase("debug")) {
             	Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
             		double jversion = Double.parseDouble(System.getProperty("java.specification.version"));
             	    StringBuilder sb = new StringBuilder();
@@ -1026,7 +1029,7 @@ public class Main extends JavaPlugin implements Listener {
                 return true;
             }
 
-            if (args.length >= 1 && args[0].equalsIgnoreCase("debug")) {
+            if (args.length >= 1 && args[0].equalsIgnoreCase("info")) {
                 Msgs.send(sender, "");
                 Msgs.send(sender, "&e&lPUUIDs");
                 final int active = getPlugins().size() - 1;
@@ -1077,6 +1080,7 @@ public class Main extends JavaPlugin implements Listener {
                     Msgs.send(sender, "&8&l> &fQueued Info Data: &e&l" + Timer.getQInfo());
                 }
                 Msgs.send(sender, "&8&l> &fRequests Per Q: &e&l" + setQRequests);
+                Msgs.send(sender, "&8&l> &fDebug Mode: " + (debug ?"&e&lON" :"&7&lOFF"));
                 Msgs.send(sender, "");
                 pop(sender);
                 return true;
