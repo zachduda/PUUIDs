@@ -17,7 +17,6 @@ import com.zach_attack.puuids.Main;
 public class PUUIDS {
 	private static Main plugin = Main.getPlugin(Main.class);
 	
-	
 	public static enum APIVersion {
 		 @Deprecated V1,
 		 V2
@@ -25,13 +24,6 @@ public class PUUIDS {
 	
 	public static enum Result {
 		 ERR,
-		 ERR_SYSTEM_BUSY,
-		 ERR_SAVE,
-		 ERR_NOT_CONNECTED,
-		 ERR_ASYNC_SAVE,
-		 ERR_MISSING_DATA,
-		 ERR_OTHER,
-		 ERR_AFTER_STARTUP,
 		 SUCCESS
 	}
 	
@@ -53,7 +45,7 @@ public class PUUIDS {
 	 * Returns a players UUID from their Name as a String.
 	 * 
 	 * @param name The player's username you want the UUID of.
-	 * @param usemojang If we're having trouble, should PUUIDs ask Mojang for help when getting UUIDs. (Resource Intensive)
+	 * @param usemojang (Deprecated will be removed in future update!)
 	 * @return The UUID of a player as a String
 	 */
 	@Deprecated
@@ -372,15 +364,10 @@ public class PUUIDS {
 	
 	public static Result setLocation(Plugin pl, String uuid, String location, Location input) {
 		if(pl == null || uuid == null || location == null) {
-			return Result.ERR_MISSING_DATA;
+			return Result.ERR;
 		}
 		
 		String plname = pl.getName();
-		
-		if(!plugin.getPlugins().contains(plname)) {
-			plugin.debug("Not allowing " + pl.getName() + " to save data. They didn't connect properly.");
-			return Result.ERR_NOT_CONNECTED;
-		}
 		
 		plugin.set(plname, uuid, location + ".X", input.getX());
 		plugin.set(plname, uuid, location + ".Y", input.getY());
@@ -413,7 +400,7 @@ public class PUUIDS {
 		float prevpitch = setcache.getInt("Plugins." + plname.toUpperCase() + "." + location + ".Pitch");
 		float prevyaw = setcache.getInt("Plugins." + plname.toUpperCase() + "." + location + ".Yaw");
 		
- 	  Location finalloc = new Location(plugin.getServer().getWorld(world), prevx, prevy, prevz, prevyaw, prevpitch);
+		Location finalloc = new Location(plugin.getServer().getWorld(world), prevx, prevy, prevz, prevyaw, prevpitch);
 		wasGet();
 		return finalloc;
 	}
@@ -489,7 +476,7 @@ public class PUUIDS {
 	}
 	
 	/**
-	 * Removes ALL set values for your plugin.
+	 * Removes ALL set values for your 
 	 * 
 	 * @param pl Your plugin (usually "this"). Must be authenticated via PUUIDS.connect(this);
 	 * @param uuid The UUID of the player as a String.
@@ -633,24 +620,24 @@ public class PUUIDS {
 	 */
 	public static Result addToAllWithout(Plugin pl, String location, Object input) {
 		if(pl == null || location == null || location == null || input == null) {
-			return Result.ERR_MISSING_DATA;
+			return Result.ERR;
 		}
 		
 		String plname = pl.getName();
 		
         if(!Bukkit.isPrimaryThread()) {
             plugin.debug(plname + " cannot set data ASYNC when using PUUIDs addToAllWithout method. Stopping to prevent corruption!");
-            return Result.ERR_ASYNC_SAVE;
+            return Result.ERR;
         }
         
         if(!plugin.allowConnections()) {
         	plugin.debug(plname + " tried to set addToAllWithout method AFTER startup, this isn't allowed.");
-        	return Result.ERR_AFTER_STARTUP;
+        	return Result.ERR;
         }
 		
 		if(!plugin.getPlugins().contains(plname)) {
 			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
-			return Result.ERR_NOT_CONNECTED;
+			return Result.ERR;
 		}
 		
 		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
@@ -667,11 +654,11 @@ public class PUUIDS {
 				setcache.save(f);
 				total++;
 			}
-			} catch (Exception err) {return Result.ERR_SAVE;}
+			} catch (Exception err) {return Result.ERR;}
 		}
 		
 		if(total != 0) {
-		plugin.debug(plname + " updated " + total + " files with their missing values.");
+			plugin.debug(plname + " updated " + total + " files with their missing values.");
 		}
 		total = 0;
 		return Result.SUCCESS;

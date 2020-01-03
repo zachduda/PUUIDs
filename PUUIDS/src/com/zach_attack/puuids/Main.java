@@ -1,12 +1,18 @@
 package com.zach_attack.puuids;
 
 import java.io.File;
+import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
+
+import javax.management.Attribute;
+import javax.management.AttributeList;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -59,6 +65,12 @@ public class Main extends JavaPlugin implements Listener {
     public PUUIDS api;
 
     public void onEnable() {
+		double jversion = Double.parseDouble(System.getProperty("java.specification.version"));
+		if (jversion < 1.8) {
+			getLogger().severe("Unsupported Java Version: " + jversion);
+			getLogger().warning("PUUIDs works best in Java 8 (or higher). JDK releases are NOT supported.");
+		}
+		
     	try {
 			Class.forName("com.google.common.collect.Multimap");
 			Class.forName("com.google.common.collect.ArrayListMultimap");
@@ -215,7 +227,6 @@ public class Main extends JavaPlugin implements Listener {
     // Reset Stats every 12 hours
     private int startStatResetTimer() {
         final BukkitTask resetstatstimer = Bukkit.getScheduler().runTaskTimerAsynchronously(this, new Runnable() {
-            @Override
             public void run() {
                 debug("Reseting the PUUIDs debug statistics, it's been over 12 hours...");
                 setTimeMS = 0;
@@ -720,6 +731,79 @@ public class Main extends JavaPlugin implements Listener {
                 	}
                 }
                 pop(sender);
+                return true;
+            }
+            
+            if (args.length >= 1 && args[0].equalsIgnoreCase("info")) {
+            	Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            		double jversion = Double.parseDouble(System.getProperty("java.specification.version"));
+            	    StringBuilder sb = new StringBuilder();
+        	    	int plsb = 0;
+            	    for (String plname: plugins) {
+            	    	if(!plname.equalsIgnoreCase("puuids")) {
+            	    		if(plsb == getPlugins().size()-1) {
+            	    			sb.append(plname);
+            	    		}
+            	    	
+            	    		sb.append(plname + "&f, &e");
+            	    		plsb++;
+            	    	}
+            	    }
+
+            	    String size = Integer.toString((getPlugins().size() - 1));
+
+            	    Msgs.send(sender, "&f");
+            	    if(size.equals("0")) {
+            	    	Msgs.send(sender, "&7There are no plugins connected.");
+            	    } else {
+            	    	Msgs.send(sender, "&6" + size + " &fConnected Plugins: &e" + sb.toString());
+            	    }
+            	    Msgs.send(sender, "Java: " + jversion);
+            	    Msgs.send(sender, "&fConfig Process Rate: &e" + Timer.processrate);
+            	    Msgs.send(sender, "&fConfig Q Max Size: &e" + Timer.sizelimit);
+            	    Msgs.send(sender, "&fSingle Set Time: &e" + setTimeMS + "ms");
+            	    Msgs.send(sender, "&fQ Process Time: &e" + qTimesMS + "ms");
+            	    try {
+            	        Class.forName("com.destroystokyo.paper.PaperConfig");
+            	        Msgs.send(sender, "&fPaper Version: &e" + version);
+            	    } catch (Exception NotPaper) {
+            	        try {
+            	            Class.forName("org.spigotmc.SpigotConfig");
+            	            Msgs.send(sender, "&fSpigot Version: &e" + version);
+            	        } catch (Exception Other) {
+            	            Msgs.send(sender, "&fBukkit Version: &e" + version);
+            	        }
+            	    }
+            	    Msgs.send(sender, "&fTotal Sets: &e" + setTimes);
+            	    Msgs.send(sender, "&fTotal Gets: &e" + getTimes);
+
+            	    try {
+            	        Runtime r = Runtime.getRuntime();
+            	        long memUsed = (r.totalMemory() - r.freeMemory()) / 1048576;
+            	        long maxMem = (r.maxMemory() / 1048576);
+            	        Msgs.send(sender, "&fRAM: &e" + memUsed + "mb &8/ &e" + maxMem + "mb");
+            	    } catch (Exception err) {
+            	        Msgs.send(sender, "&fRAM: &7Readings Not Available");
+            	    }
+
+            	    try {
+            	        MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+            	        ObjectName name = ObjectName.getInstance("java.lang:type=OperatingSystem");
+            	        AttributeList list = mbs.getAttributes(name, new String[] {
+            	            "ProcessCpuLoad"
+            	        });
+            	        Attribute att = (Attribute) list.get(0);
+            	        Double value = (Double) att.getValue();
+            	        long cpu = Math.round(((int)(value * 1000) / 10.0) * 39);
+            	        Msgs.send(sender, "&fCPU: &e" + cpu + "%");
+            	    } catch (Exception err) {
+            	        Msgs.send(sender, "&fCPU: &7Readings Not Available");
+            	    }
+            	    if (statusreason != "0") {
+            	    	Msgs.send(sender, "&fLatest Issue: &e" + statusreason);
+            	    }
+            	    pop(sender);
+            	});
                 return true;
             }
 
