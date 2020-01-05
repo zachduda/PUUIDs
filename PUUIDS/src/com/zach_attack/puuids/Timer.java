@@ -1,6 +1,8 @@
 package com.zach_attack.puuids;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -18,32 +20,27 @@ public class Timer {
     static int sizelimit = 25;
     private static boolean busy = false;
 
-    // K, V                    UUID,   PLUGIN                               UUID,    PLUGIN
-    private static Multimap<String, String> updateplayers = ArrayListMultimap.create();
-    private static Multimap<String, Object> updateinfo = ArrayListMultimap.create();
+    //            UUID   PLUGIN   PATH     DATA
+    private static List<Quartet<String, String, String, Object>> rawdata = new ArrayList<>();
     
     //               Player,  Quit?
     static Multimap<Player, Boolean> updateSystem = ArrayListMultimap.create();
 
-    static int getQPlayers() {
-    	return updateplayers.size();
-    }
-    
-    static int getQInfo() {
-    	return updateinfo.size();
+    static int getQSize() {
+    	return rawdata.size();
     }
     
     static void queueSet(String pl, String uuid, String location, Object value) {
         Bukkit.getScheduler().runTask(plugin, () -> { // Ensures running SYNC to place.
-            updateplayers.put(uuid, pl.toUpperCase());
-            updateinfo.put(location, value);
+        	Quartet<String, String, String, Object> quart = new Quartet<String, String, String, Object>(uuid, pl.toUpperCase(), location, value);
+            rawdata.add(quart);
         });
     }
 
     final static BukkitTask timer = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, new Runnable() {
             @Override
             public void run() {
-            	final int size = updateplayers.size(); 
+            	final int size = getQSize();
             	final int ssize = updateSystem.size(); 
             	if((ssize == 0 && size == 0) || busy || plugin.asyncrunning) {
             		return;
@@ -103,7 +100,7 @@ public class Timer {
             	
                 final long start = System.currentTimeMillis();
                 int processed = 0; // Proccessed non-puuids requests
-                plugin.setQRequests = updateinfo.size();
+                plugin.setQRequests = getQSize();
             	
                 for (int i = 0; i < size; i++) {
                 	final long startset = System.currentTimeMillis();
@@ -111,13 +108,11 @@ public class Timer {
                 		plugin.debug("Q reached size limit of " + sizelimit + "... sending other updates to next run.");
                 		break;
                 	}
-                	
-                    final String uuid = updateplayers.keys().iterator().next();
-                    final String plname = updateplayers.get(uuid).iterator().next();
-                    final String path = updateinfo.keys().iterator().next();
-                    final Object value = updateinfo.get(path).iterator().next();
-                    updateplayers.remove(uuid, plname);
-                    updateinfo.remove(path, value);
+                	Quartet<String, String, String, Object> data = rawdata.get(0);
+                    final String uuid = data.getUUID();
+                    final String plname = data.getPlugin();
+                    final String path = data.getPath();
+                    final Object value = data.getData();
 
                     File f = new File(cache, File.separator + "" + uuid + ".yml");
                     FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
@@ -133,7 +128,7 @@ public class Timer {
                     } else {
                     	setcache.set("Plugins." + plname + "." + path, value);
                     }
-                    plugin.debug("Set " + value + " for " + uuid + " under: " + path);
+                    plugin.debug(plname + " set " + value + " for " + uuid + " under: " + path);
 
                     try {
                     	setcache.save(f);
@@ -148,6 +143,7 @@ public class Timer {
                     plugin.setTimeMS = System.currentTimeMillis() - startset;
                     plugin.setTimes++;
                     processed++;
+                    rawdata.remove(data);
                 }
                 
                 plugin.qTimesMS = System.currentTimeMillis() - start;
@@ -162,33 +158,32 @@ public class Timer {
 
     static void stopTimer() {
 		Timer.timer.cancel();
+		final int size = getQSize();
 		
-        plugin.getLogger().info("Saving " + updateplayers.size() + " leftover tasks...");
+		if(size != 0) {
+			plugin.getLogger().info("Saving " + size + " leftover tasks...");
         
-        for (int i = 0; i < updateplayers.size(); i++) {
-            final String uuid = updateplayers.keys().iterator().next();
-            final String plname = updateplayers.get(uuid).iterator().next();
-            final String path = updateinfo.keys().iterator().next();
-            final Object value = updateinfo.get(uuid).iterator().next();
-            updateplayers.remove(uuid, plname);
-            updateinfo.remove(path, value);
+			for (int i = 0; i < size; i++) {
+				Quartet<String, String, String, Object> data = rawdata.get(1);
+				final String uuid = data.getUUID();
+				final String plname = data.getPlugin();
+				final String path = data.getPath();
+				final Object value = data.getData();
 
-            File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-            File f = new File(cache, File.separator + "" + uuid + ".yml");
-            FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-            setcache.set("Plugins." + plname + "." + path, value);
-            updateplayers.remove(uuid, plname);
-            updateinfo.remove(path, value);
-            plugin.debug("Set " + value + " for " + uuid + " under: " + path);
+				File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+				File f = new File(cache, File.separator + "" + uuid + ".yml");
+				FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+				setcache.set("Plugins." + plname + "." + path, value);
+				plugin.debug("Set " + value + " for " + uuid + " under: " + path);
             
-            try {
-                setcache.save(f);
-            } catch (Exception err) {
+				try {
+					setcache.save(f);
+				} catch (Exception err) {
                     plugin.getLogger().warning("Unable to save PUUIDs file for user " + plugin.UUIDtoname(uuid) + " in plugin: " + plname);
                 }
+				
+				rawdata.remove(data);
+			}
         }
-        
-        updateplayers.clear();
-        updateinfo.clear();
     }
 }

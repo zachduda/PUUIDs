@@ -384,27 +384,6 @@ public class Main extends JavaPlugin implements Listener {
         Timer.queueSet(plname, uuid, "PUUIDS_SET_AS_ALL_NULL", null);
 	}
 	
-
-    @Deprecated // For performance, MOJANG should NEVER be involved.
-    public String nametoUUID(String inputsearch, boolean usemojang) {
-        File folder = new File(this.getDataFolder(), File.separator + "Data");
-
-        for (File AllData: folder.listFiles()) {
-            File f = new File(AllData.getPath());
-
-            FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
-            String playername = setcache.getString("Username");
-            String UUID = setcache.getString("UUID");
-
-            if (inputsearch.equalsIgnoreCase(playername)) {
-                return UUID;
-            }
-        }
-
-        return "0";
-    }
-
     public String nametoUUID(String inputsearch) {
         File folder = new File(this.getDataFolder(), File.separator + "Data");
 
@@ -441,7 +420,7 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     public boolean hasPlayedName(String name) {
-        if (nametoUUID(name, false) == "0") {
+        if (nametoUUID(name) == "0") {
             return false;
         } else {
             return true;
@@ -710,11 +689,11 @@ public class Main extends JavaPlugin implements Listener {
                 Msgs.send(sender, "&8&l> &f&l/puuids reload &7Reload your config.yml.");
                 Msgs.send(sender, "&8&l> &f&l/puuids info &7Shows you how fast/slow your system is running.");
                 if(debug) {
-                	Msgs.send(sender, "&8&l> &f&l/puuids debug &7Shows detailed system information.");	
+                	Msgs.send(sender, "&8&l> &f&l/puuids debug &7Shows detailed system information.");
+                    Msgs.send(sender, "&8&l> &f&l/puuids reset all &7Resets everything except UUIDs/IPs/Names");
+                    Msgs.send(sender, "&8&l> &f&l/puuids reset ontime &7Set everyone's total play-time back to 0.");
                 }
                 Msgs.send(sender, "&8&l> &f&l/puuids plugins &7Shows connected plugins.");
-                Msgs.send(sender, "&8&l> &f&l/puuids reset all &7Resets everything except UUIDs/IPs/Names");
-                Msgs.send(sender, "&8&l> &f&l/puuids reset ontime &7Set everyone's total play-time back to 0.");
                 Msgs.send(sender, "");
                 pop(sender);
                 return true;
@@ -738,6 +717,14 @@ public class Main extends JavaPlugin implements Listener {
             }
             
             if (args.length >= 1 && args[0].equalsIgnoreCase("debug")) {
+            	if(!debug) {
+            		bass(sender);
+                    Msgs.send(sender, "&7");
+                    Msgs.send(sender, "&e&lPUUIDs");
+                    Msgs.send(sender, "&8&l> &c&lCommand Disabled. &fTo enable, please turn on debug mode.");
+                    Msgs.send(sender, "&7");
+            		return true;
+            	}
             	Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
             		double jversion = Double.parseDouble(System.getProperty("java.specification.version"));
             	    StringBuilder sb = new StringBuilder();
@@ -761,7 +748,7 @@ public class Main extends JavaPlugin implements Listener {
             	    } else {
             	    	Msgs.send(sender, "&6" + size + " &fConnected Plugins: &e" + sb.toString());
             	    }
-            	    Msgs.send(sender, "Java: " + jversion);
+            	    Msgs.send(sender, "Java: &e" + jversion);
             	    Msgs.send(sender, "&fConfig Process Rate: &e" + Timer.processrate);
             	    Msgs.send(sender, "&fConfig Q Max Size: &e" + Timer.sizelimit);
             	    Msgs.send(sender, "&fSingle Set Time: &e" + setTimeMS + "ms");
@@ -809,8 +796,77 @@ public class Main extends JavaPlugin implements Listener {
             	});
                 return true;
             }
+            
+            if(args.length >= 1 && args[0].equalsIgnoreCase("togglesave")) {
+            	if(!debug) {
+            		bass(sender);
+                    Msgs.send(sender, "&7");
+                    Msgs.send(sender, "&e&lPUUIDs");
+                    Msgs.send(sender, "&8&l> &c&lCommand Disabled. &fTo enable, please turn on debug mode.");
+                    Msgs.send(sender, "&7");
+            		return true;
+            	}
+            	
+            	if(!(sender instanceof Player)) {
+            		Msgs.sendPrefix(sender, "&6&lFOR SECURITY REASONS: &fOnly a player with permission & op may run this command.");
+                    return true;
+            	}
+            	
+                Player p = (Player) sender;
+
+                if (!p.hasPermission("puuids.admin") || !p.isOp()) {
+                    bass(p);
+                    Msgs.sendPrefix(p, "&6&lFor Saftey: &fYou must have the &7puuids.admin&f permission & be OP to do this.");
+                    return true;
+                }
+                
+                if (!Cooldowns.confirmall.containsKey(p)) {
+                    String key = randomString();
+                    thinking(p);
+                    Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fThis may corrupt data. Do &7&l/puuids togglesave " + key + "&f in 10s to confirm.");
+                    Cooldowns.confirm(p, key);
+                    return true;
+                } else {
+                    // Has reset all confirmation key active v v v
+                    if (args.length == 1) {
+                        Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fType &7&l/puuids togglesave " + Cooldowns.confirmall.get(p) + "&f to confirm.");
+                        thinking(p);
+                        return true;
+                    } else if (args.length >= 2) {
+                        if (!args[1].equalsIgnoreCase(Cooldowns.confirmall.get(p))) {
+                            bass(p);
+                            Msgs.sendPrefix(p, "&6&lToggle Saving Canceled. &fThat was an invalid confirmation key.");
+                            Cooldowns.confirmall.remove(p);
+                            return true;
+                        }
+                    }
+                }
+                
+                Msgs.send(p, "&7");
+                Msgs.send(p, "&e&lPUUIDs");
+                if(asyncrunning) {
+                	Msgs.send(p, "&8&l> &a&lUnfrozen. &fNow processing saving requests...");
+                    asyncrunning = false;
+                } else {
+                    asyncrunning = true;
+                    Msgs.send(p, "&8&l> &c&lFrozen. &fRequests will be Q'ed but not saved.");
+                }
+                Msgs.send(p, "&7");
+                pop(p);
+                Cooldowns.confirmall.remove(p);
+                return true;
+            }
 
             if (args.length >= 1 && args[0].equalsIgnoreCase("reset")) {
+            	if(!debug) {
+            		bass(sender);
+                    Msgs.send(sender, "&7");
+                    Msgs.send(sender, "&e&lPUUIDs");
+                    Msgs.send(sender, "&8&l> &c&lCommand Disabled. &fTo enable, please turn on debug mode.");
+                    Msgs.send(sender, "&7");
+            		return true;
+            	}
+            	
                 if (!Cooldowns.canRunLargeTask) {
                     bass(sender);
                     Msgs.sendPrefix(sender, "&6&lPlease Wait. &fRunning large tasks this quickly can have a negative impact on your server's preformance.");
@@ -854,9 +910,9 @@ public class Main extends JavaPlugin implements Listener {
                             File f = new File(AllData.getPath());
 
                             FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+                            debug("Reset " + setcache.getString("Username") + "'s Time-Played. (" + setcache.getLong("Time-Played") + "secs) " + " (" + f.getName() + ")");
                             setcache.set("Time-Played", 0);
-                            debug("Reset" + setcache.getString("Username") + "'s Time-Played. (" + f.getName() + ")");
-
+                            
                             try {
                                 setcache.save(f);
                             } catch (Exception err) {}
@@ -915,14 +971,14 @@ public class Main extends JavaPlugin implements Listener {
                         }
                     }
 
+                    asyncrunning = true;
+                    
                     Cooldowns.startLargeTask();
                     Msgs.send(sender, "&7");
                     Msgs.send(sender, "&e&lPUUIDs");
                     Msgs.send(sender, "&8&l> &7&oPlease wait... this may take a long time.");
                     Msgs.send(sender, "&7");
                     thinking(sender);
-
-                    asyncrunning = true;
 
                     Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
                         int total = 0;
@@ -966,6 +1022,7 @@ public class Main extends JavaPlugin implements Listener {
                 statusreason = "Unknown issue when trying to clear player file data via cmd.";
                 return true;
             }
+            
 
             if (args.length >= 1 && args[0].equalsIgnoreCase("version")) {
                 Msgs.send(sender, "");
@@ -1075,9 +1132,8 @@ public class Main extends JavaPlugin implements Listener {
                     // Status Reason is a string.
                     Msgs.send(sender, "   &8&l> &6&lREASON: &f" + statusreason);
                 }
-                if (Timer.getQPlayers() != 0 && Timer.getQInfo() != 0) {
-                    Msgs.send(sender, "&8&l> &fQueued Player Data: &e&l" + Timer.getQPlayers());
-                    Msgs.send(sender, "&8&l> &fQueued Info Data: &e&l" + Timer.getQInfo());
+                if (Timer.getQSize() != 0) {
+                    Msgs.send(sender, "&8&l> &fQueued Data: &e&l" + Timer.getQSize());
                 }
                 Msgs.send(sender, "&8&l> &fRequests Per Q: &e&l" + setQRequests);
                 Msgs.send(sender, "&8&l> &fDebug Mode: " + (debug ?"&e&lON" :"&7&lOFF"));

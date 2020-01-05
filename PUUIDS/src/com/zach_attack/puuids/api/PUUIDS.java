@@ -48,10 +48,9 @@ public class PUUIDS {
 	 * @param usemojang (Deprecated will be removed in future update!)
 	 * @return The UUID of a player as a String
 	 */
-	@Deprecated
 	public static String getUUID(String name, boolean usemojang) {
 		wasGet();
-		return plugin.nametoUUID(name, usemojang);
+		return plugin.nametoUUID(name);
 	}
 	
 	public static String getUUID(String name) {
