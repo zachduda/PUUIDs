@@ -164,7 +164,7 @@ public class Timer {
 			plugin.getLogger().info("Saving " + size + " leftover tasks...");
         
 			for (int i = 0; i < size; i++) {
-				Quartet<String, String, String, Object> data = rawdata.get(1);
+				Quartet<String, String, String, Object> data = rawdata.get(0);
 				final String uuid = data.getUUID();
 				final String plname = data.getPlugin();
 				final String path = data.getPath();
