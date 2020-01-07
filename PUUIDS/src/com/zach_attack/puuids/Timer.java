@@ -55,7 +55,6 @@ public class Timer {
             	    for (int i = 0; i < ssize; i++) {
             	        final Player p = updateSystem.keys().iterator().next();
             	        final boolean quit = updateSystem.get(p).iterator().next();
-            	        updateSystem.remove(p, quit);
 
             	        final String uuid = p.getUniqueId().toString();
             	        final String name = p.getName();
@@ -93,6 +92,7 @@ public class Timer {
             	        
             	        plugin.debug("Updated " + name + "'s player data.");
             	        plugin.setTimes++;
+            	        updateSystem.remove(p, quit);
             	    }
             	}
             	// end of system updates --------------
@@ -128,6 +128,7 @@ public class Timer {
                     } else {
                     	setcache.set("Plugins." + plname + "." + path, value);
                     }
+                    
                     plugin.debug(plname + " set " + value + " for " + uuid + " under: " + path);
 
                     try {
@@ -159,6 +160,57 @@ public class Timer {
     static void stopTimer() {
 		Timer.timer.cancel();
 		final int size = getQSize();
+		final int systemsize = updateSystem.size();
+		
+		if(size == 0 && systemsize == 0) {
+			return;
+		}
+		
+		final File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+		
+		if(systemsize != 0) {
+    	    for (int i = 0; i < systemsize; i++) {
+    	        final Player p = updateSystem.keys().iterator().next();
+    	        final boolean quit = updateSystem.get(p).iterator().next();
+
+    	        final String uuid = p.getUniqueId().toString();
+    	        final String name = p.getName();
+
+    	        File f = new File(cache, File.separator + "" + uuid + ".yml");
+    	        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+    	        
+                if(!f.exists()) {
+                	try {
+                		setcache.save(f);
+                	} catch (Exception err) {}
+            	}
+
+    	        final long lefttime = System.currentTimeMillis();
+
+    	        String IPAdd = p.getAddress().getAddress().toString().replace(p.getAddress().getHostString() + "/", "").replace("/", "");
+
+    	        setcache.set("UUID", uuid);
+    	        setcache.set("IP", IPAdd);
+    	        setcache.set("Username", name);
+    	        setcache.set("Last-On", lefttime);
+
+    	        if (quit) {
+    	            final long joined = setcache.getLong("Last-On");
+    	            final long current = setcache.getLong("Time-Played");
+    	            setcache.set("Time-Played", ((current) + ((lefttime - joined) / 1000)));
+    	        }
+
+    	        try {
+    	            setcache.save(f);
+    	        } catch (Exception err) {
+    	            plugin.debug("Error. Was unable to save " + name + "'s file for PUUIDs System update: ");
+    	            err.printStackTrace();
+    	        }
+    	        
+    	        plugin.debug("Updated " + name + "'s player data.");
+    	        updateSystem.remove(p, quit);
+    	    }
+		}
 		
 		if(size != 0) {
 			plugin.getLogger().info("Saving " + size + " leftover tasks...");
@@ -169,10 +221,10 @@ public class Timer {
 				final String plname = data.getPlugin();
 				final String path = data.getPath();
 				final Object value = data.getData();
-
-				File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+				
 				File f = new File(cache, File.separator + "" + uuid + ".yml");
 				FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+				
 				setcache.set("Plugins." + plname + "." + path, value);
 				plugin.debug("Set " + value + " for " + uuid + " under: " + path);
             
@@ -184,6 +236,6 @@ public class Timer {
 				
 				rawdata.remove(data);
 			}
-        }
+		}
     }
 }

@@ -1,18 +1,13 @@
 package com.zach_attack.puuids.api;
 
-import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 
-public class OnNewFile extends Event {
-	
-	// Event that is Fired when a player joins who doesn't have a PUUIDs file yet.
-	
-	private final Player p;
+public class ConnectionClose extends Event {
 
-    public OnNewFile(Player p) {
-    	this.p = p;
-    }
+	// Event that is Fired when PUUIDs is shutting down.
+	
+    public ConnectionClose() {}
     
     private static final HandlerList HANDLERS = new HandlerList();
 
@@ -22,10 +17,6 @@ public class OnNewFile extends Event {
 
     public static HandlerList getHandlerList() {
         return HANDLERS;
-    }
-
-    public Player getPlayer() {
-        return this.p;
     }
 
 }

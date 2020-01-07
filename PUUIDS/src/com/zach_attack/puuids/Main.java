@@ -32,6 +32,8 @@ import org.bukkit.scheduler.BukkitTask;
 
 import com.google.common.io.Files;
 import com.zach_attack.puuids.Updater;
+import com.zach_attack.puuids.api.ConnectionClose;
+import com.zach_attack.puuids.api.ConnectionOpen;
 import com.zach_attack.puuids.api.OnNewFile;
 import com.zach_attack.puuids.api.PUUIDS;
 import com.zach_attack.puuids.api.PUUIDS.APIVersion;
@@ -222,6 +224,9 @@ public class Main extends JavaPlugin implements Listener {
         }
 
         taskresetid = startStatResetTimer();
+        
+		ConnectionOpen coe = new ConnectionOpen();
+        Bukkit.getPluginManager().callEvent(coe);
     }
 
     // Reset Stats every 12 hours
@@ -247,8 +252,12 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     public void onDisable() {
-        allowconnections = false;
         final long start = System.currentTimeMillis();
+        
+		ConnectionClose cce = new ConnectionClose();
+        Bukkit.getPluginManager().callEvent(cce);
+        
+        allowconnections = false;
 
         for (Player p: Bukkit.getOnlinePlayers()) {
             updateFile(p, true, true);
@@ -264,6 +273,7 @@ public class Main extends JavaPlugin implements Listener {
         getTimes = 0;
         qTimesMS = 0;
         setQRequests = 0;
+        
         getLogger().info("Successfully disabled in " + Long.toString(System.currentTimeMillis() - start) + "ms");
     }
 
@@ -531,12 +541,10 @@ public class Main extends JavaPlugin implements Listener {
             });
 
             if (isnew) {
-                Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
-                    public void run() {
-                    	// Also call this API event in SYNC after 2s so the file has time to save.
-                        OnNewFile fse = new OnNewFile(p);
-                        Bukkit.getPluginManager().callEvent(fse);
-                    }
+            	Bukkit.getScheduler().runTaskLater(this, () -> {
+                    // Also call this API event in SYNC after 2s so the file has time to save.
+            		OnNewFile fse = new OnNewFile(p);
+                    Bukkit.getPluginManager().callEvent(fse);
                 }, 40L);
             }
         });
@@ -1117,6 +1125,7 @@ public class Main extends JavaPlugin implements Listener {
                 if (status) {
                     if (setTimeMS < 10 || qTimesMS < 650) {
                         Msgs.send(sender, "&8&l> &fDatabase Health: &a&lGREAT");
+                        statusreason = "0";
                     } else {
                         Msgs.send(sender, "&8&l> &fDatabase Health: &e&lFAIR");
                     }
