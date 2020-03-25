@@ -2,7 +2,6 @@ package com.zach_attack.puuids;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.List;
 
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -12,6 +11,7 @@ import org.bukkit.scheduler.BukkitTask;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
+import com.zach_attack.puuids.api.OnNewFile;
 
 public class Timer {
     private static Main plugin = Main.getPlugin(Main.class);
@@ -20,8 +20,8 @@ public class Timer {
     static int sizelimit = 25;
     private static boolean busy = false;
 
-    //            UUID   PLUGIN   PATH     DATA
-    private static List<Quartet<String, String, String, Object>> rawdata = new ArrayList<>();
+    //                          UUID   PLUGIN   PATH     DATA
+    private static ArrayList<Quartet<String, String, String, Object>> rawdata = new ArrayList<>();
     
     //               Player,  Quit?
     static Multimap<Player, Boolean> updateSystem = ArrayListMultimap.create();
@@ -65,6 +65,11 @@ public class Timer {
                         if(!f.exists()) {
                         	try {
                         		setcache.save(f);
+                            	Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                                    // Also call this API event in SYNC after 2s so the file has time to save.
+                            		OnNewFile fse = new OnNewFile(p);
+                                    Bukkit.getPluginManager().callEvent(fse);
+                                }, 40L);
                         	} catch (Exception err) {}
                     	}
 
@@ -78,9 +83,13 @@ public class Timer {
             	        setcache.set("Last-On", lefttime);
 
             	        if (quit) {
-            	            final long joined = setcache.getLong("Last-On");
-            	            final long current = setcache.getLong("Time-Played");
-            	            setcache.set("Time-Played", ((current) + ((lefttime - joined) / 1000)));
+            	        	final long joined = setcache.getLong("Last-On", 0);
+            	            final long current = setcache.getLong("Time-Played", 0);
+            	            final long sub = (lefttime-joined);
+            	            final long secs = sub/1000;
+            	            final long result = (current+secs);
+            	            setcache.set("Time-Played", result);
+            	            plugin.debug("Joined: " + joined + "   Current: " + current + "  Sub: " + sub + "  Secs: " + secs + "  Result: " + result);
             	        }
 
             	        try {

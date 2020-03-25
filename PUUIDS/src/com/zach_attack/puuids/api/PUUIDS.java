@@ -476,7 +476,7 @@ public class PUUIDS {
 	}
 	
 	/**
-	 * Removes ALL set values for your 
+	 * Removes ALL set values for your plugin.
 	 * 
 	 * @param pl Your plugin (usually "this"). Must be authenticated via PUUIDS.connect(this);
 	 * @param uuid The UUID of the player as a String.

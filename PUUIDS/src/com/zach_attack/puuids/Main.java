@@ -34,9 +34,9 @@ import com.google.common.io.Files;
 import com.zach_attack.puuids.Updater;
 import com.zach_attack.puuids.api.ConnectionClose;
 import com.zach_attack.puuids.api.ConnectionOpen;
-import com.zach_attack.puuids.api.OnNewFile;
 import com.zach_attack.puuids.api.PUUIDS;
 import com.zach_attack.puuids.api.PUUIDS.APIVersion;
+import com.zach_attack.puuids.api.PluginRegistered;
 import com.zach_attack.puuids.api.VersionManager;
 import com.zach_attack.puuids.api.VersionManager.VersionTest;
 
@@ -260,7 +260,7 @@ public class Main extends JavaPlugin implements Listener {
         allowconnections = false;
 
         for (Player p: Bukkit.getOnlinePlayers()) {
-            updateFile(p, true, true);
+            updateFile(p, true);
         }
 
         Timer.stopTimer();
@@ -345,12 +345,15 @@ public class Main extends JavaPlugin implements Listener {
         if (!plugins.contains(plname)) {
             plugins.add(plname);
             debug("Plugin " + plname + " has been registered.");
+            
+            PluginRegistered plr = new PluginRegistered(plname);
+            Bukkit.getPluginManager().callEvent(plr);
             return true;
         }
 
         status = false;
         statusreason = "Plugin " + plname + " tried to overwrite another plugin with the exact same name. Please contact " + pl.getDescription().getAuthors().toString() + ". This is not PUUIDs fault.";
-        getLogger().warning("Plugin '" + plname + "' tried to overwrite another plugin registered with PUUID. Contact " + pl.getDescription().getAuthors().toString() + ".");
+        getLogger().warning(statusreason);
         return false;
     }
 
@@ -512,42 +515,8 @@ public class Main extends JavaPlugin implements Listener {
     }
 
 
-    private void updateFile(Player p, boolean quit, boolean force) {
-    	if(force) {
-    		Timer.updateSystem.put(p, quit);
-    		return;
-    	}
-    	
-        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
-            boolean isnew = false;
-
-            File cache = new File(this.getDataFolder(), File.separator + "Data");
-            File f = new File(cache, File.separator + "" + p.getUniqueId().toString() + ".yml");
-            FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
-            String name = p.getName();
-
-            if (!f.exists()) {
-                try {
-                    debug(name + " is new, creating a file for them.");
-                    setcache.save(f);
-                } catch (Exception err) {}
-                isnew = true;
-            }
-
-            Bukkit.getScheduler().runTask(this, () -> {
-            	// Place in sync to ensure nothing crazy.
-                Timer.updateSystem.put(p, quit);
-            });
-
-            if (isnew) {
-            	Bukkit.getScheduler().runTaskLater(this, () -> {
-                    // Also call this API event in SYNC after 2s so the file has time to save.
-            		OnNewFile fse = new OnNewFile(p);
-                    Bukkit.getPluginManager().callEvent(fse);
-                }, 40L);
-            }
-        });
+    private void updateFile(Player p, boolean quit) {
+    	Timer.updateSystem.put(p, quit);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -561,7 +530,7 @@ public class Main extends JavaPlugin implements Listener {
         	}
         	
             Cooldowns.justJoined(uuid);
-            updateFile(p, false, false);
+            updateFile(p, false);
 
             if (updatecheck) {
                 if (p.hasPermission("puuids.admin") || p.isOp()) {
@@ -592,7 +561,7 @@ public class Main extends JavaPlugin implements Listener {
         UUID uuid = p.getUniqueId();
 
         if (!Cooldowns.joined.contains(uuid)) {
-            updateFile(p, true, false);
+            updateFile(p, true);
             Cooldowns.justJoined(uuid);
         } else {
             debug(p.getName() + "'s file won't be refreshed, it was updated less than 60s ago. [Quit]");
@@ -1103,7 +1072,7 @@ public class Main extends JavaPlugin implements Listener {
                 } else {
                     Msgs.send(sender, "&8&l> &fHooked Plugins: &7&l0");
                 }
-                if (setTimeMS == 0) {
+                if (setTimeMS == 0 && setTimes == 0) {
                     Msgs.send(sender, "&8&l> &fSet Information: &7&l--ms");
                 } else {
                     Msgs.send(sender, "&8&l> &fSet Information: &e&l" + setTimeMS + "ms");
