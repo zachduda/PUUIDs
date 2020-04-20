@@ -30,6 +30,8 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import com.earth2me.essentials.Essentials;
+import com.earth2me.essentials.User;
 import com.google.common.io.Files;
 import com.zach_attack.puuids.Updater;
 import com.zach_attack.puuids.api.ConnectionClose;
@@ -52,6 +54,7 @@ public class Main extends JavaPlugin implements Listener {
     private String statusreason = "0";
 
     private boolean updatecheck = true;
+    static boolean hasess = false;
 
     boolean debug = false;
     boolean asyncrunning = false;
@@ -82,27 +85,34 @@ public class Main extends JavaPlugin implements Listener {
 			return;
 		}
     	
+		if (this.getServer().getPluginManager().isPluginEnabled("Essentials")
+				&& this.getServer().getPluginManager().getPlugin("Essentials") != null) {
+			hasess = true;
+			getLogger().info("Hooking into Essentials...");
+		} 
+    	
         status = true;
         statusreason = "0";
         asyncrunning = true;
 
-        boolean useclean = getConfig().getBoolean("Settings.File-Cleanup.Enabled");
-
+        final boolean useclean = getConfig().getBoolean("Settings.File-Cleanup.Enabled");
+        final boolean cleaness = getConfig().getBoolean("Settings.File-Cleanup.Clean-Essentials");
 
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
-            File folder = new File(this.getDataFolder(), File.separator + "Data");
+        	final Essentials ess = (Essentials) Bukkit.getPluginManager().getPlugin("Essentials");
+            final File folder = new File(this.getDataFolder(), File.separator + "Data");
             if (!folder.exists()) {
                 return;
             }
 
-            ArrayList < String > unknownfiles = new ArrayList < String > ();
+            ArrayList <String> unknownfiles = new ArrayList <String> ();
 
             int maxDays = getConfig().getInt("Settings.File-Cleanup.Max-Days");
 
             for (File cachefile: folder.listFiles()) {
                 String path = cachefile.getPath();
 
-                File f = new File(path);
+                final File f = new File(path);
                 if (!Files.getFileExtension(path).equalsIgnoreCase("yml")) {
                     unknownfiles.add(f.getName());
                 } else {
@@ -122,6 +132,12 @@ public class Main extends JavaPlugin implements Listener {
 
                             if (daysAgo >= maxDays && useclean) {
                                 f.delete();
+                                if(hasess && cleaness) {
+                                	User user = ess.getUser(playername);
+                                	if(!user.getBase().isBanned()) {
+                                		user.reset();
+                                	}
+                                }
                                 if (debug) {
                                     getLogger().info("[Debug] Deleted " + playername + "'s data file because it's " + daysAgo +
                                         "s old. (Max: " + maxDays + " Days)");
@@ -215,7 +231,7 @@ public class Main extends JavaPlugin implements Listener {
         }
 
         if (getConfig().getBoolean("Settings.Metrics", true)) {
-            MetricsLite metrics = new MetricsLite(this);
+            MetricsLite metrics = new MetricsLite(this, 5740);
             if (!metrics.isEnabled()) {
                 debug("Metrics have been disabled in the bStats folder. Guess we won't support all this hard work today!");
             }
@@ -224,9 +240,11 @@ public class Main extends JavaPlugin implements Listener {
         }
 
         taskresetid = startStatResetTimer();
-        
+       
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
 		ConnectionOpen coe = new ConnectionOpen();
         Bukkit.getPluginManager().callEvent(coe);
+        });
     }
 
     // Reset Stats every 12 hours
@@ -253,7 +271,7 @@ public class Main extends JavaPlugin implements Listener {
 
     public void onDisable() {
         final long start = System.currentTimeMillis();
-        
+
 		ConnectionClose cce = new ConnectionClose();
         Bukkit.getPluginManager().callEvent(cce);
         
@@ -320,13 +338,13 @@ public class Main extends JavaPlugin implements Listener {
         VersionTest vt = VersionManager.checks(plname, vers);
         if (vt == VersionTest.FAIL || vers == null) {
             // Plugin will NOT work with this version.
-            getLogger().warning("Plugin " + plname + " is unable to use PUUIDs, for they are using an outdated version.");
+            getLogger().severe("Plugin " + plname + " is unable to use PUUIDs, for they are using an outdated version.");
             return false;
         }
 
         if (vt == VersionTest.LEGACY) {
             // Plugin may not be 100% compatiable.
-            debug(plname + " needs to update their plugin to work better with PUUIDs");
+            getLogger().warning(plname + " needs to update their plugin to work better with PUUIDs");
         } else {
             debug(plname + " has been compilied with the latest PUUIDs version.");
             // Passed Version test for FULL support.
@@ -335,7 +353,7 @@ public class Main extends JavaPlugin implements Listener {
 
         if (!allowconnections) {
             if (!plugins.contains(plname)) {
-                getLogger().warning("Plugin '" + plname + "' tried to register with PUUID after the connection window.");
+                getLogger().warning("Plugin '" + plname + "' tried to register with PUUIDs after the connection window.");
             } else {
                 debug(plname + " was reloaded improperly and send another hook request. Ignoring.");
             }
@@ -346,8 +364,10 @@ public class Main extends JavaPlugin implements Listener {
             plugins.add(plname);
             debug("Plugin " + plname + " has been registered.");
             
+            Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
             PluginRegistered plr = new PluginRegistered(plname);
             Bukkit.getPluginManager().callEvent(plr);
+            });
             return true;
         }
 
@@ -365,36 +385,37 @@ public class Main extends JavaPlugin implements Listener {
         }
     }
 
-    public void set(String pl, String uuid, String loc, Object obj) {
+    public int set(String pl, String uuid, String loc, Object obj) {
 		if(!getPlugins().contains(pl)) {
 			debug("Not allowing " + pl + " to access data. They didn't connect properly.");
-			return;
+			return 0;
 		}
 		
-        Timer.queueSet(pl, uuid, loc, obj);
+        return Timer.queueSet(pl, uuid, loc, obj);
     }
     
-    public void set(String pl, String uuid, String loc, List<?> obj) {
+    public int set(String pl, String uuid, String loc, List<?> obj) {
 		if(!getPlugins().contains(pl)) {
 			debug("Not allowing " + pl + " to access data. They didn't connect properly.");
-			return;
+			return 0;
 		}
 		
-        Timer.queueSet(pl, uuid, loc, obj);
+        return Timer.queueSet(pl, uuid, loc, obj);
     }
     
 
-	public void set(String plname, String uuid, Object object) {
+    // ONLY for setting Null info
+	public int set(String plname, String uuid, Object should_be_null) {
 		if(!getPlugins().contains(plname)) {
 			debug("Not allowing " + plname + " to access data. They didn't connect properly.");
-			return;
+			return 0;
 		}
 		
-		if(object != null) {
-			return;
+		if(should_be_null != null) {
+			return 0;
 		}
 		
-        Timer.queueSet(plname, uuid, "PUUIDS_SET_AS_ALL_NULL", null);
+        return Timer.queueSet(plname, uuid, "PUUIDS_SET_AS_ALL_NULL", null);
 	}
 	
     public String nametoUUID(String inputsearch) {

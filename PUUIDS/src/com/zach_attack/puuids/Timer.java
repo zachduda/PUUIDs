@@ -12,6 +12,7 @@ import org.bukkit.scheduler.BukkitTask;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.zach_attack.puuids.api.OnNewFile;
+import com.zach_attack.puuids.api.TimerSaved;
 
 public class Timer {
     private static Main plugin = Main.getPlugin(Main.class);
@@ -19,9 +20,10 @@ public class Timer {
     static long processrate = 10;
     static int sizelimit = 25;
     private static boolean busy = false;
+    private static int taskid = 1;
 
-    //                          UUID   PLUGIN   PATH     DATA
-    private static ArrayList<Quartet<String, String, String, Object>> rawdata = new ArrayList<>();
+    //                                 UUID   PLUGIN   PATH     DATA    ID
+    private static ArrayList<Quartet<String, String, String, Object, Integer>> rawdata = new ArrayList<>();
     
     //               Player,  Quit?
     static Multimap<Player, Boolean> updateSystem = ArrayListMultimap.create();
@@ -30,11 +32,14 @@ public class Timer {
     	return rawdata.size();
     }
     
-    static void queueSet(String pl, String uuid, String location, Object value) {
+    static int queueSet(String pl, String uuid, String location, Object value) {
+    	final int thisid = taskid;
+    	taskid += 1;
         Bukkit.getScheduler().runTask(plugin, () -> { // Ensures running SYNC to place.
-        	Quartet<String, String, String, Object> quart = new Quartet<String, String, String, Object>(uuid, pl.toUpperCase(), location, value);
+        	Quartet<String, String, String, Object, Integer> quart = new Quartet<String, String, String, Object, Integer>(uuid, pl.toUpperCase(), location, value, thisid);
             rawdata.add(quart);
         });
+        return thisid;
     }
 
     final static BukkitTask timer = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, new Runnable() {
@@ -51,13 +56,14 @@ public class Timer {
     	        final File cache = new File(plugin.getDataFolder(), File.separator + "Data");
             	
             	// internal puuids updates
-            	if (ssize != 0) {
-            	    for (int i = 0; i < ssize; i++) {
+            	    while (updateSystem.size() > 1) {
             	        final Player p = updateSystem.keys().iterator().next();
             	        final boolean quit = updateSystem.get(p).iterator().next();
 
             	        final String uuid = p.getUniqueId().toString();
             	        final String name = p.getName();
+            	        
+            	        boolean isnewfile = false;
 
             	        File f = new File(cache, File.separator + "" + uuid + ".yml");
             	        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
@@ -65,11 +71,7 @@ public class Timer {
                         if(!f.exists()) {
                         	try {
                         		setcache.save(f);
-                            	Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                                    // Also call this API event in SYNC after 2s so the file has time to save.
-                            		OnNewFile fse = new OnNewFile(p);
-                                    Bukkit.getPluginManager().callEvent(fse);
-                                }, 40L);
+                            	isnewfile = true;
                         	} catch (Exception err) {}
                     	}
 
@@ -102,26 +104,31 @@ public class Timer {
             	        plugin.debug("Updated " + name + "'s player data.");
             	        plugin.setTimes++;
             	        updateSystem.remove(p, quit);
+                    	
+            	        if(isnewfile) {
+            	        	OnNewFile fse = new OnNewFile(p);
+            	        	Bukkit.getPluginManager().callEvent(fse);
+                    	}
             	    }
-            	}
             	// end of system updates --------------
             	
             	
                 final long start = System.currentTimeMillis();
                 int processed = 0; // Proccessed non-puuids requests
-                plugin.setQRequests = getQSize();
-            	
-                for (int i = 0; i < size; i++) {
-                	final long startset = System.currentTimeMillis();
-                	if(processed > sizelimit) {
+                plugin.setQRequests = size;
+                
+                while(rawdata.size() > 0) {
+                 	if(processed > sizelimit) {
                 		plugin.debug("Q reached size limit of " + sizelimit + "... sending other updates to next run.");
                 		break;
                 	}
-                	Quartet<String, String, String, Object> data = rawdata.get(0);
+                	final long startset = System.currentTimeMillis();
+                	Quartet<String, String, String, Object, Integer> data = rawdata.get(0);
                     final String uuid = data.getUUID();
                     final String plname = data.getPlugin();
                     final String path = data.getPath();
                     final Object value = data.getData();
+                    final int taskid = data.getId();
 
                     File f = new File(cache, File.separator + "" + uuid + ".yml");
                     FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
@@ -138,10 +145,12 @@ public class Timer {
                     	setcache.set("Plugins." + plname + "." + path, value);
                     }
                     
-                    plugin.debug(plname + " set " + value + " for " + uuid + " under: " + path);
+                    plugin.debug("(" + taskid + ") " + plname + " set " + value + " for " + uuid + " under: " + path);
 
                     try {
                     	setcache.save(f);
+                    	TimerSaved tse = new TimerSaved(plname, uuid, taskid);
+                    	Bukkit.getServer().getPluginManager().callEvent(tse);
                     } catch (Exception err) {
                     	busy = false;
                         if (plugin.debug) {
@@ -150,7 +159,7 @@ public class Timer {
                         }
                     }
                     
-                    plugin.setTimeMS = System.currentTimeMillis() - startset;
+                    plugin.setTimeMS = (plugin.setTimeMS+System.currentTimeMillis() - startset)/2;
                     plugin.setTimes++;
                     processed++;
                     rawdata.remove(data);
@@ -159,7 +168,7 @@ public class Timer {
                 plugin.qTimesMS = System.currentTimeMillis() - start;
                 
                 if(plugin.qTimesMS > 650) {
-                	plugin.getLogger().warning("Saving player data took " + plugin.qTimesMS + "ms. Is the server lagging?");
+                	plugin.getLogger().warning("Saving player data took " + plugin.qTimesMS + "ms. Try reducding ?");
                 }
                 processed = 0;
                 busy = false;
@@ -225,17 +234,17 @@ public class Timer {
 			plugin.getLogger().info("Saving " + size + " leftover tasks...");
         
 			for (int i = 0; i < size; i++) {
-				Quartet<String, String, String, Object> data = rawdata.get(0);
+				Quartet<String, String, String, Object, Integer> data = rawdata.get(0);
 				final String uuid = data.getUUID();
 				final String plname = data.getPlugin();
 				final String path = data.getPath();
 				final Object value = data.getData();
-				
+
 				File f = new File(cache, File.separator + "" + uuid + ".yml");
 				FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 				
 				setcache.set("Plugins." + plname + "." + path, value);
-				plugin.debug("Set " + value + " for " + uuid + " under: " + path);
+				plugin.debug("(# " + data.getId() + ") Set " + value + " for " + uuid + " under: " + path);
             
 				try {
 					setcache.save(f);

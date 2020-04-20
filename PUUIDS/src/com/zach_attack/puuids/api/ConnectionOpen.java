@@ -7,7 +7,7 @@ public class ConnectionOpen extends Event {
 
 	// Event that is Fired when PUUIDs has finished starting up & is accepting connections.
 	
-    public ConnectionOpen() {}
+    public ConnectionOpen() {super(true);}
     
     private static final HandlerList HANDLERS = new HandlerList();
 

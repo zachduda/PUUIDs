@@ -19,12 +19,8 @@ public class PUUIDS {
 	
 	public static enum APIVersion {
 		 @Deprecated V1,
-		 V2
-	}
-	
-	public static enum Result {
-		 ERR,
-		 SUCCESS
+		 @Deprecated V2,
+		 V3
 	}
 	
    /**
@@ -362,9 +358,9 @@ public class PUUIDS {
 	
 	// Start of Location ----
 	
-	public static Result setLocation(Plugin pl, String uuid, String location, Location input) {
+	public static int setLocation(Plugin pl, String uuid, String location, Location input) {
 		if(pl == null || uuid == null || location == null) {
-			return Result.ERR;
+			return 0;
 		}
 		
 		String plname = pl.getName();
@@ -373,9 +369,9 @@ public class PUUIDS {
 		plugin.set(plname, uuid, location + ".Y", input.getY());
 		plugin.set(plname, uuid, location + ".Z", input.getZ());
 		plugin.set(plname, uuid, location + ".Pitch", input.getPitch());
-		plugin.set(plname, uuid, location + ".Yaw", input.getYaw());
+		int taskid = plugin.set(plname, uuid, location + ".Yaw", input.getYaw());
 
-		return Result.SUCCESS;
+		return taskid;
 	}
 	
 	public static Location getLocation(Plugin pl, String uuid, String location, String world) {
@@ -465,14 +461,13 @@ public class PUUIDS {
 	 * @param location Where under the player file to save as? (Similar to Configuration save paths)
 	 * @return The UUID of a player as a String
 	 */
-	public static Result setNull(Plugin pl, String uuid, String location) {
+	public static int setNull(Plugin pl, String uuid, String location) {
 		if(pl == null || uuid == null || location == null) {
-			return Result.ERR;
+			return 0;
 		}
 		
 		String plname = pl.getName();
-		plugin.set(plname, uuid, location, null);
-		return Result.SUCCESS;
+		return plugin.set(plname, uuid, location, null);
 	}
 	
 	/**
@@ -482,14 +477,13 @@ public class PUUIDS {
 	 * @param uuid The UUID of the player as a String.
 	 * @return The UUID of a player as a String
 	 */
-	public static Result setNull(Plugin pl, String uuid) {
+	public static int setNull(Plugin pl, String uuid) {
 		if(pl == null || uuid == null) {
-			return Result.ERR;
+			return 0;
 		}
 		
 		String plname = pl.getName();
-		plugin.set(plname, uuid, null);
-		return Result.SUCCESS;
+		return plugin.set(plname, uuid, null);
 	}
 	// End of NULL set
 	
@@ -503,17 +497,16 @@ public class PUUIDS {
 	 * @param add The string you want to add and save to that player file.
 	 * @return A boolean of weather or not the operation was successful.
 	 */
-	public static Result addToStringList(Plugin pl, String uuid, String location, String add) {
+	public static int addToStringList(Plugin pl, String uuid, String location, String add) {
 		if(pl == null || uuid == null || location == null) {
-			return Result.ERR;
+			return 0;
 		}
 		
 		String plname = pl.getName();
 		
 		List<String> input = getStringList(pl, uuid, location);
 		input.add(add);
-		plugin.set(plname, uuid, location, input);
-		return Result.SUCCESS;
+		return plugin.set(plname, uuid, location, input);
 	}
 	// End of List Add
 	
@@ -527,15 +520,14 @@ public class PUUIDS {
 	 * @param add The int you want to add and save to that player file.
 	 * @return A boolean of weather or not the operation was successful.
 	 */
-	public static Result addToIntList(Plugin pl, String uuid, String location, int add) {
+	public static int addToIntList(Plugin pl, String uuid, String location, int add) {
 		if(pl == null || uuid == null || location == null) {
-			return Result.ERR;
+			return 0;
 		}
 			String plname = pl.getName();
 			List<Integer> input = getIntList(pl, uuid, location);
 			input.add(add);
-			plugin.set(plname, uuid, location, input);
-		return Result.SUCCESS;
+			return plugin.set(plname, uuid, location, input);
 	}
 	// End of List Add
 	
@@ -550,16 +542,15 @@ public class PUUIDS {
 	 * @param add The string you want to remove and save to that player file.
 	 * @return A boolean of weather or not the operation was successful.
 	 */
-	public static Result removeFromStringList(Plugin pl, String uuid, String location, String add) {
+	public static int removeFromStringList(Plugin pl, String uuid, String location, String add) {
 		if(pl == null || uuid == null || location == null) {
-			return Result.ERR;
+			return 0;
 		}
 		
 		String plname = pl.getName();
 		List<String> input = getStringList(pl, uuid, location);
 		input.remove(add);
-		plugin.set(plname, uuid, location, input);
-		return Result.SUCCESS;
+		return plugin.set(plname, uuid, location, input);
 	}
 	// End of List Add
 	
@@ -573,17 +564,16 @@ public class PUUIDS {
 	 * @param add The int you want to remove and save to that player file.
 	 * @return A boolean of weather or not the operation was successful.
 	 */
-	public static Result removeFromIntList(Plugin pl, String uuid, String location, int add) {
+	public static int removeFromIntList(Plugin pl, String uuid, String location, int add) {
 		if(pl == null || uuid == null || location == null) {
-			return Result.ERR;
+			return 0;
 		}
 
 		String plname = pl.getName();
 
 		List<Integer> input = getIntList(pl, uuid, location);
 		input.add(add);
-		plugin.set(plname, uuid, location, input);
-		return Result.SUCCESS;
+		return plugin.set(plname, uuid, location, input);
 	}
 	// End of List Remove
 	
@@ -598,14 +588,13 @@ public class PUUIDS {
 	 * @param input Accepts a boolean/int/long or other value to set.
 	 * @return The UUID of a player as a String
 	 */
-	public static Result set(Plugin pl, String uuid, String location, Object input) {
+	public static int set(Plugin pl, String uuid, String location, Object input) {
 		if(pl == null || uuid == null || location == null) {
-			return Result.ERR;
+			return 0;
 		}
 		
 		String plname = pl.getName();
-		plugin.set(plname, uuid, location, input);
-		return Result.SUCCESS;
+		return plugin.set(plname, uuid, location, input);
 	}
 	// End of SET
 	
@@ -618,26 +607,23 @@ public class PUUIDS {
 	 * @param location Where do you want the value to be set?
 	 * @param input What to set the default value as?
 	 */
-	public static Result addToAllWithout(Plugin pl, String location, Object input) {
+	public static boolean addToAllWithout(Plugin pl, String location, Object input) {
 		if(pl == null || location == null || location == null || input == null) {
-			return Result.ERR;
+			return false;
 		}
 		
-		String plname = pl.getName();
+		// DOES NOT USE ASYNC TIMER. RUNS SYNC
 		
-        if(!Bukkit.isPrimaryThread()) {
-            plugin.debug(plname + " cannot set data ASYNC when using PUUIDs addToAllWithout method. Stopping to prevent corruption!");
-            return Result.ERR;
-        }
+		String plname = pl.getName();
         
         if(!plugin.allowConnections()) {
         	plugin.debug(plname + " tried to set addToAllWithout method AFTER startup, this isn't allowed.");
-        	return Result.ERR;
+        	return false;
         }
 		
 		if(!plugin.getPlugins().contains(plname)) {
 			plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
-			return Result.ERR;
+			return false;
 		}
 		
 		File cache = new File(plugin.getDataFolder(), File.separator + "Data");
@@ -648,20 +634,20 @@ public class PUUIDS {
 			try {
 			File f = new File(cache, File.separator + "" + playeruuid + ".yml");
 			FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-			
+			Bukkit.getScheduler().runTask(plugin, () -> {
 			if(!setcache.contains("Plugins." + plname.toUpperCase() + "." + location) || setcache.get("Plugins." + plname.toUpperCase() + "." + location) == null) {
 				setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-				setcache.save(f);
-				total++;
-			}
-			} catch (Exception err) {return Result.ERR;}
+				try {setcache.save(f);}catch(Exception err) {}
+			}});
+			total++;
+			} catch (Exception err) {return false;}
 		}
 		
 		if(total != 0) {
 			plugin.debug(plname + " updated " + total + " files with their missing values.");
 		}
 		total = 0;
-		return Result.SUCCESS;
+		return true;
 	}
 	
 	// End of Updates

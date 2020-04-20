@@ -7,7 +7,7 @@ public class ConnectionClose extends Event {
 
 	// Event that is Fired when PUUIDs is shutting down.
 	
-    public ConnectionClose() {}
+    public ConnectionClose() {super(false);}
     
     private static final HandlerList HANDLERS = new HandlerList();
 

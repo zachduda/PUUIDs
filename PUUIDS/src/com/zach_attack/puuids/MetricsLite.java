@@ -23,18 +23,6 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.util.zip.GZIPOutputStream;
 
-/**
- * NOTE FROM PUUIDs DEV:
- * This Metrics.java is the only way I can be supported on Spigot without recieving any donations.
- * This only tells me some basic specs of your server, and helps me know how many people are using my plugin.
- * When you disable, or even remove this class, I won't ever know that you appreciate this API. 
- * Seeing 1 extra person using this plugin, just makes it that much more worth while. 
- * 
- * Please consider leaving this is. PUUIDs will ALWAYS strive for performance, and this is no exception.
- * Metrics are fast, secure, 100% anonymous and safe to use. Thank You!
- * 																			 ~Zach
- */
-
 public class MetricsLite {
 
     static {
@@ -56,24 +44,42 @@ public class MetricsLite {
     private static boolean logResponseStatusText;
     private static String serverUUID;
     private final Plugin plugin;
+    private final int pluginId;
 
-    public MetricsLite(Plugin plugin) {
+    /**
+     * Class constructor.
+     *
+     * @param plugin The plugin which stats should be submitted.
+     * @param pluginId The id of the plugin.
+     *                 It can be found at <a href="https://bstats.org/what-is-my-plugin-id">What is my plugin id?</a>
+     */
+    public MetricsLite(Plugin plugin, int pluginId) {
         if (plugin == null) {
             throw new IllegalArgumentException("Plugin cannot be null!");
         }
         this.plugin = plugin;
+        this.pluginId = pluginId;
 
+        // Get the config file
         File bStatsFolder = new File(plugin.getDataFolder().getParentFile(), "bStats");
         File configFile = new File(bStatsFolder, "config.yml");
         YamlConfiguration config = YamlConfiguration.loadConfiguration(configFile);
 
+        // Check if the config file exists
         if (!config.isSet("serverUuid")) {
+
+            // Add default values
             config.addDefault("enabled", true);
+            // Every server gets it's unique random id.
             config.addDefault("serverUuid", UUID.randomUUID().toString());
+            // Should failed request be logged?
             config.addDefault("logFailedRequests", false);
+            // Should the sent data be logged?
             config.addDefault("logSentData", false);
+            // Should the response text be logged?
             config.addDefault("logResponseStatusText", false);
 
+            // Inform the server owners about bStats
             config.options().header(
                     "bStats collects some data for plugin authors like how many servers are using their plugins.\n" +
                             "To honor their work, you should not disable it.\n" +
@@ -85,6 +91,7 @@ public class MetricsLite {
             } catch (IOException ignored) { }
         }
 
+        // Load the data
         serverUUID = config.getString("serverUuid");
         logFailedRequests = config.getBoolean("logFailedRequests", false);
         enabled = config.getBoolean("enabled", true);
@@ -92,24 +99,35 @@ public class MetricsLite {
         logResponseStatusText = config.getBoolean("logResponseStatusText", false);
         if (enabled) {
             boolean found = false;
+            // Search for all other bStats Metrics classes to see if we are the first one
             for (Class<?> service : Bukkit.getServicesManager().getKnownServices()) {
                 try {
-                    service.getField("B_STATS_VERSION");
-                    found = true;
+                    service.getField("B_STATS_VERSION"); // Our identifier :)
+                    found = true; // We aren't the first
                     break;
                 } catch (NoSuchFieldException ignored) { }
             }
+            // Register our service
             Bukkit.getServicesManager().register(MetricsLite.class, this, plugin, ServicePriority.Normal);
             if (!found) {
+                // We are the first!
                 startSubmitting();
             }
         }
     }
 
+    /**
+     * Checks if bStats is enabled.
+     *
+     * @return Whether bStats is enabled or not.
+     */
     public boolean isEnabled() {
         return enabled;
     }
 
+    /**
+     * Starts the Scheduler which submits our data every 30 minutes.
+     */
     private void startSubmitting() {
         final Timer timer = new Timer(true);
         timer.scheduleAtFixedRate(new TimerTask() {
@@ -124,6 +142,12 @@ public class MetricsLite {
         }, 1000 * 60 * 5, 1000 * 60 * 30);
     }
 
+    /**
+     * Gets the plugin specific data.
+     * This method is called using Reflection.
+     *
+     * @return The plugin specific data.
+     */
     public JsonObject getPluginData() {
         JsonObject data = new JsonObject();
 
@@ -131,12 +155,18 @@ public class MetricsLite {
         String pluginVersion = plugin.getDescription().getVersion();
 
         data.addProperty("pluginName", pluginName); // Append the name of the plugin
+        data.addProperty("id", pluginId); // Append the id of the plugin
         data.addProperty("pluginVersion", pluginVersion); // Append the version of the plugin
         data.add("customCharts", new JsonArray());
 
         return data;
     }
 
+    /**
+     * Gets the server specific data.
+     *
+     * @return The server specific data.
+     */
     private JsonObject getServerData() {
         // Minecraft specific data
         int playerAmount;
@@ -146,7 +176,7 @@ public class MetricsLite {
                     ? ((Collection<?>) onlinePlayersMethod.invoke(Bukkit.getServer())).size()
                     : ((Player[]) onlinePlayersMethod.invoke(Bukkit.getServer())).length;
         } catch (Exception e) {
-            playerAmount = Bukkit.getOnlinePlayers().size(); // Just use the new method if the Reflection failed
+            playerAmount = Bukkit.getOnlinePlayers().size();
         }
         int onlineMode = Bukkit.getOnlineMode() ? 1 : 0;
         String bukkitVersion = Bukkit.getVersion();
@@ -177,6 +207,9 @@ public class MetricsLite {
         return data;
     }
 
+    /**
+     * Collects the data and sends it afterwards.
+     */
     private void submitData() {
         final JsonObject data = getServerData();
 
@@ -206,7 +239,6 @@ public class MetricsLite {
                                 if (logFailedRequests) {
                                     this.plugin.getLogger().log(Level.SEVERE, "Encountered unexpected exception ", e);
                                 }
-                                continue; // continue looping since we cannot do any other thing.
                             }
                         }
                     } catch (NullPointerException | NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
@@ -218,22 +250,26 @@ public class MetricsLite {
         data.add("plugins", pluginData);
 
         // Create a new thread for the connection to the bStats server
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    // Send the data
-                    sendData(plugin, data);
-                } catch (Exception e) {
-                    // Something went wrong! :(
-                    if (logFailedRequests) {
-                        plugin.getLogger().log(Level.WARNING, "Could not submit plugin stats of " + plugin.getName(), e);
-                    }
+        new Thread(() -> {
+            try {
+                // Send the data
+                sendData(plugin, data);
+            } catch (Exception e) {
+                // Something went wrong! :(
+                if (logFailedRequests) {
+                    plugin.getLogger().log(Level.WARNING, "Could not submit plugin stats of " + plugin.getName(), e);
                 }
             }
         }).start();
     }
 
+    /**
+     * Sends the data to the bStats server.
+     *
+     * @param plugin Any plugin. It's just used to get a logger instance.
+     * @param data The data to send.
+     * @throws Exception If the request failed.
+     */
     private static void sendData(Plugin plugin, JsonObject data) throws Exception {
         if (data == null) {
             throw new IllegalArgumentException("Data cannot be null!");
@@ -242,12 +278,14 @@ public class MetricsLite {
             throw new IllegalAccessException("This method must not be called from the main thread!");
         }
         if (logSentData) {
-            plugin.getLogger().info("Sending data to bStats: " + data.toString());
+            plugin.getLogger().info("Sending data to bStats: " + data);
         }
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
 
+        // Compress the data to save bandwidth
         byte[] compressedData = compress(data.toString());
 
+        // Add headers
         connection.setRequestMethod("POST");
         connection.addRequestProperty("Accept", "application/json");
         connection.addRequestProperty("Connection", "close");
@@ -255,34 +293,41 @@ public class MetricsLite {
         connection.addRequestProperty("Content-Length", String.valueOf(compressedData.length));
         connection.setRequestProperty("Content-Type", "application/json"); // We send our data in JSON format
         connection.setRequestProperty("User-Agent", "MC-Server/" + B_STATS_VERSION);
-        connection.setDoOutput(true);
-        DataOutputStream outputStream = new DataOutputStream(connection.getOutputStream());
-        outputStream.write(compressedData);
-        outputStream.flush();
-        outputStream.close();
 
-        InputStream inputStream = connection.getInputStream();
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+        // Send data
+        connection.setDoOutput(true);
+        try (DataOutputStream outputStream = new DataOutputStream(connection.getOutputStream())) {
+            outputStream.write(compressedData);
+        }
 
         StringBuilder builder = new StringBuilder();
-        String line;
-        while ((line = bufferedReader.readLine()) != null) {
-            builder.append(line);
+        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                builder.append(line);
+            }
         }
-        bufferedReader.close();
+
         if (logResponseStatusText) {
-            plugin.getLogger().info("Sent data to bStats and received response: " + builder.toString());
+            plugin.getLogger().info("Sent data to bStats and received response: " + builder);
         }
     }
 
+    /**
+     * Gzips the given String.
+     *
+     * @param str The string to gzip.
+     * @return The gzipped String.
+     * @throws IOException If the compression failed.
+     */
     private static byte[] compress(final String str) throws IOException {
         if (str == null) {
             return null;
         }
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        GZIPOutputStream gzip = new GZIPOutputStream(outputStream);
-        gzip.write(str.getBytes(StandardCharsets.UTF_8));
-        gzip.close();
+        try(GZIPOutputStream gzip = new GZIPOutputStream(outputStream)) {
+            gzip.write(str.getBytes(StandardCharsets.UTF_8));
+        }
         return outputStream.toByteArray();
     }
 

@@ -18,6 +18,11 @@ public class VersionManager {
 		
 		if(version == APIVersion.V2) {
 			// Added new Async settings and deprecated nametoUUID mojang look up.
+			return VersionTest.LEGACY;
+		}
+		
+		if(version == APIVersion.V3) {
+			// Removed Result ERR/Success return and changed to task id.
 			return VersionTest.PASS;
 		}
 		

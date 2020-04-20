@@ -4,6 +4,7 @@ website: https://www.spigotmc.org/resources/api-puuids.71496/
 author: zach_attack
 version: 2.4
 api-version: 1.13
+softdepend: [Essentials]
 load: STARTUP
 permissions:
    puuids.admin:

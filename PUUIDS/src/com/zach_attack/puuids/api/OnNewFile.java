@@ -11,6 +11,7 @@ public class OnNewFile extends Event {
 	private final Player p;
 
     public OnNewFile(Player p) {
+    	super(true);
     	this.p = p;
     }
     
