@@ -168,7 +168,7 @@ public class Timer {
                 plugin.qTimesMS = System.currentTimeMillis() - start;
                 
                 if(plugin.qTimesMS > 650) {
-                	plugin.getLogger().warning("Saving player data took " + plugin.qTimesMS + "ms. Try reducding ?");
+                	plugin.getLogger().warning("Saving player data took " + plugin.qTimesMS + "ms. Try reducding max your task limit!");
                 }
                 processed = 0;
                 busy = false;
