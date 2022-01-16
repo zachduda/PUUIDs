@@ -33,7 +33,6 @@ import org.bukkit.scheduler.BukkitTask;
 import com.earth2me.essentials.Essentials;
 import com.earth2me.essentials.User;
 import com.google.common.io.Files;
-import com.zach_attack.puuids.Updater;
 import com.zach_attack.puuids.api.ConnectionClose;
 import com.zach_attack.puuids.api.ConnectionOpen;
 import com.zach_attack.puuids.api.PUUIDS;
@@ -64,7 +63,7 @@ public class Main extends JavaPlugin implements Listener {
     long qTimesMS = 0;
     int setQRequests = 0;
 
-    private boolean isFullySupported = (version.contains("1.16") || version.contains("1.15") || version.contains("1.14") || version.contains("1.13")) ? true : false;
+    private boolean isFullySupported = (version.contains("1.18") || version.contains("1.17") || version.contains("1.16") || version.contains("1.15") || version.contains("1.14") || version.contains("1.13")) ? true : false;
     private int taskresetid = 0;
 
     public PUUIDS api;
