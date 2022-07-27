@@ -17,7 +17,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-// ChatFeelings Async Check --> Based off of Benz56's update checker <3
+// PUUIDs Async Check --> Based off of Benz56's update checker <3
 // https://github.com/Benz56/Async-Update-Checker/blob/master/UpdateChecker.java
 
 public class Updater {
