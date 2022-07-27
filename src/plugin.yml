@@ -1,0 +1,15 @@
+name: PUUIDS
+main: com.zach_attack.puuids.Main
+website: https://www.spigotmc.org/resources/api-puuids.71496/
+author: zach_attack
+version: 2.5
+api-version: 1.13
+softdepend: [ Essentials ]
+load: STARTUP
+permissions:
+  puuids.admin:
+    description: Admin permission for PUUIDs
+    default: op
+commands:
+  puuids:
+    description: The main plugin command for the PUUIDs system.

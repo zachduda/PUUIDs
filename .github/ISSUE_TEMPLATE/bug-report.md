@@ -11,7 +11,8 @@ assignees: zachduda
 Put a brief description of what the bug is.
 
 **How to Reproduce:** (If unsure, you may leave this out)
-How can we recreate this bug? 
+How can we recreate this bug?
+
 1.  _____
 2.  _____
 3.  _____
@@ -21,6 +22,7 @@ Please go to https://pastebin.com and paste in any console errors that occur rig
 
 **Debug Info**  (Required)
 Please enable debug mode in your config.yml and do /puuids debug in console. (Paste results below)
+
 ```
 (REPLACE THIS TEXT WITH DEBUG PASTE)
 ```
