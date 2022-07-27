@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Update some documentation">
+    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Bump Version">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zach_attack/puuids/Updater.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zach_attack/puuids/Updater.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -52,7 +52,7 @@
       <workItem from="1658884536291" duration="249000" />
       <workItem from="1658884802027" duration="186000" />
       <workItem from="1658885017477" duration="133000" />
-      <workItem from="1658886000567" duration="429000" />
+      <workItem from="1658886000567" duration="530000" />
     </task>
     <task id="LOCAL-00001" summary="Update some documentation">
       <created>1658886204950</created>
@@ -61,7 +61,14 @@
       <option name="project" value="LOCAL" />
       <updated>1658886204950</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Bump Version">
+      <created>1658886441629</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1658886441629</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -86,6 +93,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Update some documentation" />
-    <option name="LAST_COMMIT_MESSAGE" value="Update some documentation" />
+    <MESSAGE value="Bump Version" />
+    <option name="LAST_COMMIT_MESSAGE" value="Bump Version" />
   </component>
 </project>
