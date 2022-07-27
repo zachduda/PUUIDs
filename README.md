@@ -1,3 +1,20 @@
-# PUUIDs
+![Alt text](Images/banner.png?raw=true "PUUIDs Banner")
+Async per player file saving: Made Easy!
 
-A quick, and efficient library for developers to retrieve and store UUID based data.
+# API
+Ready to get started? Check out: [Setting Your Data](https://github.com/zachduda/PUUIDs/wiki/Start-Setting-Data).
+
+# Spigot
+PUUIDs is a Spigot plugin for 1.13, 1.14, 1.15, 1.16, 1.17, 1.18, & 1.19. Please check out the [Spigot Page](https://www.spigotmc.org/resources/puuids-•-an-async-file-api.71496/). for full documentation.
+
+# Terms of Use
+All of my Minecraft related resources are licensed under GNU v3. You may read the fine print [here](https://github.com/zachduda/PUUIDs/blob/master/LICENSE).
+The most important parts of the license:
+- You are not to sell this plugin, regardless of your modifications.
+- You **are** able welcomed to distribute this resource or any modification thereof on any platform for free.
+- If you do make modifications and redistribute **you must disclose the modifications made** and link back to the original resource in some way.
+- All redistributions or modifications are to automatically be open-source and follow the GNU v3 license and it's principles.
+- Any software made for public use must be **open-source** and should be made with good intentions.
+
+# Contact Me
+If you have any questions or inquiries, you can reach me at https://zachduda.com/contact

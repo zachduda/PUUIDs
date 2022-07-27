@@ -5,29 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.github/ISSUE_TEMPLATE/bug-report.md" beforeDir="false" afterPath="$PROJECT_DIR$/.github/ISSUE_TEMPLATE/bug-report.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/.classpath" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/.project" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/.settings/org.eclipse.jdt.core.prefs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/dependency-reduced-pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/dependency-reduced-pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/com/zach_attack/puuids/Cooldowns.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zach_attack/puuids/Cooldowns.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/com/zach_attack/puuids/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zach_attack/puuids/Main.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/com/zach_attack/puuids/MetricsLite.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/com/zach_attack/puuids/Msgs.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zach_attack/puuids/Msgs.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/com/zach_attack/puuids/Quartet.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zach_attack/puuids/Quartet.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/com/zach_attack/puuids/Timer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zach_attack/puuids/Timer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/com/zach_attack/puuids/Updater.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zach_attack/puuids/Updater.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/com/zach_attack/puuids/api/ConnectionClose.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zach_attack/puuids/api/ConnectionClose.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/com/zach_attack/puuids/api/ConnectionOpen.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zach_attack/puuids/api/ConnectionOpen.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/com/zach_attack/puuids/api/OnNewFile.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zach_attack/puuids/api/OnNewFile.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/com/zach_attack/puuids/api/PUUIDS.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zach_attack/puuids/api/PUUIDS.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/com/zach_attack/puuids/api/PluginRegistered.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zach_attack/puuids/api/PluginRegistered.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/com/zach_attack/puuids/api/TimerSaved.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zach_attack/puuids/api/TimerSaved.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/com/zach_attack/puuids/api/VersionManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zach_attack/puuids/api/VersionManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/config.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/config.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PUUIDS/src/plugin.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/plugin.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/LICENSE" beforeDir="false" afterPath="$PROJECT_DIR$/LICENSE" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -46,16 +25,17 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "project.structure.last.edited": "Project",
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.0",
+    "settings.editor.selected.configurable": "vcs.Git"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
@@ -73,6 +53,7 @@
       <workItem from="1658884536291" duration="249000" />
       <workItem from="1658884802027" duration="186000" />
       <workItem from="1658885017477" duration="133000" />
+      <workItem from="1658886000567" duration="170000" />
     </task>
     <servers />
   </component>
