@@ -1,4 +1,4 @@
-package com.zach_attack.puuids;
+package com.zachduda.puuids;
 
 public class Quartet<uuid, plname, path, input, id> {
 

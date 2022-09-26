@@ -1,4 +1,4 @@
-package com.zach_attack.puuids;
+package com.zachduda.puuids;
 
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;

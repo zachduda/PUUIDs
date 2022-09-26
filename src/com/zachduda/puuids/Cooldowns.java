@@ -1,4 +1,4 @@
-package com.zach_attack.puuids;
+package com.zachduda.puuids;
 
 import java.util.ArrayList;
 import java.util.HashMap;

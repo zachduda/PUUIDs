@@ -1,4 +1,4 @@
-package com.zach_attack.puuids.api;
+package com.zachduda.puuids.api;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -12,7 +12,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import com.google.common.io.Files;
-import com.zach_attack.puuids.Main;
+import com.zachduda.puuids.Main;
 
 public class PUUIDS {
     private static Main plugin = Main.getPlugin(Main.class);

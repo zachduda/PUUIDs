@@ -1,4 +1,4 @@
-package com.zach_attack.puuids;
+package com.zachduda.puuids;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -11,8 +11,8 @@ import org.bukkit.scheduler.BukkitTask;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-import com.zach_attack.puuids.api.OnNewFile;
-import com.zach_attack.puuids.api.TimerSaved;
+import com.zachduda.puuids.api.OnNewFile;
+import com.zachduda.puuids.api.TimerSaved;
 
 public class Timer {
     static long processrate = 10;

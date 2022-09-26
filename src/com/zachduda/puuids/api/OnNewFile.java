@@ -1,4 +1,4 @@
-package com.zach_attack.puuids.api;
+package com.zachduda.puuids.api;
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;

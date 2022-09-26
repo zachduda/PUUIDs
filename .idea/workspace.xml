@@ -5,7 +5,20 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Rename com.zach_attack packaging to com.zachduda to match new org">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Cooldowns.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Cooldowns.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Msgs.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Msgs.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Quartet.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Quartet.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Timer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Timer.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Updater.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Updater.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/ConnectionClose.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/ConnectionClose.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/ConnectionOpen.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/ConnectionOpen.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/OnNewFile.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/OnNewFile.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PluginRegistered.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PluginRegistered.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/TimerSaved.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/TimerSaved.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/VersionManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/VersionManager.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -23,17 +36,17 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "WebServerToolWindowFactoryState": "false",
-    "project.structure.last.edited": "Project",
-    "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.0",
-    "settings.editor.selected.configurable": "vcs.Git"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;vcs.Git&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
@@ -52,6 +65,7 @@
       <workItem from="1658884802027" duration="186000" />
       <workItem from="1658885017477" duration="133000" />
       <workItem from="1658886000567" duration="624000" />
+      <workItem from="1664202325258" duration="884000" />
     </task>
     <task id="LOCAL-00001" summary="Update some documentation">
       <created>1658886204950</created>

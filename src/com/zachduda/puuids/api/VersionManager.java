@@ -1,6 +1,6 @@
-package com.zach_attack.puuids.api;
+package com.zachduda.puuids.api;
 
-import com.zach_attack.puuids.api.PUUIDS.APIVersion;
+import com.zachduda.puuids.api.PUUIDS.APIVersion;
 
 public class VersionManager {
 

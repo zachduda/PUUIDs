@@ -1,4 +1,4 @@
-package com.zach_attack.puuids;
+package com.zachduda.puuids;
 
 import java.io.File;
 import java.lang.management.ManagementFactory;
@@ -33,14 +33,14 @@ import org.bukkit.scheduler.BukkitTask;
 import com.earth2me.essentials.Essentials;
 import com.earth2me.essentials.User;
 import com.google.common.io.Files;
-import com.zach_attack.puuids.api.ConnectionClose;
-import com.zach_attack.puuids.api.ConnectionOpen;
-import com.zach_attack.puuids.api.PUUIDS;
-import com.zach_attack.puuids.api.PUUIDS.APIVersion;
-import com.zach_attack.puuids.api.PluginRegistered;
-import com.zach_attack.puuids.api.VersionManager;
-import com.zach_attack.puuids.api.VersionManager.VersionTest;
-
+import com.zachduda.puuids.api.ConnectionClose;
+import com.zachduda.puuids.api.ConnectionOpen;
+import com.zachduda.puuids.api.PUUIDS;
+import com.zachduda.puuids.api.PUUIDS.APIVersion;
+import com.zachduda.puuids.api.PluginRegistered;
+import com.zachduda.puuids.api.VersionManager;
+import com.zachduda.puuids.api.VersionManager.VersionTest;
+import com.zachduda.puuids.Updater;
 import org.bstats.bukkit.Metrics;
 
 public class Main extends JavaPlugin implements Listener {
@@ -62,7 +62,7 @@ public class Main extends JavaPlugin implements Listener {
     private boolean status;
     private String statusreason = "0";
     private boolean updatecheck = true;
-    private boolean isFullySupported = (version.contains("1.18") || version.contains("1.17") || version.contains("1.16") || version.contains("1.15") || version.contains("1.14") || version.contains("1.13")) ? true : false;
+    private boolean isFullySupported = (version.contains("1.19") || version.contains("1.18") || version.contains("1.17") || version.contains("1.16") || version.contains("1.15") || version.contains("1.14") || version.contains("1.13")) ? true : false;
     private int taskresetid = 0;
 
     public void onEnable() {
@@ -551,7 +551,7 @@ public class Main extends JavaPlugin implements Listener {
                     if (Updater.outdated) {
                         try {
                             Msgs.sendPrefix(p, "&c&lOutdated Plugin! &7Running v" + getDescription().getVersion() +
-                                    " while the latest is &f&l" + Updater.outdatedversion);
+                                    " while the latest is &f&l" + Updater.postedver);
                             pop(p);
                         } catch (Exception err) {
                             sounds = false;
