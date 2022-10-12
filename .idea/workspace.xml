@@ -4,21 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Rename com.zach_attack packaging to com.zachduda to match new org">
+    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Refresh for 1.19">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Cooldowns.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Cooldowns.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Msgs.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Msgs.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Quartet.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Quartet.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Timer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Timer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Updater.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Updater.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/ConnectionClose.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/ConnectionClose.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/ConnectionOpen.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/ConnectionOpen.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/OnNewFile.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/OnNewFile.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PluginRegistered.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PluginRegistered.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/TimerSaved.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/TimerSaved.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/VersionManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/VersionManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/plugin.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/plugin.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,17 +25,18 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;vcs.Git&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "last_opened_file_path": "/Users/zach/IdeaProjects/PUUIDs",
+    "project.structure.last.edited": "Project",
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.0",
+    "settings.editor.selected.configurable": "vcs.Git"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
@@ -65,7 +55,8 @@
       <workItem from="1658884802027" duration="186000" />
       <workItem from="1658885017477" duration="133000" />
       <workItem from="1658886000567" duration="624000" />
-      <workItem from="1664202325258" duration="884000" />
+      <workItem from="1664202325258" duration="1769000" />
+      <workItem from="1664375504438" duration="477000" />
     </task>
     <task id="LOCAL-00001" summary="Update some documentation">
       <created>1658886204950</created>
@@ -95,7 +86,14 @@
       <option name="project" value="LOCAL" />
       <updated>1658886611112</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Refresh for 1.19">
+      <created>1664203564007</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1664203564007</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -123,6 +121,7 @@
     <MESSAGE value="Bump Version" />
     <MESSAGE value="Change updater to check against Github rather than SpigotMC" />
     <MESSAGE value="Rename com.zach_attack packaging to com.zachduda to match new org" />
-    <option name="LAST_COMMIT_MESSAGE" value="Rename com.zach_attack packaging to com.zachduda to match new org" />
+    <MESSAGE value="Refresh for 1.19" />
+    <option name="LAST_COMMIT_MESSAGE" value="Refresh for 1.19" />
   </component>
 </project>

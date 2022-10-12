@@ -58,24 +58,24 @@ public class Timer {
                     }
                 }
 
-                final long lefttime = System.currentTimeMillis();
-
+                final long now = System.currentTimeMillis();
                 String IPAdd = p.getAddress().getAddress().toString().replace(p.getAddress().getHostString() + "/", "").replace("/", "");
 
                 setcache.set("UUID", uuid);
                 setcache.set("IP", IPAdd);
                 setcache.set("Username", name);
-                setcache.set("Last-On", lefttime);
 
                 if (quit) {
-                    final long joined = setcache.getLong("Last-On", 0);
-                    final long current = setcache.getLong("Time-Played", 0);
-                    final long sub = (lefttime - joined);
+                    final long joined = setcache.getLong("Last-On");
+                    final long current = setcache.getLong("Time-Played");
+                    final long sub = (now - joined);
                     final long secs = sub / 1000;
                     final long result = (current + secs);
                     setcache.set("Time-Played", result);
                     plugin.debug("Joined: " + joined + "   Current: " + current + "  Sub: " + sub + "  Secs: " + secs + "  Result: " + result);
                 }
+
+                setcache.set("Last-On", now);
 
                 try {
                     setcache.save(f);
