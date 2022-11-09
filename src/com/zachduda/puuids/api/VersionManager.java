@@ -17,6 +17,11 @@ public class VersionManager {
 
         if (version == APIVersion.V3) {
             // Removed Result ERR/Success return and changed to task id.
+            return VersionTest.LEGACY;
+        }
+
+        if (version == APIVersion.V4) {
+            // Changed Location save / get calls to use the world properly
             return VersionTest.PASS;
         }
 

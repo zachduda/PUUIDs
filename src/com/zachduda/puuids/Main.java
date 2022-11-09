@@ -2,12 +2,7 @@ package com.zachduda.puuids;
 
 import java.io.File;
 import java.lang.management.ManagementFactory;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
 import javax.management.Attribute;
 import javax.management.AttributeList;
@@ -40,13 +35,12 @@ import com.zachduda.puuids.api.PUUIDS.APIVersion;
 import com.zachduda.puuids.api.PluginRegistered;
 import com.zachduda.puuids.api.VersionManager;
 import com.zachduda.puuids.api.VersionManager.VersionTest;
-import com.zachduda.puuids.Updater;
 import org.bstats.bukkit.Metrics;
 
 public class Main extends JavaPlugin implements Listener {
 
     static boolean hasess = false;
-    private static HashSet<String> plugins = new HashSet<String>();
+    private static HashMap<Plugin, APIVersion> plugins = new HashMap<>();
 
     private static boolean allowconnections = false;
     public int getTimes = 0;
@@ -57,12 +51,12 @@ public class Main extends JavaPlugin implements Listener {
     int setTimes = 0;
     long qTimesMS = 0;
     int setQRequests = 0;
-    private String version = Bukkit.getBukkitVersion().replace("-SNAPSHOT", "");
+    private final String version = Bukkit.getBukkitVersion().replace("-SNAPSHOT", "");
     private boolean sounds;
     private boolean status;
     private String statusreason = "0";
     private boolean updatecheck = true;
-    private boolean isFullySupported = (version.contains("1.19") || version.contains("1.18") || version.contains("1.17") || version.contains("1.16") || version.contains("1.15") || version.contains("1.14") || version.contains("1.13")) ? true : false;
+    private final boolean isFullySupported = (version.contains("1.19") || version.contains("1.18") || version.contains("1.17") || version.contains("1.16") || version.contains("1.15") || version.contains("1.14") || version.contains("1.13")) ? true : false;
     private int taskresetid = 0;
 
     public void onEnable() {
@@ -101,7 +95,7 @@ public class Main extends JavaPlugin implements Listener {
                 return;
             }
 
-            ArrayList<String> unknownfiles = new ArrayList<String>();
+            ArrayList<String> unknownfiles = new ArrayList<>();
 
             int maxDays = getConfig().getInt("Settings.File-Cleanup.Max-Days");
 
@@ -110,7 +104,12 @@ public class Main extends JavaPlugin implements Listener {
 
                 final File f = new File(path);
                 if (!Files.getFileExtension(path).equalsIgnoreCase("yml")) {
-                    unknownfiles.add(f.getName());
+                    if(f.getName().toLowerCase().contains("ds_store")) {
+                        f.delete();
+                        debug("Found macOS .ds_store file in folder. Deleting!");
+                    } else {
+                        unknownfiles.add(f.getName());
+                    }
                 } else {
 
                     try {
@@ -176,7 +175,7 @@ public class Main extends JavaPlugin implements Listener {
             unknownfiles.clear();
         }); // End of Async;
 
-        plugins.add(getDescription().getName());
+        plugins.put(this, APIVersion.V4);
         allowconnections = true;
 
         Bukkit.getServer().getPluginManager().registerEvents(this, this);
@@ -316,7 +315,7 @@ public class Main extends JavaPlugin implements Listener {
     }
 
 
-    public HashSet<String> getPlugins() {
+    public HashMap<Plugin, APIVersion> getPlugins() {
         return plugins;
     }
 
@@ -345,7 +344,7 @@ public class Main extends JavaPlugin implements Listener {
 
 
         if (!allowconnections) {
-            if (!plugins.contains(plname)) {
+            if (!plugins.containsKey(pl)) {
                 getLogger().warning("Plugin '" + plname + "' tried to register with PUUIDs after the connection window.");
             } else {
                 debug(plname + " was reloaded improperly and send another hook request. Ignoring.");
@@ -353,8 +352,8 @@ public class Main extends JavaPlugin implements Listener {
             return false;
         }
 
-        if (!plugins.contains(plname)) {
-            plugins.add(plname);
+        if (!plugins.containsKey(pl)) {
+            plugins.put(pl, vers);
             debug("Plugin " + plname + " has been registered.");
 
             Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
@@ -371,35 +370,38 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     public boolean isConnected(Plugin pl) {
-        if (plugins.contains(pl.getDescription().getName())) {
+        if (plugins.containsKey(pl.getDescription().getName())) {
             return true;
         } else {
             return false;
         }
     }
 
-    public int set(String pl, String uuid, String loc, Object obj) {
-        if (!getPlugins().contains(pl)) {
-            debug("Not allowing " + pl + " to access data. They didn't connect properly.");
+    public int set(Plugin pl, String uuid, String loc, Object obj) {
+        final String plname = pl.getDescription().getName().toUpperCase();
+        if (!getPlugins().containsKey(pl)) {
+            debug("Not allowing " + plname + " to access data. They didn't connect properly.");
             return 0;
         }
 
-        return Timer.queueSet(pl, uuid, loc, obj);
+        return Timer.queueSet(plname, uuid, loc, obj);
     }
 
-    public int set(String pl, String uuid, String loc, List<?> obj) {
-        if (!getPlugins().contains(pl)) {
-            debug("Not allowing " + pl + " to access data. They didn't connect properly.");
+    public int set(Plugin pl, String uuid, String loc, List<?> obj) {
+        final String plname = pl.getDescription().getName().toUpperCase();
+        if (!getPlugins().containsKey(pl)) {
+            debug("Not allowing " + plname + " to access data. They didn't connect properly.");
             return 0;
         }
 
-        return Timer.queueSet(pl, uuid, loc, obj);
+        return Timer.queueSet(plname, uuid, loc, obj);
     }
 
 
     // ONLY for setting Null info
-    public int set(String plname, String uuid, Object should_be_null) {
-        if (!getPlugins().contains(plname)) {
+    public int set(Plugin pl, String uuid, Object should_be_null) {
+        final String plname = pl.getDescription().getName().toUpperCase();
+        if (!getPlugins().containsKey(pl)) {
             debug("Not allowing " + plname + " to access data. They didn't connect properly.");
             return 0;
         }
@@ -698,7 +700,8 @@ public class Main extends JavaPlugin implements Listener {
                 }
                 final int size = plugins.size() - 1;
                 Msgs.sendPrefix(sender, "&fThere are &6&l" + size + " &fplugins connected:");
-                for (String plname : plugins) {
+                for(HashMap.Entry<Plugin, APIVersion> entry : plugins.entrySet()) {
+                    final String plname = entry.getKey().getDescription().getName();
                     if (!plname.equalsIgnoreCase("puuids")) {
                         Msgs.send(sender, "&r     &8&l> &e&l" + plname);
                     }
@@ -720,7 +723,8 @@ public class Main extends JavaPlugin implements Listener {
                     double jversion = Double.parseDouble(System.getProperty("java.specification.version"));
                     StringBuilder sb = new StringBuilder();
                     int plsb = 0;
-                    for (String plname : plugins) {
+                    for(HashMap.Entry<Plugin, APIVersion> entry : plugins.entrySet()) {
+                        final String plname = entry.getKey().getDescription().getName();
                         if (!plname.equalsIgnoreCase("puuids")) {
                             if (plsb == getPlugins().size() - 1) {
                                 sb.append(plname);

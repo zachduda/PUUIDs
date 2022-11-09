@@ -15,7 +15,7 @@ import com.google.common.io.Files;
 import com.zachduda.puuids.Main;
 
 public class PUUIDS {
-    private static Main plugin = Main.getPlugin(Main.class);
+    private static final Main plugin = Main.getPlugin(Main.class);
 
     /**
      * Authorizes with PUUIDs. While not required for some functions, it is required for getting / setting plugin data.
@@ -291,7 +291,7 @@ public class PUUIDS {
 
     public static ArrayList<String> getAllPlayerNames(Plugin pl) {
         String plname = pl.getName();
-        if (!plugin.getPlugins().contains(plname)) {
+        if (!plugin.getPlugins().containsKey(pl)) {
             return null;
         }
 
@@ -319,7 +319,7 @@ public class PUUIDS {
 
     public static ArrayList<String> getAllPlayerUUIDs(Plugin pl, boolean quickmode) {
         String plname = pl.getName();
-        if (!plugin.getPlugins().contains(plname)) {
+        if (!plugin.getPlugins().containsKey(pl)) {
             return null;
         }
 
@@ -354,13 +354,14 @@ public class PUUIDS {
             return 0;
         }
 
-        String plname = pl.getName();
-
-        plugin.set(plname, uuid, location + ".X", input.getX());
-        plugin.set(plname, uuid, location + ".Y", input.getY());
-        plugin.set(plname, uuid, location + ".Z", input.getZ());
-        plugin.set(plname, uuid, location + ".Pitch", input.getPitch());
-        int taskid = plugin.set(plname, uuid, location + ".Yaw", input.getYaw());
+        plugin.set(pl, uuid, location + ".X", input.getX());
+        plugin.set(pl, uuid, location + ".Y", input.getY());
+        plugin.set(pl, uuid, location + ".Z", input.getZ());
+        plugin.set(pl, uuid, location + ".Pitch", input.getPitch());
+        if(plugin.getPlugins().get(pl) == APIVersion.V4) {
+            plugin.set(pl, uuid, location + ".World", input.getWorld().getName());
+        }
+        int taskid = plugin.set(pl, uuid, location + ".Yaw", input.getYaw());
 
         return taskid;
     }
@@ -369,6 +370,7 @@ public class PUUIDS {
 
     // Start of Location ----
 
+    @Deprecated // in v4, the manual input String for worlds are no longer required.
     public static Location getLocation(Plugin pl, String uuid, String location, String world) {
         if (pl == null || uuid == null || location == null) {
             return null;
@@ -376,8 +378,38 @@ public class PUUIDS {
 
         String plname = pl.getName();
 
-        if (!plugin.getPlugins().contains(plname)) {
-            plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
+        if (!plugin.getPlugins().containsKey(pl)) {
+            plugin.debug("Not allowing " + plname + " to access data. They didn't connect properly.");
+            return null;
+        }
+
+        if(plugin.getPlugins().get(pl) == APIVersion.V4) {
+            plugin.getLogger().severe(plname + " should use getLocation() without world string!");
+        }
+
+        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+
+        double prevx = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".X");
+        double prevy = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".Y") + 0.3D;
+        double prevz = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".Z");
+        float prevpitch = setcache.getInt("Plugins." + plname.toUpperCase() + "." + location + ".Pitch");
+        float prevyaw = setcache.getInt("Plugins." + plname.toUpperCase() + "." + location + ".Yaw");
+        Location finalloc = new Location(plugin.getServer().getWorld(world), prevx, prevy, prevz, prevyaw, prevpitch);
+        wasGet();
+        return finalloc;
+    }
+
+    public static Location getLocation(Plugin pl, String uuid, String location) {
+        if (pl == null || uuid == null || location == null) {
+            return null;
+        }
+
+        String plname = pl.getName();
+
+        if (!plugin.getPlugins().containsKey(pl)) {
+            plugin.debug("Not allowing " + plname + " to access data. They didn't connect properly.");
             return null;
         }
 
@@ -390,7 +422,7 @@ public class PUUIDS {
         double prevz = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".Z");
         float prevpitch = setcache.getInt("Plugins." + plname.toUpperCase() + "." + location + ".Pitch");
         float prevyaw = setcache.getInt("Plugins." + plname.toUpperCase() + "." + location + ".Yaw");
-
+        String world = setcache.getString("Plugins." + plname.toUpperCase() + "." + location + ".World");
         Location finalloc = new Location(plugin.getServer().getWorld(world), prevx, prevy, prevz, prevyaw, prevpitch);
         wasGet();
         return finalloc;
@@ -404,7 +436,7 @@ public class PUUIDS {
 
         String plname = pl.getName();
 
-        if (!plugin.getPlugins().contains(plname)) {
+        if (!plugin.getPlugins().containsKey(pl)) {
             plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
             return false;
         }
@@ -431,7 +463,7 @@ public class PUUIDS {
 
         String plname = pl.getName();
 
-        if (!plugin.getPlugins().contains(plname)) {
+        if (!plugin.getPlugins().containsKey(pl)) {
             plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
             return false;
         }
@@ -458,8 +490,7 @@ public class PUUIDS {
             return 0;
         }
 
-        String plname = pl.getName();
-        return plugin.set(plname, uuid, location, null);
+        return plugin.set(pl, uuid, location, null);
     }
     // END GET
 
@@ -477,8 +508,7 @@ public class PUUIDS {
             return 0;
         }
 
-        String plname = pl.getName();
-        return plugin.set(plname, uuid, null);
+        return plugin.set(pl, uuid, null);
     }
 
     /**
@@ -495,11 +525,9 @@ public class PUUIDS {
             return 0;
         }
 
-        String plname = pl.getName();
-
         List<String> input = getStringList(pl, uuid, location);
         input.add(add);
-        return plugin.set(plname, uuid, location, input);
+        return plugin.set(pl, uuid, location, input);
     }
     // End of NULL set
 
@@ -518,10 +546,9 @@ public class PUUIDS {
         if (pl == null || uuid == null || location == null) {
             return 0;
         }
-        String plname = pl.getName();
         List<Integer> input = getIntList(pl, uuid, location);
         input.add(add);
-        return plugin.set(plname, uuid, location, input);
+        return plugin.set(pl, uuid, location, input);
     }
     // End of List Add
 
@@ -540,11 +567,9 @@ public class PUUIDS {
         if (pl == null || uuid == null || location == null) {
             return 0;
         }
-
-        String plname = pl.getName();
         List<String> input = getStringList(pl, uuid, location);
         input.remove(add);
-        return plugin.set(plname, uuid, location, input);
+        return plugin.set(pl, uuid, location, input);
     }
     // End of List Add
 
@@ -565,11 +590,9 @@ public class PUUIDS {
             return 0;
         }
 
-        String plname = pl.getName();
-
         List<Integer> input = getIntList(pl, uuid, location);
         input.add(add);
-        return plugin.set(plname, uuid, location, input);
+        return plugin.set(pl, uuid, location, input);
     }
     // End of List Add
 
@@ -589,8 +612,7 @@ public class PUUIDS {
             return 0;
         }
 
-        String plname = pl.getName();
-        return plugin.set(plname, uuid, location, input);
+        return plugin.set(pl, uuid, location, input);
     }
     // End of List Remove
 
@@ -618,7 +640,7 @@ public class PUUIDS {
             return false;
         }
 
-        if (!plugin.getPlugins().contains(plname)) {
+        if (!plugin.getPlugins().containsKey(pl)) {
             plugin.debug("Not allowing " + pl.getName() + " to access data. They didn't connect properly.");
             return false;
         }
@@ -669,7 +691,8 @@ public class PUUIDS {
     public static enum APIVersion {
         @Deprecated V1,
         @Deprecated V2,
-        V3
+        @Deprecated V3,
+        V4
     }
     // End of General
 }
