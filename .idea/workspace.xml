@@ -4,21 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="intellej update">
-      <change beforePath="$PROJECT_DIR$/.idea/PUUIDs.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/PUUIDs.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/libraries/Maven__junit_junit_4_10.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/libraries/Maven__org_hamcrest_hamcrest_core_1_1.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/libraries/Maven__org_yaml_snakeyaml_1_30.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="API Version v4 Bump.&#10;&#10;Location updates and macOS fix">
       <change beforePath="$PROJECT_DIR$/dependency-reduced-pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/dependency-reduced-pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/puuids.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/VersionManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/VersionManager.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -84,7 +71,7 @@
       <workItem from="1666189614400" duration="13000" />
       <workItem from="1668005882161" duration="405000" />
       <workItem from="1668006295192" duration="300000" />
-      <workItem from="1668006599838" duration="1874000" />
+      <workItem from="1668006599838" duration="2067000" />
     </task>
     <task id="LOCAL-00001" summary="Update some documentation">
       <created>1658886204950</created>
@@ -135,7 +122,14 @@
       <option name="project" value="LOCAL" />
       <updated>1668005931838</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="API Version v4 Bump.&#10;&#10;Location updates and macOS fix">
+      <created>1668008515697</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1668008515697</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -166,6 +160,7 @@
     <MESSAGE value="Refresh for 1.19" />
     <MESSAGE value="use zachduda package" />
     <MESSAGE value="intellej update" />
-    <option name="LAST_COMMIT_MESSAGE" value="intellej update" />
+    <MESSAGE value="API Version v4 Bump.&#10;&#10;Location updates and macOS fix" />
+    <option name="LAST_COMMIT_MESSAGE" value="API Version v4 Bump.&#10;&#10;Location updates and macOS fix" />
   </component>
 </project>
