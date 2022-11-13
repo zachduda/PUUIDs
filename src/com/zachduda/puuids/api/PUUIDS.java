@@ -88,7 +88,8 @@ public class PUUIDS {
 
     public static String getFormatedPlayTime(String uuid) {
         long time = getPlayTime(uuid);
-        String ans = secsToFormatTime(time);
+        // v3 now saves in miliseconds, convert to sec for now
+        String ans = secsToFormatTime(time/1000);
         wasGet();
         return ans;
     }
@@ -318,7 +319,6 @@ public class PUUIDS {
     }
 
     public static ArrayList<String> getAllPlayerUUIDs(Plugin pl, boolean quickmode) {
-        String plname = pl.getName();
         if (!plugin.getPlugins().containsKey(pl)) {
             return null;
         }

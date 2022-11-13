@@ -4,13 +4,38 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="API Version v4 Bump.&#10;&#10;Location updates and macOS fix">
+    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="oops ctl + c &amp; ctl + v">
+      <change afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/EnumUtil.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/dependency-reduced-pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/dependency-reduced-pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/puuids.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/plugin.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/plugin.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Class" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Pull.Settings">
+    <option name="OPTIONS">
+      <set>
+        <option value="REBASE" />
+        <option value="NO_VERIFY" />
+      </set>
+    </option>
+  </component>
+  <component name="Git.Rebase.Settings">
+    <option name="NEW_BASE" value="master" />
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -25,111 +50,51 @@
       </MavenGeneralSettings>
     </option>
   </component>
-  <component name="ProblemsViewState">
-    <option name="selectedTabId" value="CurrentFile" />
-  </component>
-  <component name="ProjectId" id="2CVOptaljpFzLFgErkx0FMSySxR" />
+  <component name="ProjectId" id="2HPnCpK3xyvWijswnLBJP4JwXPZ" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "WebServerToolWindowFactoryState": "false",
-    "last_opened_file_path": "/Users/zach/IdeaProjects/PUUIDs",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.15",
-    "project.structure.side.proportion": "0.1388889",
-    "run.code.analysis.last.selected.profile": "pProject Default",
-    "settings.editor.selected.configurable": "vcs.Git"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Problems&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15722656&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;
   }
-}]]></component>
-  <component name="RecentsManager">
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$" />
-    </key>
+}</component>
+  <component name="RunManager">
+    <configuration default="true" type="JetRunConfigurationType">
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
+      <option name="filePath" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="" />
-      <created>1658884471758</created>
+      <changelist id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="oops ctl + c &amp; ctl + v" />
+      <created>1668195461393</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1658884471758</updated>
-      <workItem from="1658884472953" duration="49000" />
-      <workItem from="1658884536291" duration="249000" />
-      <workItem from="1658884802027" duration="186000" />
-      <workItem from="1658885017477" duration="133000" />
-      <workItem from="1658886000567" duration="624000" />
-      <workItem from="1664202325258" duration="1769000" />
-      <workItem from="1664375504438" duration="477000" />
-      <workItem from="1665609661064" duration="103000" />
-      <workItem from="1665609824742" duration="3000" />
-      <workItem from="1666189614400" duration="13000" />
-      <workItem from="1668005882161" duration="405000" />
-      <workItem from="1668006295192" duration="300000" />
-      <workItem from="1668006599838" duration="2067000" />
+      <updated>1668195461393</updated>
+      <workItem from="1668195463015" duration="245000" />
+      <workItem from="1668195743635" duration="1019000" />
+      <workItem from="1668197049659" duration="84000" />
+      <workItem from="1668197150181" duration="278000" />
+      <workItem from="1668197706126" duration="35000" />
+      <workItem from="1668197773815" duration="3282000" />
+      <workItem from="1668342887420" duration="11000" />
+      <workItem from="1668343367787" duration="618000" />
     </task>
-    <task id="LOCAL-00001" summary="Update some documentation">
-      <created>1658886204950</created>
-      <option name="number" value="00001" />
-      <option name="presentableId" value="LOCAL-00001" />
-      <option name="project" value="LOCAL" />
-      <updated>1658886204950</updated>
-    </task>
-    <task id="LOCAL-00002" summary="Bump Version">
-      <created>1658886441629</created>
-      <option name="number" value="00002" />
-      <option name="presentableId" value="LOCAL-00002" />
-      <option name="project" value="LOCAL" />
-      <updated>1658886441629</updated>
-    </task>
-    <task id="LOCAL-00003" summary="Change updater to check against Github rather than SpigotMC">
-      <created>1658886553248</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1658886553248</updated>
-    </task>
-    <task id="LOCAL-00004" summary="Rename com.zach_attack packaging to com.zachduda to match new org">
-      <created>1658886611112</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1658886611112</updated>
-    </task>
-    <task id="LOCAL-00005" summary="Refresh for 1.19">
-      <created>1664203564007</created>
-      <option name="number" value="00005" />
-      <option name="presentableId" value="LOCAL-00005" />
-      <option name="project" value="LOCAL" />
-      <updated>1664203564007</updated>
-    </task>
-    <task id="LOCAL-00006" summary="use zachduda package">
-      <created>1665609723158</created>
-      <option name="number" value="00006" />
-      <option name="presentableId" value="LOCAL-00006" />
-      <option name="project" value="LOCAL" />
-      <updated>1665609723158</updated>
-    </task>
-    <task id="LOCAL-00007" summary="intellej update">
-      <created>1668005931838</created>
-      <option name="number" value="00007" />
-      <option name="presentableId" value="LOCAL-00007" />
-      <option name="project" value="LOCAL" />
-      <updated>1668005931838</updated>
-    </task>
-    <task id="LOCAL-00008" summary="API Version v4 Bump.&#10;&#10;Location updates and macOS fix">
-      <created>1668008515697</created>
-      <option name="number" value="00008" />
-      <option name="presentableId" value="LOCAL-00008" />
-      <option name="project" value="LOCAL" />
-      <updated>1668008515697</updated>
-    </task>
-    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -140,27 +105,10 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State>
-              <option name="CUSTOM_BOOLEAN_PROPERTIES">
-                <map>
-                  <entry key="Show.Git.Branches" value="true" />
-                </map>
-              </option>
-            </State>
+            <State />
           </value>
         </entry>
       </map>
     </option>
-  </component>
-  <component name="VcsManagerConfiguration">
-    <MESSAGE value="Update some documentation" />
-    <MESSAGE value="Bump Version" />
-    <MESSAGE value="Change updater to check against Github rather than SpigotMC" />
-    <MESSAGE value="Rename com.zach_attack packaging to com.zachduda to match new org" />
-    <MESSAGE value="Refresh for 1.19" />
-    <MESSAGE value="use zachduda package" />
-    <MESSAGE value="intellej update" />
-    <MESSAGE value="API Version v4 Bump.&#10;&#10;Location updates and macOS fix" />
-    <option name="LAST_COMMIT_MESSAGE" value="API Version v4 Bump.&#10;&#10;Location updates and macOS fix" />
   </component>
 </project>

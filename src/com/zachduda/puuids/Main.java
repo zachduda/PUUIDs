@@ -9,6 +9,7 @@ import javax.management.AttributeList;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
+import com.zachduda.puuids.EnumUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.command.Command;
@@ -58,6 +59,7 @@ public class Main extends JavaPlugin implements Listener {
     private boolean updatecheck = true;
     private final boolean isFullySupported = (version.contains("1.19") || version.contains("1.18") || version.contains("1.17") || version.contains("1.16") || version.contains("1.15") || version.contains("1.14") || version.contains("1.13")) ? true : false;
     private int taskresetid = 0;
+    private int playerupdateid = 0;
 
     public void onEnable() {
         double jversion = Double.parseDouble(System.getProperty("java.specification.version"));
@@ -138,8 +140,20 @@ public class Main extends JavaPlugin implements Listener {
                                             "s old. (Max: " + maxDays + " Days)");
                                 }
                             } else {
-
-
+                                /**
+                                 * The following EnumUtil code call for native Spigot player's ontime contains code from EssentialsX.
+                                 * https://github.com/EssentialsX/Essentials/blob/3af931740b20507837276f87f9456221653ac43d/Essentials/src/main/java/com/earth2me/essentials/commands/Commandplaytime.java
+                                 */
+                                final String uuid = setcache.getString("UUID");
+                                final long playtime = ((getServer().getOfflinePlayer(UUID.fromString(uuid)).getStatistic(EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK"))) * 50L);
+                                debug("Spigot playtime for " + playername + " is " + playtime/1000 + " seconds");
+                                final long puuids_playtime = getPlayTime(uuid);
+                                debug("PUUIDS playtime for " + playername + " is " + puuids_playtime/1000 + " seconds");
+                                if(playtime > puuids_playtime) {
+                                    debug("Using native MC playtime for PUUIDs data file for " + playername);
+                                    setcache.set("Time-Played", playtime);
+                                    setcache.save(f);
+                                }
                                 if (debug) {
                                     if (useclean) {
                                         getLogger().info("[Debug] Keeping " + playername + "'s data file. (" + daysAgo + "/" + maxDays +
@@ -232,11 +246,28 @@ public class Main extends JavaPlugin implements Listener {
         }
 
         taskresetid = startStatResetTimer();
+        playerupdateid = startPlayerUpdateTimer();
 
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
             ConnectionOpen coe = new ConnectionOpen();
             Bukkit.getPluginManager().callEvent(coe);
         });
+    }
+
+
+    // Update player file, mostly for accurate playtimes every 10 minutes!
+    private int startPlayerUpdateTimer() {
+        final BukkitTask playerupdatetime = Bukkit.getScheduler().runTaskTimerAsynchronously(this, new Runnable() {
+            public void run() {
+                asyncrunning = true;
+                debug("Updating any online players data files...");
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    updateFile(p, false);
+                }
+                asyncrunning = false;
+            }
+        }, 12000L, 12000L);
+        return playerupdatetime.getTaskId();
     }
 
     // Reset Stats every 12 hours
@@ -275,6 +306,7 @@ public class Main extends JavaPlugin implements Listener {
 
         Timer.stopTimer();
         getServer().getScheduler().cancelTask(taskresetid);
+        getServer().getScheduler().cancelTask(playerupdateid);
 
         plugins.clear();
 
@@ -338,7 +370,7 @@ public class Main extends JavaPlugin implements Listener {
             // Plugin may not be 100% compatiable.
             getLogger().warning(plname + " needs to update their plugin to work better with PUUIDs");
         } else {
-            debug(plname + " has been compilied with the latest PUUIDs version.");
+            debug(plname + " has been compiled with the latest PUUIDs version.");
             // Passed Version test for FULL support.
         }
 
