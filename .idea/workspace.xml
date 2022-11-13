@@ -4,15 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="oops ctl + c &amp; ctl + v">
-      <change afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/EnumUtil.java" afterDir="false" />
+    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="update player ontime every 10m">
+      <change afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/UpdatedPlayerStats.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dependency-reduced-pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/dependency-reduced-pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/puuids.iml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/plugin.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/plugin.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -93,8 +88,17 @@
       <workItem from="1668197706126" duration="35000" />
       <workItem from="1668197773815" duration="3282000" />
       <workItem from="1668342887420" duration="11000" />
-      <workItem from="1668343367787" duration="618000" />
+      <workItem from="1668343367787" duration="666000" />
+      <workItem from="1668344109439" duration="93000" />
     </task>
+    <task id="LOCAL-00001" summary="update player ontime every 10m">
+      <created>1668344025390</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1668344025390</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -110,5 +114,9 @@
         </entry>
       </map>
     </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="update player ontime every 10m" />
+    <option name="LAST_COMMIT_MESSAGE" value="update player ontime every 10m" />
   </component>
 </project>

@@ -9,7 +9,7 @@ import javax.management.AttributeList;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
-import com.zachduda.puuids.EnumUtil;
+import com.zachduda.puuids.api.*;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.command.Command;
@@ -29,12 +29,7 @@ import org.bukkit.scheduler.BukkitTask;
 import com.earth2me.essentials.Essentials;
 import com.earth2me.essentials.User;
 import com.google.common.io.Files;
-import com.zachduda.puuids.api.ConnectionClose;
-import com.zachduda.puuids.api.ConnectionOpen;
-import com.zachduda.puuids.api.PUUIDS;
 import com.zachduda.puuids.api.PUUIDS.APIVersion;
-import com.zachduda.puuids.api.PluginRegistered;
-import com.zachduda.puuids.api.VersionManager;
 import com.zachduda.puuids.api.VersionManager.VersionTest;
 import org.bstats.bukkit.Metrics;
 
@@ -255,7 +250,7 @@ public class Main extends JavaPlugin implements Listener {
     }
 
 
-    // Update player file, mostly for accurate playtimes every 10 minutes!
+    // Update player file, mostly for accurate playtime's every 10 minutes!
     private int startPlayerUpdateTimer() {
         final BukkitTask playerupdatetime = Bukkit.getScheduler().runTaskTimerAsynchronously(this, new Runnable() {
             public void run() {
@@ -265,6 +260,8 @@ public class Main extends JavaPlugin implements Listener {
                     updateFile(p, false);
                 }
                 asyncrunning = false;
+                UpdatedPlayerStats ups = new UpdatedPlayerStats();
+                Bukkit.getPluginManager().callEvent(ups);
             }
         }, 12000L, 12000L);
         return playerupdatetime.getTaskId();
@@ -274,7 +271,7 @@ public class Main extends JavaPlugin implements Listener {
     private int startStatResetTimer() {
         final BukkitTask resetstatstimer = Bukkit.getScheduler().runTaskTimerAsynchronously(this, new Runnable() {
             public void run() {
-                debug("Reseting the PUUIDs debug statistics, it's been over 12 hours...");
+                debug("Resetting the PUUIDs debug statistics, it's been over 12 hours...");
                 setTimeMS = 0;
                 setTimes = 0;
                 getTimes = 0;
@@ -342,7 +339,7 @@ public class Main extends JavaPlugin implements Listener {
             sounds = true;
         } else {
             sounds = false;
-            debug("Sounds have been disabled, this is an older verison of Minecraft.");
+            debug("Sounds have been disabled, this is an older version of Minecraft.");
         }
     }
 
@@ -896,7 +893,7 @@ public class Main extends JavaPlugin implements Listener {
 
                 if (!Cooldowns.canRunLargeTask) {
                     bass(sender);
-                    Msgs.sendPrefix(sender, "&6&lPlease Wait. &fRunning large tasks this quickly can have a negative impact on your server's preformance.");
+                    Msgs.sendPrefix(sender, "&6&lPlease Wait. &fRunning large tasks this quickly can have a negative impact on your server's performance.");
                     return true;
                 }
 
@@ -973,7 +970,7 @@ public class Main extends JavaPlugin implements Listener {
 
                     if (!p.hasPermission("puuids.admin") || !p.isOp()) {
                         bass(p);
-                        Msgs.sendPrefix(p, "&6&lFor Saftey: &fYou must have the &7puuids.admin&f permission & be OP to do this.");
+                        Msgs.sendPrefix(p, "&6&lFor Safety: &fYou must have the &7puuids.admin&f permission & be OP to do this.");
                         return true;
                     }
 
@@ -1044,7 +1041,7 @@ public class Main extends JavaPlugin implements Listener {
 
                 Msgs.send(sender, "");
                 Msgs.send(sender, "&e&lPUUIDs");
-                Msgs.send(sender, "&8&l> &c&lError. &fSomething wen't wrong here.");
+                Msgs.send(sender, "&8&l> &c&lError. &fSomething went wrong here.");
                 Msgs.send(sender, "");
                 bass(sender);
                 status = false;
