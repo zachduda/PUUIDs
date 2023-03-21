@@ -1,0 +1,195 @@
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!--suppress ALL -->\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n    <modelVersion>4.0.0</modelVersion>\n    <name>PUUIDs</name>\n    <groupId>com.zach_attack</groupId>\n    <artifactId>PUUIDs</artifactId>\n    <url>https://github.com/zachduda/PUUIDs</url>\n    <packaging>jar</packaging>\n    <version>3.0.0</version>\n    <description>Fully async per-player file saving all in one easy to use API.</description>\n    <properties>\n        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n    </properties>\n    <licenses>\n        <license>\n            <name>GNU General Public License v3.0</name>\n            <url>https://www.gnu.org/licenses/gpl-3.0-standalone.html</url>\n        </license>\n    </licenses>\n    <build>\n        <resources>\n            <resource>\n                <directory>src</directory>\n                <excludes>\n                    <exclude>**/*.java</exclude>\n                </excludes>\n            </resource>\n        </resources>\n        <sourceDirectory>src</sourceDirectory>\n        <plugins>\n            <plugin>\n                <artifactId>maven-compiler-plugin</artifactId>\n                <version>3.10.1</version>\n                <configuration>\n                    <source>1.8</source>\n                    <target>1.8</target>\n                </configuration>\n            </plugin>\n            <plugin>\n                <groupId>org.apache.maven.plugins</groupId>\n                <artifactId>maven-shade-plugin</artifactId>\n                <version>3.4.1</version>\n                <configuration>\n                    <relocations>\n                        <relocation>\n                            <pattern>org.bstats</pattern>\n                            <shadedPattern>com.zachduda.puuids.metrics</shadedPattern>\n                        </relocation>\n                    </relocations>\n                    <minimizeJar>true</minimizeJar>\n                </configuration>\n                <executions>\n                    <execution>\n                        <phase>package</phase>\n                        <goals>\n                            <goal>shade</goal>\n                        </goals>\n                    </execution>\n                </executions>\n            </plugin>\n        </plugins>\n    </build>\n    <repositories>\n        <repository>\n            <id>spigot-repo</id>\n            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>\n        </repository>\n        <repository>\n            <id>essentials-releases</id>\n            <url>https://repo.essentialsx.net/releases/</url>\n        </repository>\n        <repository>\n            <id>paper-repo</id>\n            <url>https://papermc.io/repo/repository/maven-public/</url>\n        </repository>\n        <repository>\n            <id>jitpack.io</id>\n            <url>https://jitpack.io</url>\n        </repository>\n\n    </repositories>\n    <dependencies>\n        <dependency>\n            <groupId>org.spigotmc</groupId>\n            <artifactId>spigot-api</artifactId>\n            <version>1.19-R0.1-SNAPSHOT</version>\n            <scope>provided</scope>\n        </dependency>\n        <dependency>\n            <groupId>com.googlecode.json-simple</groupId>\n            <artifactId>json-simple</artifactId>\n            <version>1.1.1</version>\n            <scope>provided</scope>\n        </dependency>\n        <dependency>\n            <groupId>org.bstats</groupId>\n            <artifactId>bstats-bukkit</artifactId>\n            <version>3.0.0</version>\n            <scope>compile</scope>\n        </dependency>\n        <dependency>\n            <groupId>net.essentialsx</groupId>\n            <artifactId>EssentialsX</artifactId>\n            <version>2.19.7</version>\n            <scope>provided</scope>\n        </dependency>\n        <dependency>\n            <groupId>junit</groupId>\n            <artifactId>junit</artifactId>\n            <version>4.13.1</version>\n        </dependency>\n        <dependency>\n            <groupId>org.yaml</groupId>\n            <artifactId>snakeyaml</artifactId>\n            <version>1.32</version>\n        </dependency>\n    </dependencies>\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision 99a72be29d9dfb6c2922beb284ef7029a0bc4369)
++++ b/pom.xml	(date 1673539666492)
+@@ -3,7 +3,7 @@
+ <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+     <modelVersion>4.0.0</modelVersion>
+     <name>PUUIDs</name>
+-    <groupId>com.zach_attack</groupId>
++    <groupId>com.zachduda</groupId>
+     <artifactId>PUUIDs</artifactId>
+     <url>https://github.com/zachduda/PUUIDs</url>
+     <packaging>jar</packaging>
+@@ -12,9 +12,16 @@
+     <properties>
+         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+     </properties>
++    <distributionManagement>
++        <repository>
++            <id>github</id>
++            <name>puuids</name>
++            <url>https://maven.pkg.github.com/zachduda/puuids</url>
++        </repository>
++    </distributionManagement>
+     <licenses>
+         <license>
+-            <name>GNU General Public License v3.0</name>
++            <name>GPL-3.0</name>
+             <url>https://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
+         </license>
+     </licenses>
+Index: .idea/workspace.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project version=\"4\">\n  <component name=\"AutoImportSettings\">\n    <option name=\"autoReloadType\" value=\"SELECTIVE\" />\n  </component>\n  <component name=\"ChangeListManager\">\n    <list default=\"true\" id=\"da349766-e665-444a-8a3d-f4f036544929\" name=\"Changes\" comment=\"add UpdatedPlayerStats event for new timer\" />\n    <option name=\"SHOW_DIALOG\" value=\"false\" />\n    <option name=\"HIGHLIGHT_CONFLICTS\" value=\"true\" />\n    <option name=\"HIGHLIGHT_NON_ACTIVE_CHANGELIST\" value=\"false\" />\n    <option name=\"LAST_RESOLUTION\" value=\"IGNORE\" />\n  </component>\n  <component name=\"FileTemplateManagerImpl\">\n    <option name=\"RECENT_TEMPLATES\">\n      <list>\n        <option value=\"Class\" />\n      </list>\n    </option>\n  </component>\n  <component name=\"Git.Pull.Settings\">\n    <option name=\"OPTIONS\">\n      <set>\n        <option value=\"REBASE\" />\n        <option value=\"NO_VERIFY\" />\n      </set>\n    </option>\n  </component>\n  <component name=\"Git.Rebase.Settings\">\n    <option name=\"NEW_BASE\" value=\"master\" />\n  </component>\n  <component name=\"Git.Settings\">\n    <option name=\"RECENT_GIT_ROOT_PATH\" value=\"$PROJECT_DIR$\" />\n  </component>\n  <component name=\"MarkdownSettingsMigration\">\n    <option name=\"stateVersion\" value=\"1\" />\n  </component>\n  <component name=\"MavenImportPreferences\">\n    <option name=\"generalSettings\">\n      <MavenGeneralSettings>\n        <option name=\"useMavenConfig\" value=\"true\" />\n      </MavenGeneralSettings>\n    </option>\n  </component>\n  <component name=\"ProjectId\" id=\"2HPnCpK3xyvWijswnLBJP4JwXPZ\" />\n  <component name=\"ProjectViewState\">\n    <option name=\"hideEmptyMiddlePackages\" value=\"true\" />\n    <option name=\"showLibraryContents\" value=\"true\" />\n  </component>\n  <component name=\"PropertiesComponent\">{\n  &quot;keyToString&quot;: {\n    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,\n    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,\n    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,\n    &quot;project.structure.last.edited&quot;: &quot;Problems&quot;,\n    &quot;project.structure.proportion&quot;: &quot;0.15722656&quot;,\n    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;\n  }\n}</component>\n  <component name=\"RunManager\">\n    <configuration default=\"true\" type=\"JetRunConfigurationType\">\n      <method v=\"2\">\n        <option name=\"Make\" enabled=\"true\" />\n      </method>\n    </configuration>\n    <configuration default=\"true\" type=\"KotlinStandaloneScriptRunConfigurationType\">\n      <option name=\"filePath\" />\n      <method v=\"2\">\n        <option name=\"Make\" enabled=\"true\" />\n      </method>\n    </configuration>\n  </component>\n  <component name=\"SpellCheckerSettings\" RuntimeDictionaries=\"0\" Folders=\"0\" CustomDictionaries=\"0\" DefaultDictionary=\"application-level\" UseSingleDictionary=\"true\" transferred=\"true\" />\n  <component name=\"TaskManager\">\n    <task active=\"true\" id=\"Default\" summary=\"Default task\">\n      <changelist id=\"da349766-e665-444a-8a3d-f4f036544929\" name=\"Changes\" comment=\"oops ctl + c &amp; ctl + v\" />\n      <created>1668195461393</created>\n      <option name=\"number\" value=\"Default\" />\n      <option name=\"presentableId\" value=\"Default\" />\n      <updated>1668195461393</updated>\n      <workItem from=\"1668195463015\" duration=\"245000\" />\n      <workItem from=\"1668195743635\" duration=\"1019000\" />\n      <workItem from=\"1668197049659\" duration=\"84000\" />\n      <workItem from=\"1668197150181\" duration=\"278000\" />\n      <workItem from=\"1668197706126\" duration=\"35000\" />\n      <workItem from=\"1668197773815\" duration=\"3282000\" />\n      <workItem from=\"1668342887420\" duration=\"11000\" />\n      <workItem from=\"1668343367787\" duration=\"666000\" />\n      <workItem from=\"1668344109439\" duration=\"439000\" />\n    </task>\n    <task id=\"LOCAL-00001\" summary=\"update player ontime every 10m\">\n      <created>1668344025390</created>\n      <option name=\"number\" value=\"00001\" />\n      <option name=\"presentableId\" value=\"LOCAL-00001\" />\n      <option name=\"project\" value=\"LOCAL\" />\n      <updated>1668344025390</updated>\n    </task>\n    <task id=\"LOCAL-00002\" summary=\"add UpdatedPlayerStats event for new timer\">\n      <created>1668344437164</created>\n      <option name=\"number\" value=\"00002\" />\n      <option name=\"presentableId\" value=\"LOCAL-00002\" />\n      <option name=\"project\" value=\"LOCAL\" />\n      <updated>1668344437164</updated>\n    </task>\n    <option name=\"localTasksCounter\" value=\"3\" />\n    <servers />\n  </component>\n  <component name=\"TypeScriptGeneratedFilesManager\">\n    <option name=\"version\" value=\"3\" />\n  </component>\n  <component name=\"Vcs.Log.Tabs.Properties\">\n    <option name=\"TAB_STATES\">\n      <map>\n        <entry key=\"MAIN\">\n          <value>\n            <State />\n          </value>\n        </entry>\n      </map>\n    </option>\n  </component>\n  <component name=\"VcsManagerConfiguration\">\n    <MESSAGE value=\"update player ontime every 10m\" />\n    <MESSAGE value=\"add UpdatedPlayerStats event for new timer\" />\n    <option name=\"LAST_COMMIT_MESSAGE\" value=\"add UpdatedPlayerStats event for new timer\" />\n  </component>\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/workspace.xml b/.idea/workspace.xml
+--- a/.idea/workspace.xml	(revision 99a72be29d9dfb6c2922beb284ef7029a0bc4369)
++++ b/.idea/workspace.xml	(date 1673927037850)
+@@ -4,7 +4,12 @@
+     <option name="autoReloadType" value="SELECTIVE" />
+   </component>
+   <component name="ChangeListManager">
+-    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="add UpdatedPlayerStats event for new timer" />
++    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="build latest commits">
++      <change beforePath="$PROJECT_DIR$/.idea/jarRepositories.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/jarRepositories.xml" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/dependency-reduced-pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/dependency-reduced-pom.xml" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
++    </list>
+     <option name="SHOW_DIALOG" value="false" />
+     <option name="HIGHLIGHT_CONFLICTS" value="true" />
+     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+@@ -53,7 +58,8 @@
+     &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
+     &quot;project.structure.last.edited&quot;: &quot;Problems&quot;,
+     &quot;project.structure.proportion&quot;: &quot;0.15722656&quot;,
+-    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;
++    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
++    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+   }
+ }</component>
+   <component name="RunManager">
+@@ -85,7 +91,11 @@
+       <workItem from="1668197773815" duration="3282000" />
+       <workItem from="1668342887420" duration="11000" />
+       <workItem from="1668343367787" duration="666000" />
+-      <workItem from="1668344109439" duration="439000" />
++      <workItem from="1668344109439" duration="665000" />
++      <workItem from="1668392522673" duration="15000" />
++      <workItem from="1672811809452" duration="58000" />
++      <workItem from="1673539409983" duration="892000" />
++      <workItem from="1673927031672" duration="7000" />
+     </task>
+     <task id="LOCAL-00001" summary="update player ontime every 10m">
+       <created>1668344025390</created>
+@@ -101,7 +111,14 @@
+       <option name="project" value="LOCAL" />
+       <updated>1668344437164</updated>
+     </task>
+-    <option name="localTasksCounter" value="3" />
++    <task id="LOCAL-00003" summary="build latest commits">
++      <created>1668344554923</created>
++      <option name="number" value="00003" />
++      <option name="presentableId" value="LOCAL-00003" />
++      <option name="project" value="LOCAL" />
++      <updated>1668344554923</updated>
++    </task>
++    <option name="localTasksCounter" value="4" />
+     <servers />
+   </component>
+   <component name="TypeScriptGeneratedFilesManager">
+@@ -121,6 +138,7 @@
+   <component name="VcsManagerConfiguration">
+     <MESSAGE value="update player ontime every 10m" />
+     <MESSAGE value="add UpdatedPlayerStats event for new timer" />
+-    <option name="LAST_COMMIT_MESSAGE" value="add UpdatedPlayerStats event for new timer" />
++    <MESSAGE value="build latest commits" />
++    <option name="LAST_COMMIT_MESSAGE" value="build latest commits" />
+   </component>
+ </project>
+\ No newline at end of file
+Index: .idea/jarRepositories.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project version=\"4\">\n  <component name=\"RemoteRepositoriesConfiguration\">\n    <remote-repository>\n      <option name=\"id\" value=\"essentials-releases\" />\n      <option name=\"name\" value=\"essentials-releases\" />\n      <option name=\"url\" value=\"https://repo.essentialsx.net/releases/\" />\n    </remote-repository>\n    <remote-repository>\n      <option name=\"id\" value=\"central\" />\n      <option name=\"name\" value=\"Central Repository\" />\n      <option name=\"url\" value=\"https://repo.maven.apache.org/maven2\" />\n    </remote-repository>\n    <remote-repository>\n      <option name=\"id\" value=\"jitpack.io\" />\n      <option name=\"name\" value=\"jitpack.io\" />\n      <option name=\"url\" value=\"https://jitpack.io\" />\n    </remote-repository>\n    <remote-repository>\n      <option name=\"id\" value=\"spigot-repo\" />\n      <option name=\"name\" value=\"spigot-repo\" />\n      <option name=\"url\" value=\"https://hub.spigotmc.org/nexus/content/repositories/snapshots/\" />\n    </remote-repository>\n    <remote-repository>\n      <option name=\"id\" value=\"paper-repo\" />\n      <option name=\"name\" value=\"paper-repo\" />\n      <option name=\"url\" value=\"https://papermc.io/repo/repository/maven-public/\" />\n    </remote-repository>\n    <remote-repository>\n      <option name=\"id\" value=\"central\" />\n      <option name=\"name\" value=\"Maven Central repository\" />\n      <option name=\"url\" value=\"https://repo1.maven.org/maven2\" />\n    </remote-repository>\n    <remote-repository>\n      <option name=\"id\" value=\"jboss.community\" />\n      <option name=\"name\" value=\"JBoss Community repository\" />\n      <option name=\"url\" value=\"https://repository.jboss.org/nexus/content/repositories/public/\" />\n    </remote-repository>\n    <remote-repository>\n      <option name=\"id\" value=\"placeholderapi\" />\n      <option name=\"name\" value=\"placeholderapi\" />\n      <option name=\"url\" value=\"http://repo.extendedclip.com/content/repositories/placeholderapi/\" />\n    </remote-repository>\n    <remote-repository>\n      <option name=\"id\" value=\"CodeMC\" />\n      <option name=\"name\" value=\"CodeMC\" />\n      <option name=\"url\" value=\"https://repo.codemc.org/repository/maven-public\" />\n    </remote-repository>\n  </component>\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/jarRepositories.xml b/.idea/jarRepositories.xml
+--- a/.idea/jarRepositories.xml	(revision 99a72be29d9dfb6c2922beb284ef7029a0bc4369)
++++ b/.idea/jarRepositories.xml	(date 1673539544286)
+@@ -22,6 +22,11 @@
+       <option name="url" value="https://hub.spigotmc.org/nexus/content/repositories/snapshots/" />
+     </remote-repository>
+     <remote-repository>
++      <option name="id" value="github" />
++      <option name="name" value="github" />
++      <option name="url" value="https://maven.pkg.github.com/zachduda/puuids" />
++    </remote-repository>
++    <remote-repository>
+       <option name="id" value="paper-repo" />
+       <option name="name" value="paper-repo" />
+       <option name="url" value="https://papermc.io/repo/repository/maven-public/" />
+@@ -40,6 +45,11 @@
+       <option name="id" value="placeholderapi" />
+       <option name="name" value="placeholderapi" />
+       <option name="url" value="http://repo.extendedclip.com/content/repositories/placeholderapi/" />
++    </remote-repository>
++    <remote-repository>
++      <option name="id" value="central" />
++      <option name="name" value="central" />
++      <option name="url" value="https://repo1.maven.org/maven2" />
+     </remote-repository>
+     <remote-repository>
+       <option name="id" value="CodeMC" />
+Index: dependency-reduced-pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd\">\n  <modelVersion>4.0.0</modelVersion>\n  <groupId>com.zach_attack</groupId>\n  <artifactId>PUUIDs</artifactId>\n  <name>PUUIDs</name>\n  <version>3.0.0</version>\n  <description>Fully async per-player file saving all in one easy to use API.</description>\n  <url>https://github.com/zachduda/PUUIDs</url>\n  <licenses>\n    <license>\n      <name>GNU General Public License v3.0</name>\n      <url>https://www.gnu.org/licenses/gpl-3.0-standalone.html</url>\n    </license>\n  </licenses>\n  <build>\n    <sourceDirectory>src</sourceDirectory>\n    <resources>\n      <resource>\n        <directory>src</directory>\n        <excludes>\n          <exclude>**/*.java</exclude>\n        </excludes>\n      </resource>\n    </resources>\n    <plugins>\n      <plugin>\n        <artifactId>maven-compiler-plugin</artifactId>\n        <version>3.10.1</version>\n        <configuration>\n          <source>1.8</source>\n          <target>1.8</target>\n        </configuration>\n      </plugin>\n      <plugin>\n        <artifactId>maven-shade-plugin</artifactId>\n        <version>3.4.0</version>\n        <executions>\n          <execution>\n            <phase>package</phase>\n            <goals>\n              <goal>shade</goal>\n            </goals>\n          </execution>\n        </executions>\n        <configuration>\n          <relocations>\n            <relocation>\n              <pattern>org.bstats</pattern>\n              <shadedPattern>com.zachduda.puuids.metrics</shadedPattern>\n            </relocation>\n          </relocations>\n          <minimizeJar>true</minimizeJar>\n        </configuration>\n      </plugin>\n    </plugins>\n  </build>\n  <repositories>\n    <repository>\n      <id>spigot-repo</id>\n      <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>\n    </repository>\n    <repository>\n      <id>essentials-releases</id>\n      <url>https://repo.essentialsx.net/releases/</url>\n    </repository>\n    <repository>\n      <id>paper-repo</id>\n      <url>https://papermc.io/repo/repository/maven-public/</url>\n    </repository>\n    <repository>\n      <id>jitpack.io</id>\n      <url>https://jitpack.io</url>\n    </repository>\n  </repositories>\n  <dependencies>\n    <dependency>\n      <groupId>org.spigotmc</groupId>\n      <artifactId>spigot-api</artifactId>\n      <version>1.19-R0.1-SNAPSHOT</version>\n      <scope>provided</scope>\n    </dependency>\n    <dependency>\n      <groupId>com.googlecode.json-simple</groupId>\n      <artifactId>json-simple</artifactId>\n      <version>1.1.1</version>\n      <scope>provided</scope>\n    </dependency>\n    <dependency>\n      <groupId>net.essentialsx</groupId>\n      <artifactId>EssentialsX</artifactId>\n      <version>2.19.7</version>\n      <scope>provided</scope>\n    </dependency>\n  </dependencies>\n  <properties>\n    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n  </properties>\n</project>\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/dependency-reduced-pom.xml b/dependency-reduced-pom.xml
+--- a/dependency-reduced-pom.xml	(revision 99a72be29d9dfb6c2922beb284ef7029a0bc4369)
++++ b/dependency-reduced-pom.xml	(date 1673539679867)
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+-  <groupId>com.zach_attack</groupId>
++  <groupId>com.zachduda</groupId>
+   <artifactId>PUUIDs</artifactId>
+   <name>PUUIDs</name>
+   <version>3.0.0</version>
+@@ -9,7 +9,7 @@
+   <url>https://github.com/zachduda/PUUIDs</url>
+   <licenses>
+     <license>
+-      <name>GNU General Public License v3.0</name>
++      <name>GPL-3.0</name>
+       <url>https://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
+     </license>
+   </licenses>
+@@ -34,7 +34,7 @@
+       </plugin>
+       <plugin>
+         <artifactId>maven-shade-plugin</artifactId>
+-        <version>3.4.0</version>
++        <version>3.4.1</version>
+         <executions>
+           <execution>
+             <phase>package</phase>
+@@ -93,6 +93,13 @@
+       <scope>provided</scope>
+     </dependency>
+   </dependencies>
++  <distributionManagement>
++    <repository>
++      <id>github</id>
++      <name>puuids</name>
++      <url>https://maven.pkg.github.com/zachduda/puuids</url>
++    </repository>
++  </distributionManagement>
+   <properties>
+     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+   </properties>

@@ -6,13 +6,9 @@ package com.zachduda.puuids;
  * https://github.com/EssentialsX/Essentials/blob/3af931740b20507837276f87f9456221653ac43d/Essentials/src/main/java/com/earth2me/essentials/utils/EnumUtil.java
  */
 
-import org.bukkit.Material;
 import org.bukkit.Statistic;
-import org.bukkit.entity.EntityType;
 
 import java.lang.reflect.Field;
-import java.util.EnumSet;
-import java.util.Set;
 
 public final class EnumUtil {
 

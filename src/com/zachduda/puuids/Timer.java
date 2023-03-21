@@ -1,18 +1,17 @@
 package com.zachduda.puuids;
 
-import java.io.File;
-import java.util.ArrayList;
-
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+import com.zachduda.puuids.api.OnNewFile;
+import com.zachduda.puuids.api.TimerSaved;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
-import com.zachduda.puuids.api.OnNewFile;
-import com.zachduda.puuids.api.TimerSaved;
+import java.io.File;
+import java.util.ArrayList;
 
 public class Timer {
     static long processrate = 10;

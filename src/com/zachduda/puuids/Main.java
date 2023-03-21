@@ -1,15 +1,12 @@
 package com.zachduda.puuids;
 
-import java.io.File;
-import java.lang.management.ManagementFactory;
-import java.util.*;
-
-import javax.management.Attribute;
-import javax.management.AttributeList;
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-
+import com.earth2me.essentials.Essentials;
+import com.earth2me.essentials.User;
+import com.google.common.io.Files;
 import com.zachduda.puuids.api.*;
+import com.zachduda.puuids.api.PUUIDS.APIVersion;
+import com.zachduda.puuids.api.VersionManager.VersionTest;
+import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.command.Command;
@@ -26,12 +23,13 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
-import com.earth2me.essentials.Essentials;
-import com.earth2me.essentials.User;
-import com.google.common.io.Files;
-import com.zachduda.puuids.api.PUUIDS.APIVersion;
-import com.zachduda.puuids.api.VersionManager.VersionTest;
-import org.bstats.bukkit.Metrics;
+import javax.management.Attribute;
+import javax.management.AttributeList;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+import java.io.File;
+import java.lang.management.ManagementFactory;
+import java.util.*;
 
 public class Main extends JavaPlugin implements Listener {
 

@@ -1,11 +1,11 @@
 package com.zachduda.puuids;
 
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
-
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 
 public class Cooldowns {
     protected static boolean canRunLargeTask = true;
