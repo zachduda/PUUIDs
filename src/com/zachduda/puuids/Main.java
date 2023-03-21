@@ -52,9 +52,11 @@ public class Main extends JavaPlugin implements Listener {
     private boolean status;
     private String statusreason = "0";
     private boolean updatecheck = true;
-    private final boolean isFullySupported = (version.contains("1.19") || version.contains("1.18") || version.contains("1.17") || version.contains("1.16") || version.contains("1.15") || version.contains("1.14") || version.contains("1.13")) ? true : false;
+    private final boolean isFullySupported = version.contains("1.19") || version.contains("1.18") || version.contains("1.17") || version.contains("1.16") || version.contains("1.15") || version.contains("1.14") || version.contains("1.13");
     private int taskresetid = 0;
     private int playerupdateid = 0;
+
+    private Metrics metrics;
 
     public void onEnable() {
         double jversion = Double.parseDouble(System.getProperty("java.specification.version"));
@@ -235,7 +237,7 @@ public class Main extends JavaPlugin implements Listener {
         }
 
         if (getConfig().getBoolean("Settings.Metrics", true)) {
-            Metrics metrics = new Metrics(this, 5740);
+            metrics = new Metrics(this, 5740);
         } else {
             debug("Metrics have been disabled in the config.yml. Guess we won't support all this hard work today!");
         }
@@ -312,6 +314,10 @@ public class Main extends JavaPlugin implements Listener {
         getTimes = 0;
         qTimesMS = 0;
         setQRequests = 0;
+
+        if(metrics != null) {
+            metrics.shutdown();
+        }
 
         getLogger().info("Successfully disabled in " + Long.toString(System.currentTimeMillis() - start) + "ms");
     }

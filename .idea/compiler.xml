@@ -10,7 +10,7 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="PUUIDs" target="1.8" />
+      <module name="PUUIDs" target="17" />
       <module name="puuids" target="1.8" />
     </bytecodeTargetLevel>
   </component>
