@@ -4,7 +4,7 @@
   <groupId>com.zachduda</groupId>
   <artifactId>PUUIDs</artifactId>
   <name>PUUIDs</name>
-  <version>3.1.0</version>
+  <version>3.1.1</version>
   <description>Fully async per-player file saving all in one easy to use API.</description>
   <url>https://github.com/zachduda/PUUIDs</url>
   <licenses>
