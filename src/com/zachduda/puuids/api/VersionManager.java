@@ -7,17 +7,17 @@ public class VersionManager {
     @SuppressWarnings("deprecation")
     public static VersionTest checks(String pl, APIVersion version) {
         if (version == APIVersion.V1) {
-            return VersionTest.LEGACY;
+            return VersionTest.FAIL;
         }
 
         if (version == APIVersion.V2) {
-            // Added new Async settings and deprecated nametoUUID mojang look up.
-            return VersionTest.LEGACY;
+            // Added new Async settings and deprecated name to UUID mojang look up.
+            return VersionTest.FAIL;
         }
 
         if (version == APIVersion.V3) {
             // Removed Result ERR/Success return and changed to task id.
-            return VersionTest.LEGACY;
+            return VersionTest.FAIL;
         }
 
         if (version == APIVersion.V4) {
