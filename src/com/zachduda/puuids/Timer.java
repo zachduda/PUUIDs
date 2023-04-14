@@ -183,7 +183,7 @@ public class Timer {
 
         final File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 
-        if (systemsize != 0) {
+        if (systemsize > 0) {
             for (int i = 0; i < systemsize; i++) {
                 final Player p = updateSystem.keys().iterator().next();
                 final boolean quit = updateSystem.get(p).iterator().next();
@@ -228,7 +228,7 @@ public class Timer {
             }
         }
 
-        if (size != 0) {
+        if (size > 0) {
             plugin.getLogger().info("Saving " + size + " leftover tasks...");
 
             for (int i = 0; i < size; i++) {

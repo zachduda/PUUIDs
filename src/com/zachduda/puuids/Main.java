@@ -209,8 +209,9 @@ public class Main extends JavaPlugin implements Listener {
                         debug("Hooked with " + total + " plugins.");
                     }
                 }
-
-                allowconnections = false;
+                if(!getConfig().getBoolean("Advanced.Allow-Post-Startup-Connections")) {
+                    allowconnections = false;
+                }
             }
         });
 

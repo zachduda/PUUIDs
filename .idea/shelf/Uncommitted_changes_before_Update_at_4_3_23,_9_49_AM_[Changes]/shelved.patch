@@ -1,0 +1,80 @@
+Index: .idea/workspace.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project version=\"4\">\n  <component name=\"AutoImportSettings\">\n    <option name=\"autoReloadType\" value=\"SELECTIVE\" />\n  </component>\n  <component name=\"ChangeListManager\">\n    <list default=\"true\" id=\"da349766-e665-444a-8a3d-f4f036544929\" name=\"Changes\" comment=\"Revert back to Java 8, cuz why not support the elders.\">\n      <change beforePath=\"$PROJECT_DIR$/.idea/PUUIDs.iml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/PUUIDs.iml\" afterDir=\"false\" />\n      <change beforePath=\"$PROJECT_DIR$/.idea/workspace.xml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/workspace.xml\" afterDir=\"false\" />\n      <change beforePath=\"$PROJECT_DIR$/pom.xml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/pom.xml\" afterDir=\"false\" />\n      <change beforePath=\"$PROJECT_DIR$/src/com/zachduda/puuids/Msgs.java\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/src/com/zachduda/puuids/Msgs.java\" afterDir=\"false\" />\n    </list>\n    <option name=\"SHOW_DIALOG\" value=\"false\" />\n    <option name=\"HIGHLIGHT_CONFLICTS\" value=\"true\" />\n    <option name=\"HIGHLIGHT_NON_ACTIVE_CHANGELIST\" value=\"false\" />\n    <option name=\"LAST_RESOLUTION\" value=\"IGNORE\" />\n  </component>\n  <component name=\"FileTemplateManagerImpl\">\n    <option name=\"RECENT_TEMPLATES\">\n      <list>\n        <option value=\"Class\" />\n      </list>\n    </option>\n  </component>\n  <component name=\"Git.Pull.Settings\">\n    <option name=\"OPTIONS\">\n      <set>\n        <option value=\"REBASE\" />\n        <option value=\"NO_VERIFY\" />\n      </set>\n    </option>\n  </component>\n  <component name=\"Git.Rebase.Settings\">\n    <option name=\"NEW_BASE\" value=\"master\" />\n  </component>\n  <component name=\"Git.Settings\">\n    <option name=\"RECENT_GIT_ROOT_PATH\" value=\"$PROJECT_DIR$\" />\n  </component>\n  <component name=\"MarkdownSettingsMigration\">\n    <option name=\"stateVersion\" value=\"1\" />\n  </component>\n  <component name=\"MavenImportPreferences\">\n    <option name=\"generalSettings\">\n      <MavenGeneralSettings>\n        <option name=\"useMavenConfig\" value=\"true\" />\n      </MavenGeneralSettings>\n    </option>\n  </component>\n  <component name=\"ProjectId\" id=\"2HPnCpK3xyvWijswnLBJP4JwXPZ\" />\n  <component name=\"ProjectViewState\">\n    <option name=\"hideEmptyMiddlePackages\" value=\"true\" />\n    <option name=\"showLibraryContents\" value=\"true\" />\n  </component>\n  <component name=\"PropertiesComponent\"><![CDATA[{\n  \"keyToString\": {\n    \"RunOnceActivity.OpenProjectViewOnStart\": \"true\",\n    \"RunOnceActivity.ShowReadmeOnStart\": \"true\",\n    \"WebServerToolWindowFactoryState\": \"false\",\n    \"node.js.detected.package.eslint\": \"true\",\n    \"node.js.detected.package.tslint\": \"true\",\n    \"node.js.selected.package.eslint\": \"(autodetect)\",\n    \"node.js.selected.package.tslint\": \"(autodetect)\",\n    \"project.structure.last.edited\": \"Modules\",\n    \"project.structure.proportion\": \"0.15722656\",\n    \"project.structure.side.proportion\": \"0.2\",\n    \"vue.rearranger.settings.migration\": \"true\"\n  }\n}]]></component>\n  <component name=\"RunManager\">\n    <configuration default=\"true\" type=\"JetRunConfigurationType\">\n      <method v=\"2\">\n        <option name=\"Make\" enabled=\"true\" />\n      </method>\n    </configuration>\n    <configuration default=\"true\" type=\"KotlinStandaloneScriptRunConfigurationType\">\n      <option name=\"filePath\" />\n      <method v=\"2\">\n        <option name=\"Make\" enabled=\"true\" />\n      </method>\n    </configuration>\n  </component>\n  <component name=\"SpellCheckerSettings\" RuntimeDictionaries=\"0\" Folders=\"0\" CustomDictionaries=\"0\" DefaultDictionary=\"application-level\" UseSingleDictionary=\"true\" transferred=\"true\" />\n  <component name=\"TaskManager\">\n    <task active=\"true\" id=\"Default\" summary=\"Default task\">\n      <changelist id=\"da349766-e665-444a-8a3d-f4f036544929\" name=\"Changes\" comment=\"oops ctl + c &amp; ctl + v\" />\n      <created>1668195461393</created>\n      <option name=\"number\" value=\"Default\" />\n      <option name=\"presentableId\" value=\"Default\" />\n      <updated>1668195461393</updated>\n      <workItem from=\"1668195463015\" duration=\"245000\" />\n      <workItem from=\"1668195743635\" duration=\"1019000\" />\n      <workItem from=\"1668197049659\" duration=\"84000\" />\n      <workItem from=\"1668197150181\" duration=\"278000\" />\n      <workItem from=\"1668197706126\" duration=\"35000\" />\n      <workItem from=\"1668197773815\" duration=\"3282000\" />\n      <workItem from=\"1668342887420\" duration=\"11000\" />\n      <workItem from=\"1668343367787\" duration=\"666000\" />\n      <workItem from=\"1668344109439\" duration=\"439000\" />\n      <workItem from=\"1679414412968\" duration=\"591000\" />\n    </task>\n    <task id=\"LOCAL-00001\" summary=\"update player ontime every 10m\">\n      <created>1668344025390</created>\n      <option name=\"number\" value=\"00001\" />\n      <option name=\"presentableId\" value=\"LOCAL-00001\" />\n      <option name=\"project\" value=\"LOCAL\" />\n      <updated>1668344025390</updated>\n    </task>\n    <task id=\"LOCAL-00002\" summary=\"add UpdatedPlayerStats event for new timer\">\n      <created>1668344437164</created>\n      <option name=\"number\" value=\"00002\" />\n      <option name=\"presentableId\" value=\"LOCAL-00002\" />\n      <option name=\"project\" value=\"LOCAL\" />\n      <updated>1668344437164</updated>\n    </task>\n    <task id=\"LOCAL-00003\" summary=\"Revert back to Java 8, cuz why not support the elders.\">\n      <created>1679414611848</created>\n      <option name=\"number\" value=\"00003\" />\n      <option name=\"presentableId\" value=\"LOCAL-00003\" />\n      <option name=\"project\" value=\"LOCAL\" />\n      <updated>1679414611848</updated>\n    </task>\n    <option name=\"localTasksCounter\" value=\"4\" />\n    <servers />\n  </component>\n  <component name=\"TypeScriptGeneratedFilesManager\">\n    <option name=\"version\" value=\"3\" />\n  </component>\n  <component name=\"Vcs.Log.Tabs.Properties\">\n    <option name=\"TAB_STATES\">\n      <map>\n        <entry key=\"MAIN\">\n          <value>\n            <State />\n          </value>\n        </entry>\n      </map>\n    </option>\n  </component>\n  <component name=\"VcsManagerConfiguration\">\n    <MESSAGE value=\"update player ontime every 10m\" />\n    <MESSAGE value=\"add UpdatedPlayerStats event for new timer\" />\n    <MESSAGE value=\"Revert back to Java 8, cuz why not support the elders.\" />\n    <option name=\"LAST_COMMIT_MESSAGE\" value=\"Revert back to Java 8, cuz why not support the elders.\" />\n  </component>\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/workspace.xml b/.idea/workspace.xml
+--- a/.idea/workspace.xml	
++++ b/.idea/workspace.xml	
+@@ -4,11 +4,8 @@
+     <option name="autoReloadType" value="SELECTIVE" />
+   </component>
+   <component name="ChangeListManager">
+-    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Revert back to Java 8, cuz why not support the elders.">
+-      <change beforePath="$PROJECT_DIR$/.idea/PUUIDs.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/PUUIDs.iml" afterDir="false" />
++    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Added Hex Color Support">
+       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Msgs.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Msgs.java" afterDir="false" />
+     </list>
+     <option name="SHOW_DIALOG" value="false" />
+     <option name="HIGHLIGHT_CONFLICTS" value="true" />
+@@ -45,6 +42,9 @@
+         <option name="useMavenConfig" value="true" />
+       </MavenGeneralSettings>
+     </option>
++  </component>
++  <component name="ProblemsViewState">
++    <option name="selectedTabId" value="CurrentFile" />
+   </component>
+   <component name="ProjectId" id="2HPnCpK3xyvWijswnLBJP4JwXPZ" />
+   <component name="ProjectViewState">
+@@ -60,7 +60,7 @@
+     "node.js.detected.package.tslint": "true",
+     "node.js.selected.package.eslint": "(autodetect)",
+     "node.js.selected.package.tslint": "(autodetect)",
+-    "project.structure.last.edited": "Modules",
++    "project.structure.last.edited": "SDKs",
+     "project.structure.proportion": "0.15722656",
+     "project.structure.side.proportion": "0.2",
+     "vue.rearranger.settings.migration": "true"
+@@ -96,7 +96,10 @@
+       <workItem from="1668342887420" duration="11000" />
+       <workItem from="1668343367787" duration="666000" />
+       <workItem from="1668344109439" duration="439000" />
+-      <workItem from="1679414412968" duration="591000" />
++      <workItem from="1679414412968" duration="1152000" />
++      <workItem from="1679697463527" duration="5000" />
++      <workItem from="1679840930874" duration="48000" />
++      <workItem from="1680011183996" duration="72000" />
+     </task>
+     <task id="LOCAL-00001" summary="update player ontime every 10m">
+       <created>1668344025390</created>
+@@ -119,7 +122,14 @@
+       <option name="project" value="LOCAL" />
+       <updated>1679414611848</updated>
+     </task>
+-    <option name="localTasksCounter" value="4" />
++    <task id="LOCAL-00004" summary="Added Hex Color Support">
++      <created>1679415175471</created>
++      <option name="number" value="00004" />
++      <option name="presentableId" value="LOCAL-00004" />
++      <option name="project" value="LOCAL" />
++      <updated>1679415175471</updated>
++    </task>
++    <option name="localTasksCounter" value="5" />
+     <servers />
+   </component>
+   <component name="TypeScriptGeneratedFilesManager">
+@@ -140,6 +150,7 @@
+     <MESSAGE value="update player ontime every 10m" />
+     <MESSAGE value="add UpdatedPlayerStats event for new timer" />
+     <MESSAGE value="Revert back to Java 8, cuz why not support the elders." />
+-    <option name="LAST_COMMIT_MESSAGE" value="Revert back to Java 8, cuz why not support the elders." />
++    <MESSAGE value="Added Hex Color Support" />
++    <option name="LAST_COMMIT_MESSAGE" value="Added Hex Color Support" />
+   </component>
+ </project>
+\ No newline at end of file
