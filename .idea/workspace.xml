@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Add option to allow post startup connections.">
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Bump from v3.1.1 to v3.1.2">
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/VersionManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/VersionManager.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -97,7 +98,7 @@
       <workItem from="1679414412968" duration="591000" />
       <workItem from="1680533616110" duration="11000" />
       <workItem from="1681011874445" duration="483000" />
-      <workItem from="1681489786954" duration="905000" />
+      <workItem from="1681489786954" duration="1125000" />
     </task>
     <task id="LOCAL-00001" summary="update player ontime every 10m">
       <created>1668344025390</created>
@@ -127,7 +128,14 @@
       <option name="project" value="LOCAL" />
       <updated>1681490671706</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Bump from v3.1.1 to v3.1.2">
+      <created>1681490713200</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1681490713200</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -149,6 +157,7 @@
     <MESSAGE value="add UpdatedPlayerStats event for new timer" />
     <MESSAGE value="Revert back to Java 8, cuz why not support the elders." />
     <MESSAGE value="Add option to allow post startup connections." />
-    <option name="LAST_COMMIT_MESSAGE" value="Add option to allow post startup connections." />
+    <MESSAGE value="Bump from v3.1.1 to v3.1.2" />
+    <option name="LAST_COMMIT_MESSAGE" value="Bump from v3.1.1 to v3.1.2" />
   </component>
 </project>

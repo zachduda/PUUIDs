@@ -127,6 +127,7 @@ public class Main extends JavaPlugin implements Listener {
                                 if (hasess && cleaness) {
                                     User user = ess.getUser(playername);
                                     if (!user.getBase().isBanned()) {
+                                        // Cleanup EssentialsX data too unless they are banned, in which case their data file should be left alone as to not unban them.
                                         user.reset();
                                     }
                                 }
