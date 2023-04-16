@@ -6,13 +6,16 @@ Ready to get started? Check out: [Setting Your Data](https://github.com/zachduda
 
 # Using Maven
 If you haven't already, make sure jitpack repo is listed:
-```
+```maven
 <repository>
     <id>jitpack.io</id>
     <url>https://jitpack.io</url>
-</repository>```
-Then add PUUIDs dependncy from Github:
+</repository>
 ```
+
+Then add PUUIDs dependncy from Github:
+
+```maven
 <dependency>
   <groupId>com.zachduda</groupId>
   <artifactId>puuids</artifactId>
