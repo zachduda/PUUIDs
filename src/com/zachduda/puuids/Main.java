@@ -734,11 +734,15 @@ public class Main extends JavaPlugin implements Listener {
                     return true;
                 }
                 final int size = plugins.size() - 1;
-                Msgs.sendPrefix(sender, "&fThere are &6&l" + size + " &fplugins connected:");
-                for(HashMap.Entry<Plugin, APIVersion> entry : plugins.entrySet()) {
-                    final String plname = entry.getKey().getDescription().getName();
-                    if (!plname.equalsIgnoreCase("puuids")) {
-                        Msgs.send(sender, "&r     &8&l> &e&l" + plname);
+                if(size < 1) {
+                    Msgs.sendPrefix(sender, "&fThere are no plugins currently connected to PUUIDs.");
+                } else {
+                    Msgs.sendPrefix(sender, "&fThere are &6&l" + size + " &fplugins connected:");
+                    for (HashMap.Entry<Plugin, APIVersion> entry : plugins.entrySet()) {
+                        final String plname = entry.getKey().getDescription().getName();
+                        if (!plname.equalsIgnoreCase("puuids")) {
+                            Msgs.send(sender, "&r     &8&l> &e&l" + plname);
+                        }
                     }
                 }
                 pop(sender);

@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="undo last commit" />
+    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="undo last commit">
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" afterDir="false" />
+    </list>
     <list id="e27b88bb-7a7d-44de-85e1-ecb3d4996301" name="v3.2 - Bump + Release" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -44,6 +46,11 @@
       <MavenGeneralSettings>
         <option name="useMavenConfig" value="true" />
       </MavenGeneralSettings>
+    </option>
+    <option name="enabledProfiles">
+      <list>
+        <option value="github" />
+      </list>
     </option>
   </component>
   <component name="ProjectId" id="2HPnCpK3xyvWijswnLBJP4JwXPZ" />
@@ -91,6 +98,7 @@
       <workItem from="1681489786954" duration="1306000" />
       <workItem from="1681656514323" duration="3000" />
       <workItem from="1681656561882" duration="1506000" />
+      <workItem from="1681659652629" duration="322000" />
     </task>
     <task id="LOCAL-00001" summary="update player ontime every 10m">
       <created>1668344025390</created>
@@ -155,7 +163,14 @@
       <option name="project" value="LOCAL" />
       <updated>1681656927675</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="undo last commit">
+      <created>1681659751090</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1681659751090</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -180,6 +195,7 @@
     <MESSAGE value="Bump from v3.1.1 to v3.1.2" />
     <MESSAGE value="Remove legacy support for &lt; V3" />
     <MESSAGE value="v3.2 - Bump + Release" />
-    <option name="LAST_COMMIT_MESSAGE" value="v3.2 - Bump + Release" />
+    <MESSAGE value="undo last commit" />
+    <option name="LAST_COMMIT_MESSAGE" value="undo last commit" />
   </component>
 </project>
