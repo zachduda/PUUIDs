@@ -34,5 +34,8 @@ This project is licensed under GNU GPL-3.0 (General Public License)
 - All redistributions or modifications are to automatically be open-source and follow this license and it's core principles.
 - Any software made for public use must be open-source and should be made with good intentions.
 
+# Need a hand?
+Feel free to join the developer discord server and ask me for help with PUUIDs! I'd be happy to answer any questions you might have or implmenet any functionality you feel would assist you with your projects: https://discord.com/invite/6ugXPfX
+
 # Contact Me
 If you have any questions or inquiries, you can reach me at https://zachduda.com/contact
