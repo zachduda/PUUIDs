@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <name>PUUIDs</name>
     <groupId>com.zachduda</groupId>
-    <artifactId>PUUIDs</artifactId>
+    <artifactId>puuids</artifactId>
     <url>https://github.com/zachduda/PUUIDs</url>
     <packaging>jar</packaging>
     <version>3.2.0</version>
