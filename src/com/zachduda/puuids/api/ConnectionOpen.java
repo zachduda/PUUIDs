@@ -1,16 +1,16 @@
-package com.zachduda.PUUIDs.api;
+package com.zachduda.puuids.api;
 
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 
-public class ConnectionClose extends Event {
+public class ConnectionOpen extends Event {
 
-    // Event that is Fired when PUUIDs is shutting down.
+    // Event that is Fired when puuids has finished starting up & is accepting connections.
 
     private static final HandlerList HANDLERS = new HandlerList();
 
-    public ConnectionClose() {
-        super(false);
+    public ConnectionOpen() {
+        super(true);
     }
 
     public static HandlerList getHandlerList() {

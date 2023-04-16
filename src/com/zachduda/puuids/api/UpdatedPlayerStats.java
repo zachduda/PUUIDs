@@ -1,15 +1,15 @@
-package com.zachduda.PUUIDs.api;
+package com.zachduda.puuids.api;
 
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 
-public class ConnectionOpen extends Event {
+public class UpdatedPlayerStats extends Event {
 
-    // Event that is Fired when PUUIDs has finished starting up & is accepting connections.
+    // Event that is Fired from a 10m timer that saves all online player stats every 10m (eg: playtime stat)
 
     private static final HandlerList HANDLERS = new HandlerList();
 
-    public ConnectionOpen() {
+    public UpdatedPlayerStats() {
         super(true);
     }
 

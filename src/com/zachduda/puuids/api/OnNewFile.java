@@ -1,4 +1,4 @@
-package com.zachduda.PUUIDs.api;
+package com.zachduda.puuids.api;
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
@@ -6,7 +6,7 @@ import org.bukkit.event.HandlerList;
 
 public class OnNewFile extends Event {
 
-    // Event that is Fired when a player joins who doesn't have a PUUIDs file yet.
+    // Event that is Fired when a player joins who doesn't have a puuids file yet.
 
     private static final HandlerList HANDLERS = new HandlerList();
     private final Player p;

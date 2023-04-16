@@ -55,7 +55,7 @@
           <relocations>
             <relocation>
               <pattern>org.bstats</pattern>
-              <shadedPattern>com.zachduda.PUUIDs.metrics</shadedPattern>
+              <shadedPattern>com.zachduda.puuids.metrics</shadedPattern>
             </relocation>
           </relocations>
           <minimizeJar>true</minimizeJar>
@@ -104,8 +104,8 @@
   <distributionManagement>
     <repository>
       <id>github</id>
-      <name>PUUIDs</name>
-      <url>https://maven.pkg.github.com/zachduda/PUUIDs</url>
+      <name>puuids</name>
+      <url>https://maven.pkg.github.com/zachduda/puuids</url>
     </repository>
   </distributionManagement>
   <properties>

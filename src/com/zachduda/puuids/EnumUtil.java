@@ -1,4 +1,4 @@
-package com.zachduda.PUUIDs;
+package com.zachduda.puuids;
 
 
 /**
@@ -12,7 +12,7 @@ import java.lang.reflect.Field;
 
 public final class EnumUtil {
 
-    // This class is used in the onEnable compare to see the native minecraft server play time vs PUUIDs playtime statistic.
+    // This class is used in the onEnable compare to see the native minecraft server play time vs puuids playtime statistic.
 
     private EnumUtil() {
     }

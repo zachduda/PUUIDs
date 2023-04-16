@@ -1,11 +1,11 @@
-package com.zachduda.PUUIDs.api;
+package com.zachduda.puuids.api;
 
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 
 public class PluginRegistered extends Event {
 
-    // Event that is Fired when a plugin is registered with PUUIDs
+    // Event that is Fired when a plugin is registered with puuids
 
 
     private static final HandlerList HANDLERS = new HandlerList();

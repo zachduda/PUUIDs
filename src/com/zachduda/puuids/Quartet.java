@@ -1,4 +1,4 @@
-package com.zachduda.PUUIDs;
+package com.zachduda.puuids;
 
 public class Quartet<uuid, plname, path, input, id> {
 

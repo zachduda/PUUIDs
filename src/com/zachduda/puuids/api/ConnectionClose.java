@@ -1,16 +1,16 @@
-package com.zachduda.PUUIDs.api;
+package com.zachduda.puuids.api;
 
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 
-public class UpdatedPlayerStats extends Event {
+public class ConnectionClose extends Event {
 
-    // Event that is Fired from a 10m timer that saves all online player stats every 10m (eg: playtime stat)
+    // Event that is Fired when puuids is shutting down.
 
     private static final HandlerList HANDLERS = new HandlerList();
 
-    public UpdatedPlayerStats() {
-        super(true);
+    public ConnectionClose() {
+        super(false);
     }
 
     public static HandlerList getHandlerList() {

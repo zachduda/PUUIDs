@@ -1,7 +1,7 @@
-package com.zachduda.PUUIDs.api;
+package com.zachduda.puuids.api;
 
 import com.google.common.io.Files;
-import com.zachduda.PUUIDs.Main;
+import com.zachduda.puuids.Main;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -17,7 +17,7 @@ public class PUUIDS {
     private static final Main plugin = Main.getPlugin(Main.class);
 
     /**
-     * Authorizes with PUUIDs. While not required for some functions, it is required for getting / setting plugin data.
+     * Authorizes with puuids. While not required for some functions, it is required for getting / setting plugin data.
      *
      * @param pl Your plugin, most of the time, you can just put "this"
      * @return Returns true or false if the connection was successful.

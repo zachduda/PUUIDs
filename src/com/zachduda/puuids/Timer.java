@@ -1,9 +1,9 @@
-package com.zachduda.PUUIDs;
+package com.zachduda.puuids;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-import com.zachduda.PUUIDs.api.OnNewFile;
-import com.zachduda.PUUIDs.api.TimerSaved;
+import com.zachduda.puuids.api.OnNewFile;
+import com.zachduda.puuids.api.TimerSaved;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -36,7 +36,7 @@ public class Timer {
 
             final File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 
-            // internal PUUIDs updates
+            // internal puuids updates
             while (updateSystem.size() > 1) {
                 final Player p = updateSystem.keys().iterator().next();
                 final boolean quit = updateSystem.get(p).iterator().next();
@@ -79,7 +79,7 @@ public class Timer {
                 try {
                     setcache.save(f);
                 } catch (Exception err) {
-                    plugin.debug("Error. Was unable to save " + name + "'s file for PUUIDs System update: ");
+                    plugin.debug("Error. Was unable to save " + name + "'s file for puuids System update: ");
                     err.printStackTrace();
                 }
 
@@ -96,7 +96,7 @@ public class Timer {
 
 
             final long start = System.currentTimeMillis();
-            int processed = 0; // Proccessed non-PUUIDs requests
+            int processed = 0; // Proccessed non-puuids requests
             plugin.setQRequests = size;
 
             while (rawdata.size() > 0) {
@@ -137,7 +137,7 @@ public class Timer {
                 } catch (Exception err) {
                     busy = false;
                     if (plugin.debug) {
-                        plugin.getLogger().warning("Unable to save PUUIDs file for user " + plugin.UUIDtoname(uuid) + " in plugin: " + plname);
+                        plugin.getLogger().warning("Unable to save puuids file for user " + plugin.UUIDtoname(uuid) + " in plugin: " + plname);
                         err.printStackTrace();
                     }
                 }
@@ -219,7 +219,7 @@ public class Timer {
                 try {
                     setcache.save(f);
                 } catch (Exception err) {
-                    plugin.debug("Error. Was unable to save " + name + "'s file for PUUIDs System update: ");
+                    plugin.debug("Error. Was unable to save " + name + "'s file for puuids System update: ");
                     err.printStackTrace();
                 }
 
@@ -247,7 +247,7 @@ public class Timer {
                 try {
                     setcache.save(f);
                 } catch (Exception err) {
-                    plugin.getLogger().warning("Unable to save PUUIDs file for user " + plugin.UUIDtoname(uuid) + " in plugin: " + plname);
+                    plugin.getLogger().warning("Unable to save puuids file for user " + plugin.UUIDtoname(uuid) + " in plugin: " + plname);
                 }
 
                 rawdata.remove(data);

@@ -1,6 +1,6 @@
-package com.zachduda.PUUIDs.api;
+package com.zachduda.puuids.api;
 
-import com.zachduda.PUUIDs.api.PUUIDS.APIVersion;
+import com.zachduda.puuids.api.PUUIDS.APIVersion;
 
 public class VersionManager {
 
@@ -30,7 +30,7 @@ public class VersionManager {
 
     public static enum VersionTest {
         FAIL, // Plugin is not at all compatible with this version.
-        LEGACY, // PUUIDs will try it's best to make it work, but the plugin isn't running the native latest.
-        PASS // PUUIDs and the plugin should work just fine!
+        LEGACY, // puuids will try it's best to make it work, but the plugin isn't running the native latest.
+        PASS // puuids and the plugin should work just fine!
     }
 }

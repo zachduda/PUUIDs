@@ -1,4 +1,4 @@
-package com.zachduda.PUUIDs;
+package com.zachduda.puuids;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -16,7 +16,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-// PUUIDs Async Check --> Based off of Benz56's update checker <3
+// puuids Async Check --> Based off of Benz56's update checker <3
 // https://github.com/Benz56/Async-Update-Checker/blob/master/UpdateChecker.java
 
 public class Updater {
@@ -61,12 +61,12 @@ public class Updater {
                             }
                         } catch (final IOException | ParseException e) {
                             e.printStackTrace();
-                            Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.RED + "[PUUIDs] Unable to check for updates. Is your server online?");
+                            Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.RED + "[puuids] Unable to check for updates. Is your server online?");
                             cancel();
                             return;
                         }
                         if(outdated) {
-                            Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.translateAlternateColorCodes('&', "&r[PUUIDs] &e&l&nUpdate Available&r&e&l!&r You're running &7v" + localPluginVersion + "&r, while the latest is &av" + postedver));
+                            Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.translateAlternateColorCodes('&', "&r[puuids] &e&l&nUpdate Available&r&e&l!&r You're running &7v" + localPluginVersion + "&r, while the latest is &av" + postedver));
                             cancel(); //Cancel the runnable as an update has been found.
                         }
                     });
