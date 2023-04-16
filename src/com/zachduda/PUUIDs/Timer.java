@@ -1,9 +1,9 @@
-package com.zachduda.puuids;
+package com.zachduda.PUUIDs;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-import com.zachduda.puuids.api.OnNewFile;
-import com.zachduda.puuids.api.TimerSaved;
+import com.zachduda.PUUIDs.api.OnNewFile;
+import com.zachduda.PUUIDs.api.TimerSaved;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -36,7 +36,7 @@ public class Timer {
 
             final File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 
-            // internal puuids updates
+            // internal PUUIDs updates
             while (updateSystem.size() > 1) {
                 final Player p = updateSystem.keys().iterator().next();
                 final boolean quit = updateSystem.get(p).iterator().next();
@@ -96,7 +96,7 @@ public class Timer {
 
 
             final long start = System.currentTimeMillis();
-            int processed = 0; // Proccessed non-puuids requests
+            int processed = 0; // Proccessed non-PUUIDs requests
             plugin.setQRequests = size;
 
             while (rawdata.size() > 0) {

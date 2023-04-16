@@ -1,4 +1,4 @@
-package com.zachduda.puuids;
+package com.zachduda.PUUIDs;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;

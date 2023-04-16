@@ -1,7 +1,7 @@
-package com.zachduda.puuids.api;
+package com.zachduda.PUUIDs.api;
 
 import com.google.common.io.Files;
-import com.zachduda.puuids.Main;
+import com.zachduda.PUUIDs.Main;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.configuration.file.FileConfiguration;

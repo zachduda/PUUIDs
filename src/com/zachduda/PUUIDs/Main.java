@@ -1,11 +1,11 @@
-package com.zachduda.puuids;
+package com.zachduda.PUUIDs;
 
 import com.earth2me.essentials.Essentials;
 import com.earth2me.essentials.User;
 import com.google.common.io.Files;
-import com.zachduda.puuids.api.*;
-import com.zachduda.puuids.api.PUUIDS.APIVersion;
-import com.zachduda.puuids.api.VersionManager.VersionTest;
+import com.zachduda.PUUIDs.api.*;
+import com.zachduda.PUUIDs.api.PUUIDS.APIVersion;
+import com.zachduda.PUUIDs.api.VersionManager.VersionTest;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -227,7 +227,7 @@ public class Main extends JavaPlugin implements Listener {
             statusreason = "PUUIDs was improperly reloaded. This may damage your player's data files! Please restart your server.";
             Msgs.sendPrefix(Bukkit.getConsoleSender(), "&4&l<!> &c&l&nReloading PUUIDs without a proper restart can severely damage PUUID's player data. PLEASE RESTART YOUR SERVER!");
             for (Player online : players) {
-                if (online.isOp() || online.hasPermission("puuids.admin")) {
+                if (online.isOp() || online.hasPermission("PUUIDs.admin")) {
                     Msgs.sendPrefix(online, "&c&lWARNING: &fPUUIDs has been improperly reloaded. This will cause data loss and possible damage to other plugins.");
                     if (sounds) {
                         online.playSound(online.getLocation(), Sound.ENTITY_ELDER_GUARDIAN_CURSE, 2.0F, 2.0F);
@@ -584,7 +584,7 @@ public class Main extends JavaPlugin implements Listener {
             updateFile(p, false);
 
             if (updatecheck) {
-                if (p.hasPermission("puuids.admin") || p.isOp()) {
+                if (p.hasPermission("PUUIDs.admin") || p.isOp()) {
                     if (Updater.outdated) {
                         try {
                             Msgs.sendPrefix(p, "&c&lOutdated Plugin! &7Running v" + getDescription().getVersion() +
@@ -694,8 +694,8 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     public boolean onCommand(CommandSender sender, Command cmd, String cmdLabel, String[] args) {
-        if (cmd.getName().equalsIgnoreCase("puuids")) {
-            if (!sender.hasPermission("puuids.admin") && !sender.isOp()) {
+        if (cmd.getName().equalsIgnoreCase("PUUIDs")) {
+            if (!sender.hasPermission("PUUIDs.admin") && !sender.isOp()) {
                 noPermission(sender);
                 return true;
             }
@@ -703,7 +703,7 @@ public class Main extends JavaPlugin implements Listener {
             if (args.length == 0) {
                 Msgs.send(sender, "");
                 Msgs.send(sender, "&e&lPUUIDs");
-                Msgs.send(sender, "&8&l> &f&o/puuids help &7&ofor commands & help.");
+                Msgs.send(sender, "&8&l> &f&o/PUUIDs help &7&ofor commands & help.");
                 Msgs.send(sender, "");
                 pop(sender);
                 return true;
@@ -712,16 +712,16 @@ public class Main extends JavaPlugin implements Listener {
             if (args.length >= 1 && args[0].equalsIgnoreCase("help")) {
                 Msgs.send(sender, "");
                 Msgs.send(sender, "&e&lPUUIDs");
-                Msgs.send(sender, "&8&l> &f&l/puuids version &7Get the current version of your PUUIDs system.");
-                Msgs.send(sender, "&8&l> &f&l/puuids ontime (player) &7See how long you or someone else been playing.");
-                Msgs.send(sender, "&8&l> &f&l/puuids reload &7Reload your config.yml.");
-                Msgs.send(sender, "&8&l> &f&l/puuids info &7Shows you how fast/slow your system is running.");
+                Msgs.send(sender, "&8&l> &f&l/PUUIDs version &7Get the current version of your PUUIDs system.");
+                Msgs.send(sender, "&8&l> &f&l/PUUIDs ontime (player) &7See how long you or someone else been playing.");
+                Msgs.send(sender, "&8&l> &f&l/PUUIDs reload &7Reload your config.yml.");
+                Msgs.send(sender, "&8&l> &f&l/PUUIDs info &7Shows you how fast/slow your system is running.");
                 if (debug) {
-                    Msgs.send(sender, "&8&l> &f&l/puuids debug &7Shows detailed system information.");
-                    Msgs.send(sender, "&8&l> &f&l/puuids reset all &7Resets everything except UUIDs/IPs/Names");
-                    Msgs.send(sender, "&8&l> &f&l/puuids reset ontime &7Set everyone's total play-time back to 0.");
+                    Msgs.send(sender, "&8&l> &f&l/PUUIDs debug &7Shows detailed system information.");
+                    Msgs.send(sender, "&8&l> &f&l/PUUIDs reset all &7Resets everything except UUIDs/IPs/Names");
+                    Msgs.send(sender, "&8&l> &f&l/PUUIDs reset ontime &7Set everyone's total play-time back to 0.");
                 }
-                Msgs.send(sender, "&8&l> &f&l/puuids plugins &7Shows connected plugins.");
+                Msgs.send(sender, "&8&l> &f&l/PUUIDs plugins &7Shows connected plugins.");
                 Msgs.send(sender, "");
                 pop(sender);
                 return true;
@@ -737,7 +737,7 @@ public class Main extends JavaPlugin implements Listener {
                 Msgs.sendPrefix(sender, "&fThere are &6&l" + size + " &fplugins connected:");
                 for(HashMap.Entry<Plugin, APIVersion> entry : plugins.entrySet()) {
                     final String plname = entry.getKey().getDescription().getName();
-                    if (!plname.equalsIgnoreCase("puuids")) {
+                    if (!plname.equalsIgnoreCase("PUUIDs")) {
                         Msgs.send(sender, "&r     &8&l> &e&l" + plname);
                     }
                 }
@@ -760,7 +760,7 @@ public class Main extends JavaPlugin implements Listener {
                     int plsb = 0;
                     for(HashMap.Entry<Plugin, APIVersion> entry : plugins.entrySet()) {
                         final String plname = entry.getKey().getDescription().getName();
-                        if (!plname.equalsIgnoreCase("puuids")) {
+                        if (!plname.equalsIgnoreCase("PUUIDs")) {
                             if (plsb == getPlugins().size() - 1) {
                                 sb.append(plname);
                             }
@@ -844,7 +844,7 @@ public class Main extends JavaPlugin implements Listener {
 
                 Player p = (Player) sender;
 
-                if (!p.hasPermission("puuids.admin") || !p.isOp()) {
+                if (!p.hasPermission("PUUIDs.admin") || !p.isOp()) {
                     bass(p);
                     Msgs.sendPrefix(p, "&6&lFor Saftey: &fYou must have the &7puuids.admin&f permission & be OP to do this.");
                     return true;
@@ -853,13 +853,13 @@ public class Main extends JavaPlugin implements Listener {
                 if (!Cooldowns.confirmall.containsKey(p)) {
                     String key = randomString();
                     thinking(p);
-                    Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fThis may corrupt data. Do &7&l/puuids togglesave " + key + "&f in 10s to confirm.");
+                    Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fThis may corrupt data. Do &7&l/PUUIDs togglesave " + key + "&f in 10s to confirm.");
                     Cooldowns.confirm(p, key);
                     return true;
                 } else {
                     // Has reset all confirmation key active v v v
                     if (args.length == 1) {
-                        Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fType &7&l/puuids togglesave " + Cooldowns.confirmall.get(p) + "&f to confirm.");
+                        Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fType &7&l/PUUIDs togglesave " + Cooldowns.confirmall.get(p) + "&f to confirm.");
                         thinking(p);
                         return true;
                     } else if (args.length >= 2) {
@@ -905,7 +905,7 @@ public class Main extends JavaPlugin implements Listener {
 
                 if (args.length == 1) {
                     bass(sender);
-                    Msgs.sendPrefix(sender, "&c&lOops. &fYou must provide what to reset: &7/puuids reset &f(all/ontime)");
+                    Msgs.sendPrefix(sender, "&c&lOops. &fYou must provide what to reset: &7/PUUIDs reset &f(all/ontime)");
                     return true;
                 }
 
@@ -974,7 +974,7 @@ public class Main extends JavaPlugin implements Listener {
 
                     Player p = (Player) sender;
 
-                    if (!p.hasPermission("puuids.admin") || !p.isOp()) {
+                    if (!p.hasPermission("PUUIDs.admin") || !p.isOp()) {
                         bass(p);
                         Msgs.sendPrefix(p, "&6&lFor Safety: &fYou must have the &7puuids.admin&f permission & be OP to do this.");
                         return true;
@@ -983,13 +983,13 @@ public class Main extends JavaPlugin implements Listener {
                     if (!Cooldowns.confirmall.containsKey(p)) {
                         String key = randomString();
                         thinking(p);
-                        Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fThis will erase ALL player data from your PUUID's data folder. Do &7&l/puuids reset all " + key + "&f in 10s to confirm.");
+                        Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fThis will erase ALL player data from your PUUID's data folder. Do &7&l/PUUIDs reset all " + key + "&f in 10s to confirm.");
                         Cooldowns.confirm(p, key);
                         return true;
                     } else {
                         // Has reset all confirmation key active v v v
                         if (args.length == 2) {
-                            Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fType &7&l/puuids reset all " + Cooldowns.confirmall.get(p) + "&f to confirm.");
+                            Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fType &7&l/PUUIDs reset all " + Cooldowns.confirmall.get(p) + "&f to confirm.");
                             thinking(p);
                             return true;
                         } else if (args.length >= 3) {
@@ -1091,7 +1091,7 @@ public class Main extends JavaPlugin implements Listener {
 
                 if (args.length == 1) {
                     if (!(sender instanceof Player)) {
-                        Msgs.sendPrefix(sender, "&c&lOops. &fYou must specify a player: &7&l/puuids ontime (player)");
+                        Msgs.sendPrefix(sender, "&c&lOops. &fYou must specify a player: &7&l/PUUIDs ontime (player)");
                         return true;
                     }
                     Player p = (Player) sender;

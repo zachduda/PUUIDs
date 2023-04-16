@@ -26,7 +26,7 @@
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.11.0</version>
+        <version>3.8.1</version>
         <configuration>
           <source>1.8</source>
           <target>1.8</target>
@@ -44,10 +44,18 @@
           </execution>
         </executions>
         <configuration>
+          <filters>
+            <filter>
+              <artifact>*:*</artifact>
+              <excludes>
+                <exclude>META-INF/MANIFEST.MF</exclude>
+              </excludes>
+            </filter>
+          </filters>
           <relocations>
             <relocation>
               <pattern>org.bstats</pattern>
-              <shadedPattern>com.zachduda.puuids.metrics</shadedPattern>
+              <shadedPattern>com.zachduda.PUUIDs.metrics</shadedPattern>
             </relocation>
           </relocations>
           <minimizeJar>true</minimizeJar>
