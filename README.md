@@ -4,6 +4,22 @@ Async per player file saving: Made Easy!
 # API
 Ready to get started? Check out: [Setting Your Data](https://github.com/zachduda/PUUIDs/wiki/Start-Setting-Data).
 
+# Using Maven
+If you haven't already, make sure jitpack repo is listed:
+```
+<repository>
+    <id>jitpack.io</id>
+    <url>https://jitpack.io</url>
+</repository>```
+Then add PUUIDs dependncy from Github:
+```
+<dependency>
+  <groupId>com.zachduda</groupId>
+  <artifactId>puuids</artifactId>
+  <version>3.2.0</version>
+</dependency>
+```
+
 # Spigot
 PUUIDs is a Spigot plugin for 1.13, 1.14, 1.15, 1.16, 1.17, 1.18, & 1.19. Please check out the [Spigot Page](https://www.spigotmc.org/resources/puuids-•-an-async-file-api.71496/). for full documentation.
 
