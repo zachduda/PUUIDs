@@ -13,7 +13,7 @@ If you haven't already, make sure jitpack repo is listed:
 </repository>
 ```
 
-Then add PUUIDs dependncy from Github:
+Then add PUUIDs dependency from Github:
 
 ```xml
 <dependency>
