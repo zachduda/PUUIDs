@@ -22,8 +22,8 @@ Then add PUUIDs dependency from Github:
 
 ```xml
 <dependency>
-  <groupId>com.zachduda</groupId>
-  <artifactId>puuids</artifactId>
+  <groupId>com.github.zachduda</groupId>
+  <artifactId>PUUIDs</artifactId>
   <version>3.2.1</version>
 </dependency>
 ```
