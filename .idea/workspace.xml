@@ -4,9 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Adjust message when no plugins are connected">
+    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="lower-case artifact id to deploy">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
     </list>
     <list id="e27b88bb-7a7d-44de-85e1-ecb3d4996301" name="v3.2 - Bump + Release" comment="" />
     <option name="SHOW_DIALOG" value="false" />
@@ -99,7 +98,8 @@
       <workItem from="1681489786954" duration="1306000" />
       <workItem from="1681656514323" duration="3000" />
       <workItem from="1681656561882" duration="1506000" />
-      <workItem from="1681659652629" duration="2567000" />
+      <workItem from="1681659652629" duration="2699000" />
+      <workItem from="1681822420594" duration="291000" />
     </task>
     <task id="LOCAL-00001" summary="update player ontime every 10m">
       <created>1668344025390</created>
@@ -178,7 +178,14 @@
       <option name="project" value="LOCAL" />
       <updated>1681660063673</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="lower-case artifact id to deploy">
+      <created>1681662896727</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1681662896727</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -205,6 +212,7 @@
     <MESSAGE value="v3.2 - Bump + Release" />
     <MESSAGE value="undo last commit" />
     <MESSAGE value="Adjust message when no plugins are connected" />
-    <option name="LAST_COMMIT_MESSAGE" value="Adjust message when no plugins are connected" />
+    <MESSAGE value="lower-case artifact id to deploy" />
+    <option name="LAST_COMMIT_MESSAGE" value="lower-case artifact id to deploy" />
   </component>
 </project>
