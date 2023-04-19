@@ -4,6 +4,11 @@ Async per player file saving: Made Easy!
 # API
 Ready to get started? Check out: [Setting Your Data](https://github.com/zachduda/PUUIDs/wiki/Start-Setting-Data).
 
+# Soft-Depend in plugin.yml
+Make sure that you add PUUIDs as a soft-depend plugin like so:
+```yaml
+soft-depend: [PUUIDs]
+```
 # Using Maven
 If you haven't already, make sure jitpack repo is listed:
 ```xml
@@ -17,9 +22,9 @@ Then add PUUIDs dependency from Github:
 
 ```xml
 <dependency>
-  <groupId>com.zachduda</groupId>
-  <artifactId>puuids</artifactId>
-  <version>3.2.0</version>
+  <groupId>com.github.zachduda</groupId>
+  <artifactId>PUUIDs</artifactId>
+  <version>3.2.1</version>
 </dependency>
 ```
 
