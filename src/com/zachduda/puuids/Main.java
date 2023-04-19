@@ -29,6 +29,7 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.io.File;
 import java.lang.management.ManagementFactory;
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
 public class Main extends JavaPlugin implements Listener {
@@ -60,7 +61,7 @@ public class Main extends JavaPlugin implements Listener {
         double jversion = Double.parseDouble(System.getProperty("java.specification.version"));
         if (jversion < 1.8) {
             getLogger().severe("Unsupported Java Version: " + jversion);
-            getLogger().warning("puuids works best in Java 8 (or higher). JDK releases are NOT supported.");
+            getLogger().warning("PUUIDs works best in Java 8 (or higher). JDK releases are NOT supported.");
         }
 
         try {
@@ -78,6 +79,16 @@ public class Main extends JavaPlugin implements Listener {
             getLogger().info("Hooking into Essentials...");
         }
 
+        if (this.getServer().getPluginManager().isPluginEnabled("PlugMan")
+                && this.getServer().getPluginManager().getPlugin("PlugMan") != null) {
+            Plugin plugMan = Bukkit.getPluginManager().getPlugin("PlugMan");
+            try {
+                List<String> ignoredPlugins = (List<String>) plugMan.getClass().getMethod("getIgnoredPlugins").invoke(plugMan);
+                if (!ignoredPlugins.contains("PUUIDs")) {
+                    ignoredPlugins.add("PUUIDs");
+                }
+            } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException ignored) {}
+        }
         status = true;
         statusreason = "0";
         asyncrunning = true;
@@ -141,7 +152,17 @@ public class Main extends JavaPlugin implements Listener {
                                  * https://github.com/EssentialsX/Essentials/blob/3af931740b20507837276f87f9456221653ac43d/Essentials/src/main/java/com/earth2me/essentials/commands/Commandplaytime.java
                                  */
                                 final String uuid = setcache.getString("UUID");
-                                final long playtime = ((getServer().getOfflinePlayer(UUID.fromString(uuid)).getStatistic(EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK"))) * 50L);
+                                long playtime = 0;
+                                if(isFullySupported) {
+                                    try {
+                                        playtime = ((getServer().getOfflinePlayer(UUID.fromString(uuid)).getStatistic(EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK"))) * 50L);
+                                    } catch (Exception e) {
+                                        if(debug) {
+                                            debug("Unable to use getStatistic for player playtime:");
+                                            e.printStackTrace();
+                                        }
+                                    }
+                                }
                                 debug("Spigot playtime for " + playername + " is " + playtime/1000 + " seconds");
                                 final long puuids_playtime = getPlayTime(uuid);
                                 debug("PUUIDS playtime for " + playername + " is " + puuids_playtime/1000 + " seconds");

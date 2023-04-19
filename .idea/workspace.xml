@@ -4,8 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="lower-case artifact id to deploy">
+    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Attempt to fix maven issues - Bump to v3.2.1">
+      <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PUUIDs.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dependency-reduced-pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/dependency-reduced-pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Updater.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Updater.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/plugin.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/plugin.yml" afterDir="false" />
     </list>
     <list id="e27b88bb-7a7d-44de-85e1-ecb3d4996301" name="v3.2 - Bump + Release" comment="" />
     <option name="SHOW_DIALOG" value="false" />
@@ -100,6 +107,9 @@
       <workItem from="1681656561882" duration="1506000" />
       <workItem from="1681659652629" duration="2699000" />
       <workItem from="1681822420594" duration="291000" />
+      <workItem from="1681823123205" duration="180000" />
+      <workItem from="1681919922612" duration="896000" />
+      <workItem from="1681920827331" duration="631000" />
     </task>
     <task id="LOCAL-00001" summary="update player ontime every 10m">
       <created>1668344025390</created>
@@ -185,7 +195,14 @@
       <option name="project" value="LOCAL" />
       <updated>1681662896727</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="Attempt to fix maven issues - Bump to v3.2.1">
+      <created>1681823266832</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1681823266832</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -213,6 +230,7 @@
     <MESSAGE value="undo last commit" />
     <MESSAGE value="Adjust message when no plugins are connected" />
     <MESSAGE value="lower-case artifact id to deploy" />
-    <option name="LAST_COMMIT_MESSAGE" value="lower-case artifact id to deploy" />
+    <MESSAGE value="Attempt to fix maven issues - Bump to v3.2.1" />
+    <option name="LAST_COMMIT_MESSAGE" value="Attempt to fix maven issues - Bump to v3.2.1" />
   </component>
 </project>

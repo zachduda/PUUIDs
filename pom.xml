@@ -7,10 +7,11 @@
     <artifactId>puuids</artifactId>
     <url>https://github.com/zachduda/PUUIDs</url>
     <packaging>jar</packaging>
-    <version>3.2.1</version>
+    <version>3.2.2</version>
     <description>Fully async per-player file saving all in one easy to use API.</description>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spigot.version>1.19.4-R0.1-SNAPSHOT</spigot.version>
     </properties>
     <distributionManagement>
         <repository>
@@ -29,12 +30,13 @@
         <resources>
             <resource>
                 <directory>src</directory>
+                <filtering>true</filtering>
                 <excludes>
                     <exclude>**/*.java</exclude>
                 </excludes>
             </resource>
         </resources>
-        <sourceDirectory>src</sourceDirectory>
+        <sourceDirectory>src/com/zachduda</sourceDirectory>
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
