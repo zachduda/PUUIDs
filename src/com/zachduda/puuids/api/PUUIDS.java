@@ -353,14 +353,14 @@ public class PUUIDS {
             return 0;
         }
 
-        plugin.set(pl, uuid, location + ".X", input.getX());
-        plugin.set(pl, uuid, location + ".Y", input.getY());
-        plugin.set(pl, uuid, location + ".Z", input.getZ());
-        plugin.set(pl, uuid, location + ".Pitch", input.getPitch());
+        plugin.set(pl, uuid, location + ".X", input.getX(), SavePriority.NORMAL);
+        plugin.set(pl, uuid, location + ".Y", input.getY(), SavePriority.NORMAL);
+        plugin.set(pl, uuid, location + ".Z", input.getZ(), SavePriority.NORMAL);
+        plugin.set(pl, uuid, location + ".Pitch", input.getPitch(), SavePriority.NORMAL);
         if(plugin.getPlugins().get(pl) == APIVersion.V4) {
-            plugin.set(pl, uuid, location + ".World", input.getWorld().getName());
+            plugin.set(pl, uuid, location + ".World", input.getWorld().getName(), SavePriority.NORMAL);
         }
-        int taskid = plugin.set(pl, uuid, location + ".Yaw", input.getYaw());
+        int taskid = plugin.set(pl, uuid, location + ".Yaw", input.getYaw(), SavePriority.NORMAL);
 
         return taskid;
     }
@@ -489,7 +489,7 @@ public class PUUIDS {
             return 0;
         }
 
-        return plugin.set(pl, uuid, location, null);
+        return plugin.set(pl, uuid, location, null, SavePriority.NORMAL);
     }
     // END GET
 
@@ -526,7 +526,7 @@ public class PUUIDS {
 
         List<String> input = getStringList(pl, uuid, location);
         input.add(add);
-        return plugin.set(pl, uuid, location, input);
+        return plugin.set(pl, uuid, location, input, SavePriority.NORMAL);
     }
     // End of NULL set
 
@@ -547,7 +547,7 @@ public class PUUIDS {
         }
         List<Integer> input = getIntList(pl, uuid, location);
         input.add(add);
-        return plugin.set(pl, uuid, location, input);
+        return plugin.set(pl, uuid, location, input, SavePriority.NORMAL);
     }
     // End of List Add
 
@@ -568,7 +568,7 @@ public class PUUIDS {
         }
         List<String> input = getStringList(pl, uuid, location);
         input.remove(add);
-        return plugin.set(pl, uuid, location, input);
+        return plugin.set(pl, uuid, location, input, SavePriority.NORMAL);
     }
     // End of List Add
 
@@ -591,7 +591,7 @@ public class PUUIDS {
 
         List<Integer> input = getIntList(pl, uuid, location);
         input.add(add);
-        return plugin.set(pl, uuid, location, input);
+        return plugin.set(pl, uuid, location, input, SavePriority.NORMAL);
     }
     // End of List Add
 
@@ -611,7 +611,26 @@ public class PUUIDS {
             return 0;
         }
 
-        return plugin.set(pl, uuid, location, input);
+        return plugin.set(pl, uuid, location, input, SavePriority.NORMAL);
+    }
+
+
+    /**
+     * Set plugin data for your plugin in a player's data file.
+     *
+     * @param pl       Your plugin (usually "this"). Must be authenticated via PUUIDS.connect(this);
+     * @param uuid     The UUID of the player as a String.
+     * @param location Where under the player file to save as? (Similar to Configuration save paths)
+     * @param input    Accepts a boolean/int/long or other value to set.
+     * @param sp The priority of your request. LOW / NORMAL / URGENT. URGENT will save immediately and ignore the timer.
+     * @return The UUID of a player as a String
+     */
+    public static int set(Plugin pl, String uuid, String location, Object input, SavePriority sp) {
+        if (pl == null || uuid == null || location == null) {
+            return 0;
+        }
+
+        return plugin.set(pl, uuid, location, input, sp);
     }
     // End of List Remove
 
@@ -692,6 +711,12 @@ public class PUUIDS {
         @Deprecated V2,
         @Deprecated V3,
         V4
+    }
+
+    public static enum SavePriority {
+        LOW,
+        NORMAL,
+        URGENT
     }
     // End of General
 }

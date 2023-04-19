@@ -3,9 +3,11 @@ package com.zachduda.puuids;
 import com.earth2me.essentials.Essentials;
 import com.earth2me.essentials.User;
 import com.google.common.io.Files;
-import com.zachduda.puuids.api.*;
+import com.zachduda.puuids.api.PUUIDS;
 import com.zachduda.puuids.api.PUUIDS.APIVersion;
 import com.zachduda.puuids.api.VersionManager.VersionTest;
+import com.zachduda.puuids.api.*;
+import com.zachduda.puuids.api.PUUIDS.SavePriority;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -433,7 +435,7 @@ public class Main extends JavaPlugin implements Listener {
         }
     }
 
-    public int set(Plugin pl, String uuid, String loc, Object obj) {
+    public int set(Plugin pl, String uuid, String loc, Object obj, SavePriority sp) {
         final String plname = pl.getDescription().getName().toUpperCase();
         if (!getPlugins().containsKey(pl)) {
             debug("Not allowing " + plname + " to access data. They didn't connect properly.");
@@ -443,7 +445,7 @@ public class Main extends JavaPlugin implements Listener {
         return Timer.queueSet(plname, uuid, loc, obj);
     }
 
-    public int set(Plugin pl, String uuid, String loc, List<?> obj) {
+    public int set(Plugin pl, String uuid, String loc, List<?> obj, SavePriority sp) {
         final String plname = pl.getDescription().getName().toUpperCase();
         if (!getPlugins().containsKey(pl)) {
             debug("Not allowing " + plname + " to access data. They didn't connect properly.");
