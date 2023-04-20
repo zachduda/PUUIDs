@@ -4,13 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Begin to implement SavePriority enum">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Quartet.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Quartet.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Timer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Timer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" afterDir="false" />
-    </list>
+    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="- Remove usemojang (Deprecated)&#10;- Finish implementing additional SavePriority field in API&#10;- Add support to call set w/o SavePriority (defaults to NORMAL)&#10;- Add Plugman block code (still needs testing)&#10;-" />
     <list id="e27b88bb-7a7d-44de-85e1-ecb3d4996301" name="v3.2 - Bump + Release" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -112,7 +106,7 @@
       <workItem from="1681919922612" duration="896000" />
       <workItem from="1681920827331" duration="631000" />
       <workItem from="1681931185324" duration="571000" />
-      <workItem from="1681989280049" duration="541000" />
+      <workItem from="1681989280049" duration="862000" />
     </task>
     <task id="LOCAL-00001" summary="update player ontime every 10m">
       <created>1668344025390</created>
@@ -212,7 +206,14 @@
       <option name="project" value="LOCAL" />
       <updated>1681931750122</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="- Remove usemojang (Deprecated)&#10;- Finish implementing additional SavePriority field in API&#10;- Add support to call set w/o SavePriority (defaults to NORMAL)&#10;- Add Plugman block code (still needs testing)&#10;-">
+      <created>1681990123370</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1681990123370</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -242,6 +243,7 @@
     <MESSAGE value="lower-case artifact id to deploy" />
     <MESSAGE value="Attempt to fix maven issues - Bump to v3.2.1" />
     <MESSAGE value="Begin to implement SavePriority enum" />
-    <option name="LAST_COMMIT_MESSAGE" value="Begin to implement SavePriority enum" />
+    <MESSAGE value="- Remove usemojang (Deprecated)&#10;- Finish implementing additional SavePriority field in API&#10;- Add support to call set w/o SavePriority (defaults to NORMAL)&#10;- Add Plugman block code (still needs testing)&#10;-" />
+    <option name="LAST_COMMIT_MESSAGE" value="- Remove usemojang (Deprecated)&#10;- Finish implementing additional SavePriority field in API&#10;- Add support to call set w/o SavePriority (defaults to NORMAL)&#10;- Add Plugman block code (still needs testing)&#10;-" />
   </component>
 </project>
