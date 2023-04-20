@@ -1,6 +1,9 @@
 package com.zachduda.puuids;
 
-public class Quartet<uuid, plname, path, input, id> {
+import com.zachduda.puuids.api.PUUIDS;
+import com.zachduda.puuids.api.PUUIDS.SavePriority;
+
+public class Quartet<uuid, plname, path, input, id, save_priority> {
 
     private final String uuid;
     private final String plname;
@@ -8,12 +11,15 @@ public class Quartet<uuid, plname, path, input, id> {
     private final Object input;
     private final int id;
 
-    public Quartet(String uuid, String plname, String path, Object input, int id) {
+    private final SavePriority sp;
+
+    public Quartet(String uuid, String plname, String path, Object input, int id, SavePriority sp) {
         this.uuid = uuid;
         this.plname = plname;
         this.path = path;
         this.input = input;
         this.id = id;
+        this.sp = sp;
     }
 
     public String getUUID() {
@@ -34,5 +40,9 @@ public class Quartet<uuid, plname, path, input, id> {
 
     public int getId() {
         return id;
+    }
+
+    public SavePriority getSp() {
+        return sp;
     }
 }

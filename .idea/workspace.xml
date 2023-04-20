@@ -4,10 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="v3.1.2 - canid">
+    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Begin to implement SavePriority enum">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Quartet.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Quartet.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Timer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Timer.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" afterDir="false" />
     </list>
     <list id="e27b88bb-7a7d-44de-85e1-ecb3d4996301" name="v3.2 - Bump + Release" comment="" />
@@ -110,7 +111,8 @@
       <workItem from="1681823123205" duration="180000" />
       <workItem from="1681919922612" duration="896000" />
       <workItem from="1681920827331" duration="631000" />
-      <workItem from="1681931185324" duration="493000" />
+      <workItem from="1681931185324" duration="571000" />
+      <workItem from="1681989280049" duration="541000" />
     </task>
     <task id="LOCAL-00001" summary="update player ontime every 10m">
       <created>1668344025390</created>
@@ -203,7 +205,14 @@
       <option name="project" value="LOCAL" />
       <updated>1681823266832</updated>
     </task>
-    <option name="localTasksCounter" value="14" />
+    <task id="LOCAL-00014" summary="Begin to implement SavePriority enum">
+      <created>1681931750122</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1681931750122</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -232,6 +241,7 @@
     <MESSAGE value="Adjust message when no plugins are connected" />
     <MESSAGE value="lower-case artifact id to deploy" />
     <MESSAGE value="Attempt to fix maven issues - Bump to v3.2.1" />
-    <option name="LAST_COMMIT_MESSAGE" value="Attempt to fix maven issues - Bump to v3.2.1" />
+    <MESSAGE value="Begin to implement SavePriority enum" />
+    <option name="LAST_COMMIT_MESSAGE" value="Begin to implement SavePriority enum" />
   </component>
 </project>

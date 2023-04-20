@@ -34,15 +34,8 @@ public class PUUIDS {
      * Returns a players UUID from their Name as a String.
      *
      * @param name      The player's username you want the UUID of.
-     * @param usemojang (Deprecated will be removed in future update!)
      * @return The UUID of a player as a String
      */
-    @Deprecated
-    public static String getUUID(String name, boolean usemojang) {
-        wasGet();
-        return plugin.nametoUUID(name);
-    }
-
     public static String getUUID(String name) {
         wasGet();
         return plugin.nametoUUID(name);
@@ -502,12 +495,12 @@ public class PUUIDS {
      * @param uuid The UUID of the player as a String.
      * @return The UUID of a player as a String
      */
-    public static int setNull(Plugin pl, String uuid) {
+    public static int setNull(Plugin pl, String uuid, SavePriority sp) {
         if (pl == null || uuid == null) {
             return 0;
         }
 
-        return plugin.set(pl, uuid, null);
+        return plugin.set(pl, uuid, null, sp);
     }
 
     /**
@@ -598,6 +591,8 @@ public class PUUIDS {
     // v1.4.5 and + remove to int list
 
     /**
+     * DEPRECATED
+     * Please use PUUIDS.set() and provide a SavePriority param
      * Set plugin data for your plugin in a player's data file.
      *
      * @param pl       Your plugin (usually "this"). Must be authenticated via PUUIDS.connect(this);
@@ -606,12 +601,9 @@ public class PUUIDS {
      * @param input    Accepts a boolean/int/long or other value to set.
      * @return The UUID of a player as a String
      */
+    @Deprecated
     public static int set(Plugin pl, String uuid, String location, Object input) {
-        if (pl == null || uuid == null || location == null) {
-            return 0;
-        }
-
-        return plugin.set(pl, uuid, location, input, SavePriority.NORMAL);
+        return set(pl, uuid, location, input, SavePriority.NORMAL);
     }
 
 

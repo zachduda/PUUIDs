@@ -442,7 +442,7 @@ public class Main extends JavaPlugin implements Listener {
             return 0;
         }
 
-        return Timer.queueSet(plname, uuid, loc, obj);
+        return Timer.queueSet(plname, uuid, loc, obj, sp);
     }
 
     public int set(Plugin pl, String uuid, String loc, List<?> obj, SavePriority sp) {
@@ -452,12 +452,12 @@ public class Main extends JavaPlugin implements Listener {
             return 0;
         }
 
-        return Timer.queueSet(plname, uuid, loc, obj);
+        return Timer.queueSet(plname, uuid, loc, obj, sp);
     }
 
 
     // ONLY for setting Null info
-    public int set(Plugin pl, String uuid, Object should_be_null) {
+    public int set(Plugin pl, String uuid, Object should_be_null, SavePriority sp) {
         final String plname = pl.getDescription().getName().toUpperCase();
         if (!getPlugins().containsKey(pl)) {
             debug("Not allowing " + plname + " to access data. They didn't connect properly.");
@@ -468,7 +468,7 @@ public class Main extends JavaPlugin implements Listener {
             return 0;
         }
 
-        return Timer.queueSet(plname, uuid, "PUUIDS_SET_AS_ALL_NULL", null);
+        return Timer.queueSet(plname, uuid, "PUUIDS_SET_AS_ALL_NULL", null, sp);
     }
 
     public String nametoUUID(String inputsearch) {

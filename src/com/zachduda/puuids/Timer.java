@@ -3,6 +3,7 @@ package com.zachduda.puuids;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.zachduda.puuids.api.OnNewFile;
+import com.zachduda.puuids.api.PUUIDS.SavePriority;
 import com.zachduda.puuids.api.TimerSaved;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -22,7 +23,7 @@ public class Timer {
     private static boolean busy = false;
     private static int taskid = 1;
     //                                 UUID   PLUGIN   PATH     DATA    ID
-    private static ArrayList<Quartet<String, String, String, Object, Integer>> rawdata = new ArrayList<>();
+    private static ArrayList<Quartet<String, String, String, Object, Integer, SavePriority>> rawdata = new ArrayList<>();
     final static BukkitTask timer = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, new Runnable() {
         @Override
         public void run() {
@@ -105,12 +106,13 @@ public class Timer {
                     break;
                 }
                 final long startset = System.currentTimeMillis();
-                Quartet<String, String, String, Object, Integer> data = rawdata.get(0);
+                Quartet<String, String, String, Object, Integer, SavePriority> data = rawdata.get(0);
                 final String uuid = data.getUUID();
                 final String plname = data.getPlugin();
                 final String path = data.getPath();
                 final Object value = data.getData();
                 final int taskid = data.getId();
+                final SavePriority sp = data.getSp();
 
                 File f = new File(cache, File.separator + "" + uuid + ".yml");
                 FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
@@ -162,11 +164,11 @@ public class Timer {
         return rawdata.size();
     }
 
-    static int queueSet(String pl, String uuid, String location, Object value) {
+    static int queueSet(String pl, String uuid, String location, Object value, SavePriority sp) {
         final int thisid = taskid;
         taskid += 1;
         Bukkit.getScheduler().runTask(plugin, () -> { // Ensures running SYNC to place.
-            Quartet<String, String, String, Object, Integer> quart = new Quartet<String, String, String, Object, Integer>(uuid, pl.toUpperCase(), location, value, thisid);
+            Quartet<String, String, String, Object, Integer, SavePriority> quart = new Quartet<String, String, String, Object, Integer, SavePriority>(uuid, pl.toUpperCase(), location, value, thisid, sp);
             rawdata.add(quart);
         });
         return thisid;
@@ -232,11 +234,12 @@ public class Timer {
             plugin.getLogger().info("Saving " + size + " leftover tasks...");
 
             for (int i = 0; i < size; i++) {
-                Quartet<String, String, String, Object, Integer> data = rawdata.get(0);
+                Quartet<String, String, String, Object, Integer, SavePriority> data = rawdata.get(0);
                 final String uuid = data.getUUID();
                 final String plname = data.getPlugin();
                 final String path = data.getPath();
                 final Object value = data.getData();
+                final SavePriority sp = data.getSp();
 
                 File f = new File(cache, File.separator + "" + uuid + ".yml");
                 FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
