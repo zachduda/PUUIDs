@@ -622,7 +622,7 @@ public class PUUIDS {
             return 0;
         }
 
-        return plugin.set(pl, uuid, location, input, sp);
+        return PUUIDS.set(pl, uuid, location, input, sp);
     }
     // End of List Remove
 

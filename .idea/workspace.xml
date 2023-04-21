@@ -4,12 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Fix updatesystem size resulting in player files not being generated first.">
-      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/jarRepositories.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/jarRepositories.xml" afterDir="false" />
+    <list default="true" id="da349766-e665-444a-8a3d-f4f036544929" name="Changes" comment="Apply fix for updatesystem from v3 + add secret key">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Main.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/Timer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/Timer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/com/zachduda/puuids/api/PUUIDS.java" afterDir="false" />
     </list>
     <list id="e27b88bb-7a7d-44de-85e1-ecb3d4996301" name="v3.2 - Bump + Release" comment="" />
     <option name="SHOW_DIALOG" value="false" />
@@ -276,6 +275,7 @@
     <MESSAGE value="Attempt to fix maven issues - Bump to v3.2.1" />
     <MESSAGE value="Begin to implement SavePriority enum" />
     <MESSAGE value="- Remove usemojang (Deprecated)&#10;- Finish implementing additional SavePriority field in API&#10;- Add support to call set w/o SavePriority (defaults to NORMAL)&#10;- Add Plugman block code (still needs testing)&#10;-" />
-    <option name="LAST_COMMIT_MESSAGE" value="- Remove usemojang (Deprecated)&#10;- Finish implementing additional SavePriority field in API&#10;- Add support to call set w/o SavePriority (defaults to NORMAL)&#10;- Add Plugman block code (still needs testing)&#10;-" />
+    <MESSAGE value="Apply fix for updatesystem from v3 + add secret key" />
+    <option name="LAST_COMMIT_MESSAGE" value="Apply fix for updatesystem from v3 + add secret key" />
   </component>
 </project>

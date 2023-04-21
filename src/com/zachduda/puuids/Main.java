@@ -4,6 +4,7 @@ import com.earth2me.essentials.Essentials;
 import com.earth2me.essentials.User;
 import com.google.common.io.Files;
 import com.zachduda.puuids.api.*;
+import com.zachduda.puuids.api.PUUIDS.SavePriority;
 import com.zachduda.puuids.api.PUUIDS.APIVersion;
 import com.zachduda.puuids.api.VersionManager.VersionTest;
 import org.bstats.bukkit.Metrics;
@@ -438,27 +439,27 @@ public class Main extends JavaPlugin implements Listener {
         return false;
     }
 
-    public int set(Plugin pl, String uuid, String loc, Object obj) {
+    public int set(Plugin pl, String uuid, String loc, Object obj, SavePriority sp) {
         final String plname = pl.getDescription().getName().toUpperCase();
         if(!authed(pl)) {
             return 0;
         }
 
-        return Timer.queueSet(plname, uuid, loc, obj);
+        return Timer.queueSet(plname, uuid, loc, obj, sp);
     }
 
-    public int set(Plugin pl, String uuid, String loc, List<?> obj) {
+    public int set(Plugin pl, String uuid, String loc, List<?> obj, SavePriority sp) {
         final String plname = pl.getDescription().getName().toUpperCase();
         if(!authed(pl)) {
             return 0;
         }
 
-        return Timer.queueSet(plname, uuid, loc, obj);
+        return Timer.queueSet(plname, uuid, loc, obj, sp);
     }
 
 
     // ONLY for setting Null info
-    public int set(Plugin pl, String uuid, Object should_be_null) {
+    public int set(Plugin pl, String uuid, Object should_be_null, SavePriority sp) {
         final String plname = pl.getDescription().getName().toUpperCase();
         if(!authed(pl)) {
             return 0;
@@ -468,7 +469,7 @@ public class Main extends JavaPlugin implements Listener {
             return 0;
         }
 
-        return Timer.queueSet(plname, uuid, "PUUIDS_SET_AS_ALL_NULL", null);
+        return Timer.queueSet(plname, uuid, "PUUIDS_SET_AS_ALL_NULL", null, sp);
     }
 
     public String nametoUUID(String inputsearch) {
