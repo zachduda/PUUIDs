@@ -3,11 +3,9 @@ package com.zachduda.puuids;
 import com.earth2me.essentials.Essentials;
 import com.earth2me.essentials.User;
 import com.google.common.io.Files;
-import com.zachduda.puuids.api.PUUIDS;
+import com.zachduda.puuids.api.*;
 import com.zachduda.puuids.api.PUUIDS.APIVersion;
 import com.zachduda.puuids.api.VersionManager.VersionTest;
-import com.zachduda.puuids.api.*;
-import com.zachduda.puuids.api.PUUIDS.SavePriority;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -31,13 +29,13 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.io.File;
 import java.lang.management.ManagementFactory;
-import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
 public class Main extends JavaPlugin implements Listener {
 
     static boolean hasess = false;
     private static HashMap<Plugin, APIVersion> plugins = new HashMap<>();
+    private static HashMap<Plugin, UUID> secret = new HashMap<>();
 
     private static boolean allowconnections = false;
     public int getTimes = 0;
@@ -63,7 +61,7 @@ public class Main extends JavaPlugin implements Listener {
         double jversion = Double.parseDouble(System.getProperty("java.specification.version"));
         if (jversion < 1.8) {
             getLogger().severe("Unsupported Java Version: " + jversion);
-            getLogger().warning("PUUIDs works best in Java 8 (or higher). JDK releases are NOT supported.");
+            getLogger().warning("puuids works best in Java 8 (or higher). JDK releases are NOT supported.");
         }
 
         try {
@@ -81,16 +79,6 @@ public class Main extends JavaPlugin implements Listener {
             getLogger().info("Hooking into Essentials...");
         }
 
-        if (this.getServer().getPluginManager().isPluginEnabled("PlugMan")
-                && this.getServer().getPluginManager().getPlugin("PlugMan") != null) {
-            Plugin plugMan = Bukkit.getPluginManager().getPlugin("PlugMan");
-            try {
-                List<String> ignoredPlugins = (List<String>) plugMan.getClass().getMethod("getIgnoredPlugins").invoke(plugMan);
-                if (!ignoredPlugins.contains("PUUIDs")) {
-                    ignoredPlugins.add("PUUIDs");
-                }
-            } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException ignored) {}
-        }
         status = true;
         statusreason = "0";
         asyncrunning = true;
@@ -154,17 +142,7 @@ public class Main extends JavaPlugin implements Listener {
                                  * https://github.com/EssentialsX/Essentials/blob/3af931740b20507837276f87f9456221653ac43d/Essentials/src/main/java/com/earth2me/essentials/commands/Commandplaytime.java
                                  */
                                 final String uuid = setcache.getString("UUID");
-                                long playtime = 0;
-                                if(isFullySupported) {
-                                    try {
-                                        playtime = ((getServer().getOfflinePlayer(UUID.fromString(uuid)).getStatistic(EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK"))) * 50L);
-                                    } catch (Exception e) {
-                                        if(debug) {
-                                            debug("Unable to use getStatistic for player playtime:");
-                                            e.printStackTrace();
-                                        }
-                                    }
-                                }
+                                final long playtime = ((getServer().getOfflinePlayer(UUID.fromString(uuid)).getStatistic(EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK"))) * 50L);
                                 debug("Spigot playtime for " + playername + " is " + playtime/1000 + " seconds");
                                 final long puuids_playtime = getPlayTime(uuid);
                                 debug("PUUIDS playtime for " + playername + " is " + puuids_playtime/1000 + " seconds");
@@ -414,6 +392,12 @@ public class Main extends JavaPlugin implements Listener {
             plugins.put(pl, vers);
             debug("Plugin " + plname + " has been registered.");
 
+            final UUID pl_secret = UUID.randomUUID();
+            pl.getConfig().set("PUUIDs.Secret-Key", pl_secret.toString());
+            secret.put(pl, pl_secret);
+            saveConfig();
+            reloadConfig();
+
             Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
                 PluginRegistered plr = new PluginRegistered(plname);
                 Bukkit.getPluginManager().callEvent(plr);
@@ -435,32 +419,48 @@ public class Main extends JavaPlugin implements Listener {
         }
     }
 
-    public int set(Plugin pl, String uuid, String loc, Object obj, SavePriority sp) {
+    private boolean authed(Plugin pl) {
         final String plname = pl.getDescription().getName().toUpperCase();
-        if (!getPlugins().containsKey(pl)) {
-            debug("Not allowing " + plname + " to access data. They didn't connect properly.");
-            return 0;
+        if(plugins.containsKey(plname)) {
+            if(secret.containsKey(plname)) {
+                if(secret.equals(pl.getConfig().getString("PUUIDs.Secret-Key"))) {
+                    debug("- - - Successfully authenticated " + plname + " - - -");
+                    return true;
+                } else {
+                    debug("- - - Authentication Failed for" + plname + " [Incorrect Key] - - -");
+                }
+            } else {
+                debug("- - - Authentication Failed for" + plname + " [No Key] - - -");
+            }
+        } else {
+            debug("- - - Authentication Failed for" + plname + " [No Handshake] - - -");
         }
-
-        return Timer.queueSet(plname, uuid, loc, obj, sp);
+        return false;
     }
 
-    public int set(Plugin pl, String uuid, String loc, List<?> obj, SavePriority sp) {
+    public int set(Plugin pl, String uuid, String loc, Object obj) {
         final String plname = pl.getDescription().getName().toUpperCase();
-        if (!getPlugins().containsKey(pl)) {
-            debug("Not allowing " + plname + " to access data. They didn't connect properly.");
+        if(!authed(pl)) {
             return 0;
         }
 
-        return Timer.queueSet(plname, uuid, loc, obj, sp);
+        return Timer.queueSet(plname, uuid, loc, obj);
+    }
+
+    public int set(Plugin pl, String uuid, String loc, List<?> obj) {
+        final String plname = pl.getDescription().getName().toUpperCase();
+        if(!authed(pl)) {
+            return 0;
+        }
+
+        return Timer.queueSet(plname, uuid, loc, obj);
     }
 
 
     // ONLY for setting Null info
-    public int set(Plugin pl, String uuid, Object should_be_null, SavePriority sp) {
+    public int set(Plugin pl, String uuid, Object should_be_null) {
         final String plname = pl.getDescription().getName().toUpperCase();
-        if (!getPlugins().containsKey(pl)) {
-            debug("Not allowing " + plname + " to access data. They didn't connect properly.");
+        if(!authed(pl)) {
             return 0;
         }
 
@@ -468,7 +468,7 @@ public class Main extends JavaPlugin implements Listener {
             return 0;
         }
 
-        return Timer.queueSet(plname, uuid, "PUUIDS_SET_AS_ALL_NULL", null, sp);
+        return Timer.queueSet(plname, uuid, "PUUIDS_SET_AS_ALL_NULL", null);
     }
 
     public String nametoUUID(String inputsearch) {
@@ -788,7 +788,7 @@ public class Main extends JavaPlugin implements Listener {
                     for(HashMap.Entry<Plugin, APIVersion> entry : plugins.entrySet()) {
                         final String plname = entry.getKey().getDescription().getName();
                         if (!plname.equalsIgnoreCase("puuids")) {
-                            if (plsb == getPlugins().size() - 1) {
+                            if (plsb == plugins.size() - 1) {
                                 sb.append(plname);
                             }
 
@@ -797,7 +797,7 @@ public class Main extends JavaPlugin implements Listener {
                         }
                     }
 
-                    String size = Integer.toString((getPlugins().size() - 1));
+                    String size = Integer.toString(plugins.size() - 1);
 
                     Msgs.send(sender, "&f");
                     if (size.equals("0")) {
@@ -1148,7 +1148,7 @@ public class Main extends JavaPlugin implements Listener {
             if (args.length >= 1 && args[0].equalsIgnoreCase("info")) {
                 Msgs.send(sender, "");
                 Msgs.send(sender, "&e&lPUUIDs");
-                final int active = getPlugins().size() - 1;
+                final int active = plugins.size() - 1;
                 if (active > 0) {
                     Msgs.send(sender, "&8&l> &fHooked Plugins: &e&l" + active);
                 } else {
