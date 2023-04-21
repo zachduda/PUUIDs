@@ -37,7 +37,7 @@ public class Timer {
             final File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 
             // internal puuids updates
-            while (updateSystem.size() > 1) {
+            while (updateSystem.size() > 0) {
                 final Player p = updateSystem.keys().iterator().next();
                 final boolean quit = updateSystem.get(p).iterator().next();
 
