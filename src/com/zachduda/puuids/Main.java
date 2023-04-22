@@ -1,11 +1,11 @@
 package com.zachduda.puuids;
 
+import com.zachduda.puuids.api.PUUIDS.*;
+import com.zachduda.puuids.api.*;
+import com.zachduda.puuids.api.VersionManager.VersionTest;
 import com.earth2me.essentials.Essentials;
 import com.earth2me.essentials.User;
 import com.google.common.io.Files;
-import com.zachduda.puuids.api.*;
-import com.zachduda.puuids.api.PUUIDS.APIVersion;
-import com.zachduda.puuids.api.VersionManager.VersionTest;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -17,6 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
@@ -38,6 +39,7 @@ public class Main extends JavaPlugin implements Listener {
     private static HashMap<Plugin, APIVersion> plugins = new HashMap<>();
 
     private static boolean allowconnections = false;
+    private static boolean allow_unsafe_reloads = false;
     public int getTimes = 0;
     public PUUIDS api;
     boolean debug = false;
@@ -79,16 +81,6 @@ public class Main extends JavaPlugin implements Listener {
             getLogger().info("Hooking into Essentials...");
         }
 
-        if (this.getServer().getPluginManager().isPluginEnabled("PlugMan")
-                && this.getServer().getPluginManager().getPlugin("PlugMan") != null) {
-            Plugin plugMan = Bukkit.getPluginManager().getPlugin("PlugMan");
-            try {
-                List<String> ignoredPlugins = (List<String>) plugMan.getClass().getMethod("getIgnoredPlugins").invoke(plugMan);
-                if (!ignoredPlugins.contains("PUUIDs")) {
-                    ignoredPlugins.add("PUUIDs");
-                }
-            } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException ignored) {}
-        }
         status = true;
         statusreason = "0";
         asyncrunning = true;
@@ -233,7 +225,27 @@ public class Main extends JavaPlugin implements Listener {
                 }
                 if(!getConfig().getBoolean("Advanced.Allow-Post-Startup-Connections")) {
                     allowconnections = false;
+                    debug("Plugin registration window is now locked.");
                 }
+
+                // Plugman -- Prevent Reloading
+                if (getServer().getPluginManager().isPluginEnabled("PlugMan")) {
+                    debug("Detected PlugMan...");
+                    Plugin plugMan = Bukkit.getPluginManager().getPlugin("PlugMan");
+                    try {
+                        List<String> ignoredPlugins = (List<String>) plugMan.getClass().getMethod("getIgnoredPlugins").invoke(plugMan);
+                        if (!ignoredPlugins.contains("PUUIDs")) {
+                            ignoredPlugins.add("PUUIDs");
+                            debug("Injecting exception into Plugman...");
+                        }
+                    } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException ignored) {
+                        if(debug) {
+                            debug("[Do Not Report] There was an issue when trying to communicate to PlugMan: ");
+                            ignored.printStackTrace();
+                        }
+                    }
+                }
+                // --- End of Plugman Prevention
             }
         });
 
@@ -344,6 +356,26 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     private void updateConfig() {
+        int conf_ver = 0;
+        if(getConfig().contains("Version")) {
+            conf_ver = getConfig().getInt("Version");
+        }
+        debug("Configuration version is: " + conf_ver);
+
+        if((getConfig().getString("Advanced.UUID") == "0") || (conf_ver < 2)) {
+            debug("Generating new server UUID for saving...");
+            getConfig().set("UUID", UUID.randomUUID().toString());
+        }
+
+        if(conf_ver < 2) {
+            getConfig().set("Version", 2);
+        }
+
+        saveConfig();
+        reloadConfig();
+
+        // End of setting -----
+
         debug = getConfig().getBoolean("Settings.Debug", false);
         updatecheck = getConfig().getBoolean("Settings.Update-Checking", true);
         Msgs.prefix = getConfig().getString("Settings.Prefix", "&8[&e&lPUUIDs&8]");
@@ -367,6 +399,11 @@ public class Main extends JavaPlugin implements Listener {
         } else {
             sounds = false;
             debug("Sounds have been disabled, this is an older version of Minecraft.");
+        }
+
+        if(getConfig().getBoolean("Advanced.Allow-Unsafe-Reloads")) {
+            allow_unsafe_reloads = true;
+            getLogger().warning("Unsafe reloading (via /rl, /reload, /restart) is permited per config.yml. This is VERY dangerous! You will get no support for corrupted files.");
         }
     }
 
@@ -431,6 +468,10 @@ public class Main extends JavaPlugin implements Listener {
         } else {
             return false;
         }
+    }
+
+    public String getServerId() {
+        return getConfig().getString("Advanced.UUID");
     }
 
     public int set(Plugin pl, String uuid, String loc, Object obj) {
@@ -591,7 +632,25 @@ public class Main extends JavaPlugin implements Listener {
         Timer.updateSystem.put(p, quit);
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    /*
+        Mmm yes unexpected halt in delicate data timer make server go brrrrrr
+        The bozo prevent-i-nator-inator 9000
+     */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPreventBozos(PlayerCommandPreprocessEvent e) {
+        if(allow_unsafe_reloads) {
+            return;
+        }
+        String cmd = e.getMessage().split(" ")[0].replace("/", "").replaceAll("(?i)bukkit", "");
+        if(cmd.equalsIgnoreCase("reload") || cmd.equalsIgnoreCase("rl") || cmd.equalsIgnoreCase("restart")) {
+            Msgs.sendPrefix(e.getPlayer(), "&fThis will &c&lharm&f your servers memory, including PUUIDs'.");
+            bass(e.getPlayer());
+            e.setCancelled(true);
+            return;
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onJoin(PlayerJoinEvent e) {
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
             Player p = e.getPlayer();
@@ -627,7 +686,7 @@ public class Main extends JavaPlugin implements Listener {
         });
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onQuit(PlayerQuitEvent e) {
         Player p = e.getPlayer();
         UUID uuid = p.getUniqueId();
