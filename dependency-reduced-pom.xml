@@ -14,7 +14,7 @@
     </license>
   </licenses>
   <build>
-    <sourceDirectory>src/com/zachduda</sourceDirectory>
+    <sourceDirectory>src</sourceDirectory>
     <resources>
       <resource>
         <filtering>true</filtering>

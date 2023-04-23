@@ -1,4 +1,5 @@
-/bin/
-/PUUIDS/.settings
 /target/
+/bin/
 /.idea/
+*.iml
+*dependency-reduced-pom.xml*
