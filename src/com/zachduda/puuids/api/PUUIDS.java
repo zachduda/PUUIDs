@@ -676,13 +676,18 @@ public class PUUIDS {
     // End of SET
 
 
-    // Update Existing
+    /**
+     *  Returns the UUID that was randomly generated on the first run of PUUIDs for this server
+     */
+    public static String getServerId() {
+        return plugin.getServerId();
+    }
 
+    // Internal counter
     private static void wasGet() {
         plugin.getTimes++;
     }
 
-    // End of Updates
 
 
     // General

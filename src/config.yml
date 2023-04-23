@@ -18,5 +18,5 @@ Advanced:
   Save-Rate-Ticks: 10
   Max-Processes-Per-Queue: 25
   Allow-Post-Startup-Connections: false
-  UUID: 0
-  
+  Allow-Unsafe-Reloads: false
+  UUID: "0"

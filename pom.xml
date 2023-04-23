@@ -36,7 +36,7 @@
                 </excludes>
             </resource>
         </resources>
-        <sourceDirectory>src/com/zachduda</sourceDirectory>
+        <sourceDirectory>src</sourceDirectory>
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
