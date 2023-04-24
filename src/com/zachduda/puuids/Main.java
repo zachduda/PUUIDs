@@ -270,7 +270,7 @@ public class Main extends JavaPlugin implements Listener {
         }
 
         if (getConfig().getBoolean("Settings.Metrics", true)) {
-            metrics = new Metrics(this, 5740);
+            metrics = new Metrics(this, 18290);
         } else {
             debug("Metrics have been disabled in the config.yml. Guess we won't support all this hard work today!");
         }
