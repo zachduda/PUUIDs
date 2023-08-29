@@ -1,3 +1,4 @@
+[![Discord](https://img.shields.io/discord/469625341837836290?style=flat-square&logo=Discord&logoColor=bdc7fc&label=Support%20Discord)](https://zachduda.com/discord?utm=github_badge)
 ![Alt text](Images/banner.png?raw=true "PUUIDs Banner")
 Async per player file saving: Made Easy!
 
