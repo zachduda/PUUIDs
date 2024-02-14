@@ -31,7 +31,7 @@ Then add PUUIDs dependency from Github:
 
 
 # Spigot
-PUUIDs is a Spigot plugin for 1.13, 1.14, 1.15, 1.16, 1.17, 1.18, & 1.19. Please check out the [Spigot Page](https://www.spigotmc.org/resources/puuids-•-an-async-file-api.71496/). for full documentation.
+PUUIDs is a Spigot plugin for MC versions 1.13-1.20. Please check out the [Spigot Page](https://www.spigotmc.org/resources/puuids-•-an-async-file-api.71496/). for full documentation.
 
 
 # License
