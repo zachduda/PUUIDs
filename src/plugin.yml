@@ -2,7 +2,7 @@ name: PUUIDs
 main: com.zachduda.puuids.Main
 website: https://www.spigotmc.org/resources/api-puuids.71496/
 author: zach_attack
-version: 3.2.2
+version: 3.3.0
 api-version: 1.13
 softdepend: [ Essentials ]
 load: STARTUP
