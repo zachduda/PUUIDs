@@ -1,3 +1,4 @@
+[![Discord](https://img.shields.io/discord/469625341837836290?style=flat-square&logo=Discord&logoColor=bdc7fc&label=Support%20Discord)](https://zachduda.com/discord?utm=github_badge)  [![Build Status](https://ci.zachduda.com/job/ChatFeelings/badge/icon)](https://ci.zachduda.com/job/PUUIDs/)
 ![Alt text](Images/banner.png?raw=true "PUUIDs Banner")
 Async per player file saving: Made Easy!
 
@@ -30,16 +31,12 @@ Then add PUUIDs dependency from Github:
 
 
 # Spigot
-PUUIDs is a Spigot plugin for 1.13, 1.14, 1.15, 1.16, 1.17, 1.18, & 1.19. Please check out the [Spigot Page](https://www.spigotmc.org/resources/puuids-•-an-async-file-api.71496/). for full documentation.
+PUUIDs is a Spigot plugin for MC versions 1.13-1.20. Please check out the [Spigot Page](https://www.spigotmc.org/resources/puuids-•-an-async-file-api.71496/). for full documentation.
 
 
 # License
-This project is licensed under GNU GPL-3.0 (General Public License)
-- You are not to sell this plugin, regardless of your modifications.
-- You are able welcomed to distribute this resource or any modification thereof on any platform for free.
-- If you do make modifications and redistribute you must disclose the modifications made and link back to the original resource in some way.
-- All redistributions or modifications are to automatically be open-source and follow this license and it's core principles.
-- Any software made for public use must be open-source and should be made with good intentions.
+This project is licensed under [Creative Commons (CC-BY-NC-4)](https://creativecommons.org/licenses/by-nc/4.0/).
+You can do whatever you'd like: just give credit and make sure it's non-commerical.
 
 
 # Need a hand?

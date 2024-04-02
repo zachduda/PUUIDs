@@ -36,6 +36,7 @@ import java.util.*;
 public class Main extends JavaPlugin implements Listener {
 
     static boolean hasess = false;
+    @SuppressWarnings("FieldMayBeFinal")
     private static HashMap<Plugin, APIVersion> plugins = new HashMap<>();
 
     private static boolean allowconnections = false;
@@ -99,7 +100,7 @@ public class Main extends JavaPlugin implements Listener {
 
             int maxDays = getConfig().getInt("Settings.File-Cleanup.Max-Days");
 
-            for (File cachefile : folder.listFiles()) {
+            for (File cachefile : Objects.requireNonNull(folder.listFiles())) {
                 String path = cachefile.getPath();
 
                 final File f = new File(path);
@@ -128,7 +129,7 @@ public class Main extends JavaPlugin implements Listener {
                             if (daysAgo >= maxDays && useclean) {
                                 f.delete();
                                 if (hasess && cleaness) {
-                                    User user = ess.getUser(playername);
+                                    User user = Objects.requireNonNull(ess).getUser(playername);
                                     if (!user.getBase().isBanned()) {
                                         // Cleanup EssentialsX data too unless they are banned, in which case their data file should be left alone as to not unban them.
                                         user.reset();
@@ -139,15 +140,15 @@ public class Main extends JavaPlugin implements Listener {
                                             "s old. (Max: " + maxDays + " Days)");
                                 }
                             } else {
-                                /**
-                                 * The following EnumUtil code call for native Spigot player's ontime contains code from EssentialsX.
-                                 * https://github.com/EssentialsX/Essentials/blob/3af931740b20507837276f87f9456221653ac43d/Essentials/src/main/java/com/earth2me/essentials/commands/Commandplaytime.java
+                                /*
+                                  The following EnumUtil code call for native Spigot player's ontime contains code from EssentialsX.
+                                  https://github.com/EssentialsX/Essentials/blob/3af931740b20507837276f87f9456221653ac43d/Essentials/src/main/java/com/earth2me/essentials/commands/Commandplaytime.java
                                  */
                                 final String uuid = setcache.getString("UUID");
                                 long playtime = 0;
                                 if(isFullySupported) {
                                     try {
-                                        playtime = ((getServer().getOfflinePlayer(UUID.fromString(uuid)).getStatistic(EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK"))) * 50L);
+                                        playtime = ((getServer().getOfflinePlayer(UUID.fromString(Objects.requireNonNull(uuid))).getStatistic(EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK"))) * 50L);
                                     } catch (Exception e) {
                                         if(debug) {
                                             debug("Unable to use getStatistic for player playtime:");
@@ -184,14 +185,14 @@ public class Main extends JavaPlugin implements Listener {
                 } // end of if not global check
             } // end of For loop
 
-            if (unknownfiles.size() >= 1) {
+            if (!unknownfiles.isEmpty()) {
                 getLogger().warning("Found " + unknownfiles.size() + " unknown files in your Data folder:");
                 for (String file : unknownfiles) {
                     debug("   - " + file);
                 }
                 getLogger().warning("Make sure that the files above weren't missplaced or corrupted.");
                 status = false;
-                statusreason = "Unknown file was found in your puuids Data folder, please remove the following files: " + unknownfiles.toString();
+                statusreason = "Unknown file was found in your puuids Data folder, please remove the following files: " + unknownfiles;
             }
 
             asyncrunning = false;
@@ -208,45 +209,41 @@ public class Main extends JavaPlugin implements Listener {
 
         updateConfig();
 
-        api = new PUUIDS();
+        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(this, () -> {
 
-        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
-            public void run() {
-
-                if (debug) {
-                    int total = plugins.size() - 1;
-                    if (total == 1) {
-                        debug("Hooked with " + total + " plugin.");
-                    } else if (total == 0) {
-                        debug("There aren't any plugins hooked with PUUIDS yet.");
-                    } else {
-                        debug("Hooked with " + total + " plugins.");
-                    }
+            if (debug) {
+                int total = plugins.size() - 1;
+                if (total == 1) {
+                    debug("Hooked with " + total + " plugin.");
+                } else if (total == 0) {
+                    debug("There aren't any plugins hooked with PUUIDS yet.");
+                } else {
+                    debug("Hooked with " + total + " plugins.");
                 }
-                if(!getConfig().getBoolean("Advanced.Allow-Post-Startup-Connections")) {
-                    allowconnections = false;
-                    debug("Plugin registration window is now locked.");
-                }
-
-                // Plugman -- Prevent Reloading
-                if (getServer().getPluginManager().isPluginEnabled("PlugMan")) {
-                    debug("Detected PlugMan...");
-                    Plugin plugMan = Bukkit.getPluginManager().getPlugin("PlugMan");
-                    try {
-                        List<String> ignoredPlugins = (List<String>) plugMan.getClass().getMethod("getIgnoredPlugins").invoke(plugMan);
-                        if (!ignoredPlugins.contains("PUUIDs")) {
-                            ignoredPlugins.add("PUUIDs");
-                            debug("Injecting exception into Plugman...");
-                        }
-                    } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException ignored) {
-                        if(debug) {
-                            debug("[Do Not Report] There was an issue when trying to communicate to PlugMan: ");
-                            ignored.printStackTrace();
-                        }
-                    }
-                }
-                // --- End of Plugman Prevention
             }
+            if(!getConfig().getBoolean("Advanced.Allow-Post-Startup-Connections")) {
+                allowconnections = false;
+                debug("Plugin registration window is now locked.");
+            }
+
+            // Plugman -- Prevent Reloading
+            if (getServer().getPluginManager().isPluginEnabled("PlugMan")) {
+                debug("Detected PlugMan...");
+                Plugin plugMan = Bukkit.getPluginManager().getPlugin("PlugMan");
+                try {
+                    List<String> ignoredPlugins = (List<String>) Objects.requireNonNull(plugMan).getClass().getMethod("getIgnoredPlugins").invoke(plugMan);
+                    if (!ignoredPlugins.contains("PUUIDs")) {
+                        ignoredPlugins.add("PUUIDs");
+                        debug("Injecting exception into Plugman...");
+                    }
+                } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException ignored) {
+                    if(debug) {
+                        debug("[Do Not Report] There was an issue when trying to communicate to PlugMan: ");
+                        ignored.printStackTrace();
+                    }
+                }
+            }
+            // --- End of Plugman Prevention
         });
 
         if (updatecheck) {
@@ -255,7 +252,7 @@ public class Main extends JavaPlugin implements Listener {
 
         // Players shouldn't EVER be online when we are starting....
         Collection<? extends Player> players = Bukkit.getOnlinePlayers();
-        if (players.size() > 0) {
+        if (!players.isEmpty()) {
             status = false;
             statusreason = "puuids was improperly reloaded. This may damage your player's data files! Please restart your server.";
             Msgs.sendPrefix(Bukkit.getConsoleSender(), "&4&l<!> &c&l&nReloading puuids without a proper restart can severely damage PUUID's player data. PLEASE RESTART YOUR SERVER!");
@@ -287,32 +284,28 @@ public class Main extends JavaPlugin implements Listener {
 
     // Update player file, mostly for accurate playtime's every 10 minutes!
     private int startPlayerUpdateTimer() {
-        final BukkitTask playerupdatetime = Bukkit.getScheduler().runTaskTimerAsynchronously(this, new Runnable() {
-            public void run() {
-                asyncrunning = true;
-                debug("Updating any online players data files...");
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    updateFile(p, false);
-                }
-                asyncrunning = false;
-                UpdatedPlayerStats ups = new UpdatedPlayerStats();
-                Bukkit.getPluginManager().callEvent(ups);
+        final BukkitTask playerupdatetime = Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
+            asyncrunning = true;
+            debug("Updating any online players data files...");
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                updateFile(p, false);
             }
+            asyncrunning = false;
+            UpdatedPlayerStats ups = new UpdatedPlayerStats();
+            Bukkit.getPluginManager().callEvent(ups);
         }, 12000L, 12000L);
         return playerupdatetime.getTaskId();
     }
 
     // Reset Stats every 12 hours
     private int startStatResetTimer() {
-        final BukkitTask resetstatstimer = Bukkit.getScheduler().runTaskTimerAsynchronously(this, new Runnable() {
-            public void run() {
-                debug("Resetting the puuids debug statistics, it's been over 12 hours...");
-                setTimeMS = 0;
-                setTimes = 0;
-                getTimes = 0;
-                qTimesMS = 0;
-                setQRequests = 0;
-            }
+        final BukkitTask resetstatstimer = Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
+            debug("Resetting the puuids debug statistics, it's been over 12 hours...");
+            setTimeMS = 0;
+            setTimes = 0;
+            getTimes = 0;
+            qTimesMS = 0;
+            setQRequests = 0;
         }, 864000L, 864000L);
         return resetstatstimer.getTaskId();
     }
@@ -352,7 +345,7 @@ public class Main extends JavaPlugin implements Listener {
             metrics.shutdown();
         }
 
-        getLogger().info("Successfully disabled in " + Long.toString(System.currentTimeMillis() - start) + "ms");
+        getLogger().info("Successfully disabled in " + (System.currentTimeMillis() - start) + "ms");
     }
 
     private void updateConfig() {
@@ -513,7 +506,7 @@ public class Main extends JavaPlugin implements Listener {
     public String nametoUUID(String inputsearch) {
         File folder = new File(this.getDataFolder(), File.separator + "Data");
 
-        for (File AllData : folder.listFiles()) {
+        for (File AllData : Objects.requireNonNull(folder.listFiles())) {
             File f = new File(AllData.getPath());
 
             FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
@@ -808,7 +801,7 @@ public class Main extends JavaPlugin implements Listener {
             }
 
             if (args.length >= 1 && args[0].equalsIgnoreCase("plugins")) {
-                if (plugins.size() == 0) {
+                if (plugins.isEmpty()) {
                     pop(sender);
                     Msgs.sendPrefix(sender, "&fThere are &7&lNo Connected Plugins&f currently.");
                     return true;
@@ -1020,7 +1013,7 @@ public class Main extends JavaPlugin implements Listener {
                     Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
                         int total = 0;
                         final long start = System.currentTimeMillis();
-                        for (File AllData : folder.listFiles()) {
+                        for (File AllData : Objects.requireNonNull(folder.listFiles())) {
                             File f = new File(AllData.getPath());
 
                             FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
@@ -1098,7 +1091,7 @@ public class Main extends JavaPlugin implements Listener {
                     Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
                         int total = 0;
                         final long start = System.currentTimeMillis();
-                        for (File AllData : folder.listFiles()) {
+                        for (File AllData : Objects.requireNonNull(folder.listFiles())) {
                             File f = new File(AllData.getPath());
 
                             FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
@@ -1155,7 +1148,7 @@ public class Main extends JavaPlugin implements Listener {
                 updateConfig();
                 Msgs.send(sender, "");
                 Msgs.send(sender, "&e&lPUUIDs");
-                Msgs.send(sender, "&8&l> &fConfiguration has been reloaded in &6" + Long.toString(System.currentTimeMillis() - start) + "ms");
+                Msgs.send(sender, "&8&l> &fConfiguration has been reloaded in &6" + (System.currentTimeMillis() - start) + "ms");
                 Msgs.send(sender, "");
                 pop(sender);
                 return true;
