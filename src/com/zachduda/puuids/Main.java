@@ -54,7 +54,7 @@ public class Main extends JavaPlugin implements Listener {
     private boolean status;
     private String statusreason = "0";
     private boolean updatecheck = true;
-    private final boolean isFullySupported = version.contains("1.20") || version.contains("1.19") || version.contains("1.18") || version.contains("1.17") || version.contains("1.16") || version.contains("1.15") || version.contains("1.14") || version.contains("1.13");
+    private final boolean isFullySupported = version.contains("1.21") || version.contains("1.20") || version.contains("1.19") || version.contains("1.18") || version.contains("1.17") || version.contains("1.16") || version.contains("1.15") || version.contains("1.14") || version.contains("1.13");
     private int taskresetid = 0;
     private int playerupdateid = 0;
 
