@@ -128,11 +128,7 @@ public class PUUIDS {
 
     public static String getString(Plugin pl, String uuid, String location) {
         String plname = pl.getName();
-
-        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
+        FileConfiguration setcache = getFileConfiguration(uuid);
         wasGet();
         return setcache.getString("Plugins." + plname.toUpperCase() + "." + location);
     }
@@ -144,11 +140,7 @@ public class PUUIDS {
     // Booleans --------------
     public static boolean getBoolean(Plugin pl, String uuid, String location) {
         String plname = pl.getName();
-
-        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
+        FileConfiguration setcache = getFileConfiguration(uuid);
         wasGet();
         return setcache.getBoolean("Plugins." + plname.toUpperCase() + "." + location);
     }
@@ -200,11 +192,7 @@ public class PUUIDS {
 
     public static int getInt(Plugin pl, String uuid, String location) {
         String plname = pl.getName();
-
-        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
+        FileConfiguration setcache = getFileConfiguration(uuid);
         wasGet();
         return setcache.getInt("Plugins." + plname.toUpperCase() + "." + location);
     }
@@ -216,11 +204,7 @@ public class PUUIDS {
     // Start of Double --------------
     public static double getDouble(Plugin pl, String uuid, String location) {
         String plname = pl.getName();
-
-        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
+        FileConfiguration setcache = getFileConfiguration(uuid);
         wasGet();
         return setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location);
     }
@@ -228,11 +212,7 @@ public class PUUIDS {
 
     public static long getLong(Plugin pl, String uuid, String location) {
         String plname = pl.getName();
-
-        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
+        FileConfiguration setcache = getFileConfiguration(uuid);
         wasGet();
         return setcache.getLong("Plugins." + plname.toUpperCase() + "." + location);
     }
@@ -243,11 +223,7 @@ public class PUUIDS {
 
     public static List<?> getNCList(Plugin pl, String uuid, String location) {
         String plname = pl.getName();
-
-        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
+        FileConfiguration setcache = getFileConfiguration(uuid);
         wasGet();
         return setcache.getList("Plugins." + plname.toUpperCase() + "." + location);
     }
@@ -258,33 +234,21 @@ public class PUUIDS {
 
     public static List<Integer> getIntList(Plugin pl, String uuid, String location) {
         String plname = pl.getName();
-
-        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
+        FileConfiguration setcache = getFileConfiguration(uuid);
         wasGet();
         return setcache.getIntegerList("Plugins." + plname.toUpperCase() + "." + location);
     }
 
     public static ItemStack getItemStack(Plugin pl, String uuid, String location) {
         String plname = pl.getName();
-
-        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
+        FileConfiguration setcache = getFileConfiguration(uuid);
         wasGet();
         return setcache.getItemStack("Plugins." + plname.toUpperCase() + "." + location);
     }
 
     public static List<String> getStringList(Plugin pl, String uuid, String location) {
         String plname = pl.getName();
-
-        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
+        FileConfiguration setcache = getFileConfiguration(uuid);
         wasGet();
         return setcache.getStringList("Plugins." + plname.toUpperCase() + "." + location);
     }
@@ -386,9 +350,7 @@ public class PUUIDS {
             plugin.getLogger().severe(plname + " should use getLocation() without world string!");
         }
 
-        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+        FileConfiguration setcache = getFileConfiguration(uuid);
 
         double prevx = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".X");
         double prevy = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".Y") + 0.3D;
@@ -412,9 +374,7 @@ public class PUUIDS {
             return null;
         }
 
-        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+        FileConfiguration setcache = getFileConfiguration(uuid);
 
         double prevx = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".X");
         double prevy = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".Y") + 0.3D;
@@ -440,9 +400,7 @@ public class PUUIDS {
             return false;
         }
 
-        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+        FileConfiguration setcache = getFileConfiguration(uuid);
 
         if (setcache.contains("Plugins." + plname.toUpperCase() + "." + location)) {
             return true;
@@ -467,9 +425,7 @@ public class PUUIDS {
             return false;
         }
 
-        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+        FileConfiguration setcache = getFileConfiguration(uuid);
 
         wasGet();
         return setcache.get("Plugins." + plname.toUpperCase() + "." + location);
@@ -688,7 +644,12 @@ public class PUUIDS {
         plugin.getTimes++;
     }
 
-
+    // Helper method to get FileConfiguration
+    private static FileConfiguration getFileConfiguration(String uuid) {
+        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        return YamlConfiguration.loadConfiguration(f);
+    }
 
     // General
 

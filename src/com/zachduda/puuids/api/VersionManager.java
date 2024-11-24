@@ -27,10 +27,4 @@ public class VersionManager {
 
         return VersionTest.FAIL;
     }
-
-    public static enum VersionTest {
-        FAIL, // Plugin is not at all compatible with this version.
-        LEGACY, // puuids will try it's best to make it work, but the plugin isn't running the native latest.
-        PASS // puuids and the plugin should work just fine!
-    }
 }

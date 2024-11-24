@@ -16,9 +16,6 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-// puuids Async Check --> Based off of Benz56's update checker <3
-// https://github.com/Benz56/Async-Update-Checker/blob/master/UpdateChecker.java
-
 public class Updater {
 
     private final JavaPlugin javaPlugin;
@@ -41,24 +38,7 @@ public class Updater {
                 public void run() {
                     Bukkit.getScheduler().runTaskAsynchronously(javaPlugin, () -> {
                         try {
-                            URL url = new URL("https://api.github.com/repos/zachduda/PUUIDs/releases");
-                            BufferedReader br = new BufferedReader(new InputStreamReader(url.openStream()));
-                            String str = br.readLine();
-                            JSONArray rawja = (JSONArray) new JSONParser().parse(str);
-                            ArrayList<Double> versions = new ArrayList<Double>();
-                            Iterator iterator = rawja.iterator();
-                            while (iterator.hasNext()) {
-                                JSONObject jsonObject = (JSONObject) iterator.next();
-                                final String vs = ((String)jsonObject.get("tag_name")).replace("v", "");
-                                final Boolean prerelease = ((Boolean)jsonObject.get("prerelease"));
-                                if(!prerelease) {
-                                    if(!localPluginVersion.equalsIgnoreCase(vs)){
-                                        outdated = true;
-                                        postedver = vs;
-                                    }
-                                    break;
-                                }
-                            }
+                            checkForUpdateAsync();
                         } catch (final IOException | ParseException e) {
                             e.printStackTrace();
                             Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.RED + "[PUUIDs] Unable to check for updates. Is your server online?");
@@ -74,6 +54,27 @@ public class Updater {
             }.runTaskTimer(javaPlugin, 0, CHECK_INTERVAL);
         }catch(Exception err) {
             javaPlugin.getLogger().warning("Error. There was a problem checking for updates.");
+        }
+    }
+
+    private void checkForUpdateAsync() throws IOException, ParseException {
+        URL url = new URL("https://api.github.com/repos/zachduda/PUUIDs/releases");
+        BufferedReader br = new BufferedReader(new InputStreamReader(url.openStream()));
+        String str = br.readLine();
+        JSONArray rawja = (JSONArray) new JSONParser().parse(str);
+        ArrayList<Double> versions = new ArrayList<>();
+        Iterator iterator = rawja.iterator();
+        while (iterator.hasNext()) {
+            JSONObject jsonObject = (JSONObject) iterator.next();
+            final String vs = ((String)jsonObject.get("tag_name")).replace("v", "");
+            final Boolean prerelease = ((Boolean)jsonObject.get("prerelease"));
+            if(!prerelease) {
+                if(!localPluginVersion.equalsIgnoreCase(vs)){
+                    outdated = true;
+                    postedver = vs;
+                }
+                break;
+            }
         }
     }
 

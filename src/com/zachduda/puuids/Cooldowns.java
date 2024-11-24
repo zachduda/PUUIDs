@@ -8,35 +8,34 @@ import java.util.HashMap;
 import java.util.UUID;
 
 public class Cooldowns {
-    protected static boolean canRunLargeTask = true;
-    static ArrayList<UUID> joined = new ArrayList<UUID>();
-    static ArrayList<UUID> ontime = new ArrayList<UUID>();
+    private boolean canRunLargeTask = true;
+    private ArrayList<UUID> joined = new ArrayList<>();
+    private ArrayList<UUID> ontime = new ArrayList<>();
+    private HashMap<Player, String> confirmall = new HashMap<>();
+    private Main plugin;
 
-    static HashMap<Player, String> confirmall = new HashMap<Player, String>();
-    private static Main plugin = Main.getPlugin(Main.class);
+    public Cooldowns(Main plugin) {
+        this.plugin = plugin;
+    }
 
-    static void clearAll(Player p) {
+    public void clearAll(Player p) {
         joined.clear();
         ontime.clear();
         confirmall.remove(p);
         // Doesn't include queued join updates or plugin lists.
     }
 
-    static void justJoined(UUID p) {
+    public void justJoined(UUID p) {
         if (joined.contains(p)) {
             return;
         }
 
         joined.add(p);
 
-        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
-            public void run() {
-                joined.remove(p);
-            }
-        }, 20 * 30);
+        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, () -> joined.remove(p), 20 * 30);
     }
 
-    static void onTime(UUID p) {
+    public void onTime(UUID p) {
         if (ontime.contains(p)) {
             return;
         }
@@ -47,36 +46,40 @@ public class Cooldowns {
 
         ontime.add(p);
 
-        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
-            public void run() {
-                ontime.remove(p);
-            }
-        }, 20 * plugin.getConfig().getInt("Settings.Cooldowns.On-Time.Seconds"));
+        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, () -> ontime.remove(p), 20 * plugin.getConfig().getInt("Settings.Cooldowns.On-Time.Seconds"));
     }
 
-    static void startLargeTask() {
+    public void startLargeTask() {
         canRunLargeTask = false;
     }
 
-    static void endLargeTask() {
+    public void endLargeTask() {
         if (canRunLargeTask) {
             return;
         }
 
-        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
-            public void run() {
-                canRunLargeTask = true;
-            }
-        }, 20 * 45);
+        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, () -> canRunLargeTask = true, 20 * 45);
     }
 
-    static void confirm(Player p, String key) {
+    public void confirm(Player p, String key) {
         confirmall.put(p, key);
 
-        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
-            public void run() {
-                confirmall.remove(p, key);
-            }
-        }, 20 * 10);
+        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, () -> confirmall.remove(p, key), 20 * 10);
+    }
+
+    public boolean isCanRunLargeTask() {
+        return canRunLargeTask;
+    }
+
+    public ArrayList<UUID> getJoined() {
+        return joined;
+    }
+
+    public ArrayList<UUID> getOntime() {
+        return ontime;
+    }
+
+    public HashMap<Player, String> getConfirmall() {
+        return confirmall;
     }
 }
