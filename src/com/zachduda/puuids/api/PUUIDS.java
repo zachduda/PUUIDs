@@ -78,7 +78,7 @@ public class PUUIDS {
 
     public static String getFormatedPlayTime(String uuid) {
         long time = getPlayTime(uuid);
-        String ans = secsToFormatTime(time);
+        String ans = secsToFormatTime(time/100);
         wasGet();
         return ans;
     }
