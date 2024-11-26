@@ -1,13 +1,6 @@
 package com.zachduda.puuids;
 
-
-/**
- * This class contains code from the EssentialsX project and team.
- * https://github.com/EssentialsX/Essentials/blob/3af931740b20507837276f87f9456221653ac43d/Essentials/src/main/java/com/earth2me/essentials/utils/EnumUtil.java
- */
-
 import org.bukkit.Statistic;
-
 import java.lang.reflect.Field;
 
 public final class EnumUtil {

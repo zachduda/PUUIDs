@@ -12,7 +12,9 @@ import org.bukkit.plugin.Plugin;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
+@SuppressWarnings("unused")
 public class PUUIDS {
     private static final Main plugin = Main.getPlugin(Main.class);
 
@@ -23,26 +25,15 @@ public class PUUIDS {
      * @return Returns true or false if the connection was successful.
      */
     public static boolean connect(Plugin pl, APIVersion vers) {
-        if (plugin.connect(pl, vers)) {
-            return true;
-        }
-
-        return false;
+        return plugin.connect(pl, vers);
     }
 
     /**
      * Returns a players UUID from their Name as a String.
      *
      * @param name      The player's username you want the UUID of.
-     * @param usemojang (Deprecated will be removed in future update!)
      * @return The UUID of a player as a String
      */
-    @Deprecated
-    public static String getUUID(String name, boolean usemojang) {
-        wasGet();
-        return plugin.nametoUUID(name);
-    }
-
     public static String getUUID(String name) {
         wasGet();
         return plugin.nametoUUID(name);
@@ -87,8 +78,7 @@ public class PUUIDS {
 
     public static String getFormatedPlayTime(String uuid) {
         long time = getPlayTime(uuid);
-        // v3 now saves in miliseconds, convert to sec for now
-        String ans = secsToFormatTime(time/1000);
+        String ans = secsToFormatTime(time);
         wasGet();
         return ans;
     }
@@ -130,7 +120,7 @@ public class PUUIDS {
         String plname = pl.getName();
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         wasGet();
@@ -146,7 +136,7 @@ public class PUUIDS {
         String plname = pl.getName();
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         wasGet();
@@ -164,10 +154,10 @@ public class PUUIDS {
         String plname = pl.getName();
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 
-        ArrayList<String> allplayers = new ArrayList<String>();
+        ArrayList<String> allplayers = new ArrayList<>();
 
-        for (String playeruuid : getAllPlayerUUIDs(pl, quickmode)) {
-            File f = new File(cache, File.separator + "" + playeruuid + ".yml");
+        for (String playeruuid : Objects.requireNonNull(getAllPlayerUUIDs(pl, quickmode))) {
+            File f = new File(cache, File.separator + playeruuid + ".yml");
             FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
             if (setcache.getBoolean("Plugins." + plname.toUpperCase() + "." + location)) {
@@ -183,10 +173,10 @@ public class PUUIDS {
         String plname = pl.getName();
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 
-        ArrayList<String> allplayers = new ArrayList<String>();
+        ArrayList<String> allplayers = new ArrayList<>();
 
-        for (String playeruuid : getAllPlayerUUIDs(pl, quickmode)) {
-            File f = new File(cache, File.separator + "" + playeruuid + ".yml");
+        for (String playeruuid : Objects.requireNonNull(getAllPlayerUUIDs(pl, quickmode))) {
+            File f = new File(cache, File.separator + playeruuid + ".yml");
             FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
             if (!setcache.getBoolean("Plugins." + plname.toUpperCase() + "." + location)) {
@@ -202,7 +192,7 @@ public class PUUIDS {
         String plname = pl.getName();
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         wasGet();
@@ -218,7 +208,7 @@ public class PUUIDS {
         String plname = pl.getName();
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         wasGet();
@@ -230,7 +220,7 @@ public class PUUIDS {
         String plname = pl.getName();
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         wasGet();
@@ -245,7 +235,7 @@ public class PUUIDS {
         String plname = pl.getName();
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         wasGet();
@@ -260,7 +250,7 @@ public class PUUIDS {
         String plname = pl.getName();
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         wasGet();
@@ -271,7 +261,7 @@ public class PUUIDS {
         String plname = pl.getName();
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         wasGet();
@@ -282,7 +272,7 @@ public class PUUIDS {
         String plname = pl.getName();
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         wasGet();
@@ -299,15 +289,12 @@ public class PUUIDS {
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 
-        ArrayList<String> allplayers = new ArrayList<String>();
+        ArrayList<String> allplayers = new ArrayList<>();
 
-        for (File cachefile : cache.listFiles()) {
+        for (File cachefile : Objects.requireNonNull(cache.listFiles())) {
             String path = cachefile.getPath();
 
-            if (!Files.getFileExtension(path).equalsIgnoreCase("yml")) {
-                // NOT A VALID FILE
-            } else {
-
+            if (Files.getFileExtension(path).equalsIgnoreCase("yml")) {
                 File f = new File(path);
                 FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
                 allplayers.add(setcache.getString("Username"));
@@ -326,15 +313,12 @@ public class PUUIDS {
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 
-        ArrayList<String> allplayers = new ArrayList<String>();
+        ArrayList<String> allplayers = new ArrayList<>();
 
-        for (File cachefile : cache.listFiles()) {
+        for (File cachefile : Objects.requireNonNull(cache.listFiles())) {
             String path = cachefile.getPath();
 
-            if (!Files.getFileExtension(path).equalsIgnoreCase("yml")) {
-                // NOT A VALID FILE
-            } else {
-
+            if (Files.getFileExtension(path).equalsIgnoreCase("yml")) {
                 File f = new File(path);
                 if (quickmode) {
                     allplayers.add(f.getName().replace(".yml", ""));
@@ -358,11 +342,10 @@ public class PUUIDS {
         plugin.set(pl, uuid, location + ".Z", input.getZ());
         plugin.set(pl, uuid, location + ".Pitch", input.getPitch());
         if(plugin.getPlugins().get(pl) == APIVersion.V4) {
-            plugin.set(pl, uuid, location + ".World", input.getWorld().getName());
+            plugin.set(pl, uuid, location + ".World", Objects.requireNonNull(input.getWorld()).getName());
         }
-        int taskid = plugin.set(pl, uuid, location + ".Yaw", input.getYaw());
 
-        return taskid;
+        return plugin.set(pl, uuid, location + ".Yaw", input.getYaw());
     }
     // End of List -------
 
@@ -387,7 +370,7 @@ public class PUUIDS {
         }
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         double prevx = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".X");
@@ -413,7 +396,7 @@ public class PUUIDS {
         }
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         double prevx = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".X");
@@ -422,7 +405,7 @@ public class PUUIDS {
         float prevpitch = setcache.getInt("Plugins." + plname.toUpperCase() + "." + location + ".Pitch");
         float prevyaw = setcache.getInt("Plugins." + plname.toUpperCase() + "." + location + ".Yaw");
         String world = setcache.getString("Plugins." + plname.toUpperCase() + "." + location + ".World");
-        Location finalloc = new Location(plugin.getServer().getWorld(world), prevx, prevy, prevz, prevyaw, prevpitch);
+        Location finalloc = new Location(plugin.getServer().getWorld(Objects.requireNonNull(world)), prevx, prevy, prevz, prevyaw, prevpitch);
         wasGet();
         return finalloc;
     }
@@ -441,7 +424,7 @@ public class PUUIDS {
         }
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         if (setcache.contains("Plugins." + plname.toUpperCase() + "." + location)) {
@@ -468,7 +451,7 @@ public class PUUIDS {
         }
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         wasGet();
@@ -626,7 +609,7 @@ public class PUUIDS {
      * @param input    What to set the default value as?
      */
     public static boolean addToAllWithout(Plugin pl, String location, Object input) {
-        if (pl == null || location == null || location == null || input == null) {
+        if (pl == null || location == null || input == null) {
             return false;
         }
 
@@ -648,9 +631,9 @@ public class PUUIDS {
 
         int total = 0;
 
-        for (String playeruuid : getAllPlayerUUIDs(pl, false)) {
+        for (String playeruuid : Objects.requireNonNull(getAllPlayerUUIDs(pl, false))) {
             try {
-                File f = new File(cache, File.separator + "" + playeruuid + ".yml");
+                File f = new File(cache, File.separator + playeruuid + ".yml");
                 FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     if (!setcache.contains("Plugins." + plname.toUpperCase() + "." + location) || setcache.get("Plugins." + plname.toUpperCase() + "." + location) == null) {
@@ -670,7 +653,6 @@ public class PUUIDS {
         if (total != 0) {
             plugin.debug(plname + " updated " + total + " files with their missing values.");
         }
-        total = 0;
         return true;
     }
     // End of SET
@@ -692,7 +674,8 @@ public class PUUIDS {
 
     // General
 
-    public static enum APIVersion {
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    public enum APIVersion {
         @Deprecated V1,
         @Deprecated V2,
         @Deprecated V3,

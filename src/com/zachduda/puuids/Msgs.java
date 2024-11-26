@@ -22,7 +22,7 @@ public class Msgs {
             char[] ch = replaceSharp.toCharArray();
             StringBuilder builder = new StringBuilder();
             for (char c : ch) {
-                builder.append("&" + c);
+                builder.append("&").append(c);
             }
 
             msg = msg.replace(hexCode, builder.toString());

@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Iterator;
 
 // puuids Async Check --> Based off of Benz56's update checker <3
 // https://github.com/Benz56/Async-Update-Checker/blob/master/UpdateChecker.java
@@ -46,13 +45,12 @@ public class Updater {
                             String str = br.readLine();
                             JSONArray rawja = (JSONArray) new JSONParser().parse(str);
                             ArrayList<Double> versions = new ArrayList<Double>();
-                            Iterator iterator = rawja.iterator();
-                            while (iterator.hasNext()) {
-                                JSONObject jsonObject = (JSONObject) iterator.next();
-                                final String vs = ((String)jsonObject.get("tag_name")).replace("v", "");
-                                final Boolean prerelease = ((Boolean)jsonObject.get("prerelease"));
-                                if(!prerelease) {
-                                    if(!localPluginVersion.equalsIgnoreCase(vs)){
+                            for (Object o : rawja) {
+                                JSONObject jsonObject = (JSONObject) o;
+                                final String vs = ((String) jsonObject.get("tag_name")).replace("v", "");
+                                final Boolean prerelease = ((Boolean) jsonObject.get("prerelease"));
+                                if (!prerelease) {
+                                    if (!localPluginVersion.equalsIgnoreCase(vs)) {
                                         outdated = true;
                                         postedver = vs;
                                     }

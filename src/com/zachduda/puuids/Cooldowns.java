@@ -9,11 +9,11 @@ import java.util.UUID;
 
 public class Cooldowns {
     protected static boolean canRunLargeTask = true;
-    static ArrayList<UUID> joined = new ArrayList<UUID>();
-    static ArrayList<UUID> ontime = new ArrayList<UUID>();
+    static ArrayList<UUID> joined = new ArrayList<>();
+    static ArrayList<UUID> ontime = new ArrayList<>();
 
-    static HashMap<Player, String> confirmall = new HashMap<Player, String>();
-    private static Main plugin = Main.getPlugin(Main.class);
+    static HashMap<Player, String> confirmall = new HashMap<>();
+    private static final Main plugin = Main.getPlugin(Main.class);
 
     static void clearAll(Player p) {
         joined.clear();
@@ -29,11 +29,7 @@ public class Cooldowns {
 
         joined.add(p);
 
-        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
-            public void run() {
-                joined.remove(p);
-            }
-        }, 20 * 30);
+        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, () -> joined.remove(p), 20 * 30);
     }
 
     static void onTime(UUID p) {
@@ -47,11 +43,7 @@ public class Cooldowns {
 
         ontime.add(p);
 
-        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
-            public void run() {
-                ontime.remove(p);
-            }
-        }, 20 * plugin.getConfig().getInt("Settings.Cooldowns.On-Time.Seconds"));
+        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, () -> ontime.remove(p), 20L * plugin.getConfig().getInt("Settings.Cooldowns.On-Time.Seconds"));
     }
 
     static void startLargeTask() {
@@ -63,20 +55,12 @@ public class Cooldowns {
             return;
         }
 
-        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
-            public void run() {
-                canRunLargeTask = true;
-            }
-        }, 20 * 45);
+        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, () -> canRunLargeTask = true, 20 * 45);
     }
 
     static void confirm(Player p, String key) {
         confirmall.put(p, key);
 
-        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
-            public void run() {
-                confirmall.remove(p, key);
-            }
-        }, 20 * 10);
+        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, () -> confirmall.remove(p, key), 20 * 10);
     }
 }

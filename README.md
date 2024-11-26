@@ -40,7 +40,7 @@ You can do whatever you'd like: just give credit and make sure it's non-commeric
 
 
 # Need a hand?
-Feel free to join the developer discord server and ask me for help with PUUIDs! I'd be happy to answer any questions you might have or implmenet any functionality you feel would assist you with your projects: https://discord.com/invite/6ugXPfX
+Feel free to join the developer discord server and ask me for help with PUUIDs! I'd be happy to answer any questions you might have or implement any functionality you feel would assist you with your projects: https://discord.com/invite/6ugXPfX
 
 
 # Contact Me

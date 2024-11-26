@@ -106,7 +106,9 @@ public class Main extends JavaPlugin implements Listener {
                 final File f = new File(path);
                 if (!Files.getFileExtension(path).equalsIgnoreCase("yml")) {
                     if(f.getName().toLowerCase().contains("ds_store")) {
-                        f.delete();
+                        if(!f.delete()) {
+                            debug("Error deleting file:" + f.toPath());
+                        }
                         debug("Found macOS .ds_store file in folder. Deleting!");
                     } else {
                         unknownfiles.add(f.getName());
@@ -117,7 +119,9 @@ public class Main extends JavaPlugin implements Listener {
                         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
                         if (!setcache.contains("Last-On") || (!setcache.contains("Username")) || (!setcache.contains("UUID"))) {
-                            f.delete();
+                            if(!f.delete()) {
+                                debug("Error deleting file:" + f.toPath());
+                            }
                             debug("Deleted file: " + f.getName() + "... It was invalid!");
                         } else {
 
@@ -127,7 +131,9 @@ public class Main extends JavaPlugin implements Listener {
                             String playername = setcache.getString("Username");
 
                             if (daysAgo >= maxDays && useclean) {
-                                f.delete();
+                                if(!f.delete()) {
+                                    debug("Error deleting file:" + f.toPath());
+                                }
                                 if (hasess && cleaness) {
                                     User user = Objects.requireNonNull(ess).getUser(playername);
                                     if (!user.getBase().isBanned()) {
@@ -156,9 +162,9 @@ public class Main extends JavaPlugin implements Listener {
                                         }
                                     }
                                 }
-                                debug("Spigot playtime for " + playername + " is " + playtime/1000 + " seconds");
+                                debug("Spigot playtime for " + playername + " is " + playtime/60 + " minutes");
                                 final long puuids_playtime = getPlayTime(uuid);
-                                debug("PUUIDS playtime for " + playername + " is " + puuids_playtime/1000 + " seconds");
+                                debug("PUUIDS playtime for " + playername + " is " + puuids_playtime/60 + " minutes");
                                 if(playtime > puuids_playtime) {
                                     debug("Using native MC playtime for puuids data file for " + playername);
                                     setcache.set("Time-Played", playtime);
@@ -190,7 +196,7 @@ public class Main extends JavaPlugin implements Listener {
                 for (String file : unknownfiles) {
                     debug("   - " + file);
                 }
-                getLogger().warning("Make sure that the files above weren't missplaced or corrupted.");
+                getLogger().warning("Make sure that the files above weren't misplaced or corrupted.");
                 status = false;
                 statusreason = "Unknown file was found in your puuids Data folder, please remove the following files: " + unknownfiles;
             }
@@ -326,6 +332,7 @@ public class Main extends JavaPlugin implements Listener {
         allowconnections = false;
 
         for (Player p : Bukkit.getOnlinePlayers()) {
+            Cooldowns.clearAll(p);
             updateFile(p, true);
         }
 
@@ -344,7 +351,6 @@ public class Main extends JavaPlugin implements Listener {
         if(metrics != null) {
             metrics.shutdown();
         }
-
         getLogger().info("Successfully disabled in " + (System.currentTimeMillis() - start) + "ms");
     }
 
@@ -355,7 +361,7 @@ public class Main extends JavaPlugin implements Listener {
         }
         debug("Configuration version is: " + conf_ver);
 
-        if((getConfig().getString("Advanced.UUID") == "0") || (conf_ver < 2)) {
+        if((Objects.equals(getConfig().getString("Advanced.UUID"), "0")) || (conf_ver < 2)) {
             debug("Generating new server UUID for saving...");
             getConfig().set("UUID", UUID.randomUUID().toString());
         }
@@ -450,17 +456,9 @@ public class Main extends JavaPlugin implements Listener {
         }
 
         status = false;
-        statusreason = "Plugin " + plname + " tried to overwrite another plugin with the exact same name. Please contact " + pl.getDescription().getAuthors().toString() + ". This is not puuids fault.";
+        statusreason = "Plugin " + plname + " tried to overwrite another plugin with the exact same name. Please contact " + pl.getDescription().getAuthors() + ". This is not puuids fault.";
         getLogger().warning(statusreason);
         return false;
-    }
-
-    public boolean isConnected(Plugin pl) {
-        if (plugins.containsKey(pl.getDescription().getName())) {
-            return true;
-        } else {
-            return false;
-        }
     }
 
     public String getServerId() {
@@ -529,21 +527,13 @@ public class Main extends JavaPlugin implements Listener {
             return false;
         }
 
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
 
-        if (f.exists()) {
-            return true;
-        }
-
-        return false;
+        return f.exists();
     }
 
     public boolean hasPlayedName(String name) {
-        if (nametoUUID(name) == "0") {
-            return false;
-        } else {
-            return true;
-        }
+        return !Objects.equals(nametoUUID(name), "0");
     }
 
     public long getLastOn(String uuid) {
@@ -553,7 +543,7 @@ public class Main extends JavaPlugin implements Listener {
             return 0;
         }
 
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         if (!f.exists()) {
@@ -574,7 +564,7 @@ public class Main extends JavaPlugin implements Listener {
             return 0;
         }
 
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         if (!f.exists()) {
@@ -590,7 +580,7 @@ public class Main extends JavaPlugin implements Listener {
 
     public String getPlayerIP(String uuid) {
         File cache = new File(this.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + "" + uuid + ".yml");
+        File f = new File(cache, File.separator + uuid + ".yml");
         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
         if (!f.exists()) {
@@ -610,7 +600,7 @@ public class Main extends JavaPlugin implements Listener {
 
     public String UUIDtoname(String inputsearch) {
         File folder = new File(this.getDataFolder(), File.separator + "Data");
-        File f = new File(folder, File.separator + "" + inputsearch + ".yml");
+        File f = new File(folder, File.separator + inputsearch + ".yml");
 
         if (!f.exists()) {
             return "0";
@@ -639,7 +629,6 @@ public class Main extends JavaPlugin implements Listener {
             Msgs.sendPrefix(e.getPlayer(), "&fThis will &c&lharm&f your servers memory, including PUUIDs'.");
             bass(e.getPlayer());
             e.setCancelled(true);
-            return;
         }
     }
 
@@ -782,7 +771,7 @@ public class Main extends JavaPlugin implements Listener {
                 return true;
             }
 
-            if (args.length >= 1 && args[0].equalsIgnoreCase("help")) {
+            if (args[0].equalsIgnoreCase("help")) {
                 Msgs.send(sender, "");
                 Msgs.send(sender, "&e&lPUUIDs");
                 Msgs.send(sender, "&8&l> &f&l/puuids version &7Get the current version of your puuids system.");
@@ -800,7 +789,7 @@ public class Main extends JavaPlugin implements Listener {
                 return true;
             }
 
-            if (args.length >= 1 && args[0].equalsIgnoreCase("plugins")) {
+            if (args[0].equalsIgnoreCase("plugins")) {
                 if (plugins.isEmpty()) {
                     pop(sender);
                     Msgs.sendPrefix(sender, "&fThere are &7&lNo Connected Plugins&f currently.");
@@ -822,7 +811,7 @@ public class Main extends JavaPlugin implements Listener {
                 return true;
             }
 
-            if (args.length >= 1 && args[0].equalsIgnoreCase("debug")) {
+            if (args[0].equalsIgnoreCase("debug")) {
                 if (!debug) {
                     bass(sender);
                     Msgs.send(sender, "&7");
@@ -833,19 +822,7 @@ public class Main extends JavaPlugin implements Listener {
                 }
                 Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
                     double jversion = Double.parseDouble(System.getProperty("java.specification.version"));
-                    StringBuilder sb = new StringBuilder();
-                    int plsb = 0;
-                    for(HashMap.Entry<Plugin, APIVersion> entry : plugins.entrySet()) {
-                        final String plname = entry.getKey().getDescription().getName();
-                        if (!plname.equalsIgnoreCase("puuids")) {
-                            if (plsb == getPlugins().size() - 1) {
-                                sb.append(plname);
-                            }
-
-                            sb.append(plname + "&f, &e");
-                            plsb++;
-                        }
-                    }
+                    StringBuilder sb = getStringBuilder();
 
                     String size = Integer.toString((getPlugins().size() - 1));
 
@@ -853,7 +830,7 @@ public class Main extends JavaPlugin implements Listener {
                     if (size.equals("0")) {
                         Msgs.send(sender, "&7There are no plugins connected.");
                     } else {
-                        Msgs.send(sender, "&6" + size + " &fConnected Plugins: &e" + sb.toString());
+                        Msgs.send(sender, "&6" + size + " &fConnected Plugins: &e" + sb);
                     }
                     Msgs.send(sender, "Java: &e" + jversion);
                     Msgs.send(sender, "&fConfig Process Rate: &e" + Timer.processrate);
@@ -896,7 +873,7 @@ public class Main extends JavaPlugin implements Listener {
                     } catch (Exception err) {
                         Msgs.send(sender, "&fCPU: &7Readings Not Available");
                     }
-                    if (statusreason != "0") {
+                    if (!Objects.equals(statusreason, "0")) {
                         Msgs.send(sender, "&fLatest Issue: &e" + statusreason);
                     }
                     pop(sender);
@@ -904,7 +881,7 @@ public class Main extends JavaPlugin implements Listener {
                 return true;
             }
 
-            if (args.length >= 1 && args[0].equalsIgnoreCase("togglesave")) {
+            if (args[0].equalsIgnoreCase("togglesave")) {
                 if (!debug) {
                     bass(sender);
                     Msgs.send(sender, "&7");
@@ -923,7 +900,7 @@ public class Main extends JavaPlugin implements Listener {
 
                 if (!p.hasPermission("puuids.admin") || !p.isOp()) {
                     bass(p);
-                    Msgs.sendPrefix(p, "&6&lFor Saftey: &fYou must have the &7puuids.admin&f permission & be OP to do this.");
+                    Msgs.sendPrefix(p, "&6&lFor Safety: &fYou must have the &7puuids.admin&f permission & be OP to do this.");
                     return true;
                 }
 
@@ -939,7 +916,7 @@ public class Main extends JavaPlugin implements Listener {
                         Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fType &7&l/puuids togglesave " + Cooldowns.confirmall.get(p) + "&f to confirm.");
                         thinking(p);
                         return true;
-                    } else if (args.length >= 2) {
+                    } else {
                         if (!args[1].equalsIgnoreCase(Cooldowns.confirmall.get(p))) {
                             bass(p);
                             Msgs.sendPrefix(p, "&6&lToggle Saving Canceled. &fThat was an invalid confirmation key.");
@@ -964,7 +941,7 @@ public class Main extends JavaPlugin implements Listener {
                 return true;
             }
 
-            if (args.length >= 1 && args[0].equalsIgnoreCase("reset")) {
+            if (args[0].equalsIgnoreCase("reset")) {
                 if (!debug) {
                     bass(sender);
                     Msgs.send(sender, "&7");
@@ -1069,7 +1046,7 @@ public class Main extends JavaPlugin implements Listener {
                             Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fType &7&l/puuids reset all " + Cooldowns.confirmall.get(p) + "&f to confirm.");
                             thinking(p);
                             return true;
-                        } else if (args.length >= 3) {
+                        } else {
                             if (!args[2].equalsIgnoreCase(Cooldowns.confirmall.get(p))) {
                                 bass(p);
                                 Msgs.sendPrefix(p, "&6&lReset Canceled. &fThat was an invalid reset key.");
@@ -1133,7 +1110,7 @@ public class Main extends JavaPlugin implements Listener {
             }
 
 
-            if (args.length >= 1 && args[0].equalsIgnoreCase("version")) {
+            if (args[0].equalsIgnoreCase("version")) {
                 Msgs.send(sender, "");
                 Msgs.send(sender, "&e&lPUUIDs");
                 Msgs.send(sender, "&8&l> &7You are currently running &f&lv" + getDescription().getVersion());
@@ -1142,7 +1119,7 @@ public class Main extends JavaPlugin implements Listener {
                 return true;
             }
 
-            if (args.length >= 1 && args[0].equalsIgnoreCase("reload")) {
+            if (args[0].equalsIgnoreCase("reload")) {
                 final long start = System.currentTimeMillis();
                 reloadConfig();
                 updateConfig();
@@ -1154,7 +1131,7 @@ public class Main extends JavaPlugin implements Listener {
                 return true;
             }
 
-            if (args.length >= 1 && args[0].equalsIgnoreCase("ontime")) {
+            if (args[0].equalsIgnoreCase("ontime")) {
                 // Need to optimize, TOO many sender instanceof Player stuffs.
 
                 if (sender instanceof Player) {
@@ -1184,7 +1161,7 @@ public class Main extends JavaPlugin implements Listener {
                 }
 
                 String uuid = nametoUUID(args[1]);
-                if (uuid == "0") {
+                if (Objects.equals(uuid, "0")) {
                     Msgs.sendPrefix(sender, "&c&lHmm. &fThat player has never played before.");
                     bass(sender);
                     return true;
@@ -1195,7 +1172,7 @@ public class Main extends JavaPlugin implements Listener {
                 return true;
             }
 
-            if (args.length >= 1 && args[0].equalsIgnoreCase("info")) {
+            if (args[0].equalsIgnoreCase("info")) {
                 Msgs.send(sender, "");
                 Msgs.send(sender, "&e&lPUUIDs");
                 final int active = getPlugins().size() - 1;
@@ -1234,7 +1211,7 @@ public class Main extends JavaPlugin implements Listener {
                     Msgs.send(sender, "&8&l> &fDatabase Health: &6&lPOOR");
                 }
 
-                if (statusreason == "0") {
+                if (Objects.equals(statusreason, "0")) {
                     if (!status) {
                         Msgs.send(sender, "   &8&l> &7Couldn't identify a cause for poor health.");
                     }
@@ -1252,16 +1229,31 @@ public class Main extends JavaPlugin implements Listener {
                 return true;
             }
 
-            if (args.length >= 1) {
-                bass(sender);
-                Msgs.send(sender, "");
-                Msgs.send(sender, "&e&lPUUIDs");
-                Msgs.send(sender, "&8&l> &c&lCommand Not Found. &fWe couldn't find that command.");
-                Msgs.send(sender, "");
-                return true;
-            }
+            bass(sender);
+            Msgs.send(sender, "");
+            Msgs.send(sender, "&e&lPUUIDs");
+            Msgs.send(sender, "&8&l> &c&lCommand Not Found. &fWe couldn't find that command.");
+            Msgs.send(sender, "");
+            return true;
         }
 
         return true;
+    }
+
+    private StringBuilder getStringBuilder() {
+        StringBuilder sb = new StringBuilder();
+        int plsb = 0;
+        for(HashMap.Entry<Plugin, APIVersion> entry : plugins.entrySet()) {
+            final String plname = entry.getKey().getDescription().getName();
+            if (!plname.equalsIgnoreCase("puuids")) {
+                if (plsb == getPlugins().size() - 1) {
+                    sb.append(plname);
+                }
+
+                sb.append(plname + "&f, &e");
+                plsb++;
+            }
+        }
+        return sb;
     }
 }
