@@ -18,7 +18,10 @@ public class Timer {
     static long processrate = 10;
     static int sizelimit = 25;
     //               Player,  Quit?
-    static Multimap<Player, Boolean> updateSystem = ArrayListMultimap.create();
+    static Multimap<Player, Boolean> updateSystem = Multimaps.newMultimap(
+    new ConcurrentHashMap<>(), 
+    ConcurrentLinkedQueue::new
+);
     private static final Main plugin = Main.getPlugin(Main.class);
     private static boolean busy = false;
     private static int taskid = 1;
