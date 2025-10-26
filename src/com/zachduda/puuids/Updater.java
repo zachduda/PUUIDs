@@ -1,77 +1,98 @@
 package com.zachduda.puuids;
 
+import com.zachduda.puuids.Main;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import space.arim.morepaperlib.MorePaperLib;
+import space.arim.morepaperlib.scheduling.ScheduledTask;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-// puuids Async Check --> Based off of Benz56's update checker <3
+// PUUIDs Async Check --> Based off of Benz56's update checker <3
 // https://github.com/Benz56/Async-Update-Checker/blob/master/UpdateChecker.java
 
 public class Updater {
 
     private final JavaPlugin javaPlugin;
     private final String localPluginVersion;
+    private final MorePaperLib morePaperLib;
 
-    static String postedver = "???";
+    static String posted_version = "???";
     static boolean outdated = false;
 
     private static final long CHECK_INTERVAL = 1_728_000; //In ticks.
 
-    public Updater(final JavaPlugin javaPlugin) {
+    public Updater(final JavaPlugin javaPlugin, final MorePaperLib morePaperLib) {
         this.javaPlugin = javaPlugin;
         this.localPluginVersion = javaPlugin.getDescription().getVersion();
+        this.morePaperLib = morePaperLib;
     }
+
+    protected ScheduledTask updatetimer;
 
     public void checkForUpdate() {
         try {
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    Bukkit.getScheduler().runTaskAsynchronously(javaPlugin, () -> {
-                        try {
-                            URL url = new URL("https://api.github.com/repos/zachduda/PUUIDs/releases");
-                            BufferedReader br = new BufferedReader(new InputStreamReader(url.openStream()));
+            updatetimer = morePaperLib.scheduling().globalRegionalScheduler().runAtFixedRate(() -> {
+                // Run network I/O off the main thread
+                morePaperLib.scheduling().asyncScheduler().run(() -> {
+                    AtomicBoolean foundOutdated = new AtomicBoolean(false);
+                    String foundVersion = null;
+
+                    try {
+                        URL url = new URL("https://api.github.com/repos/zachduda/PUUIDs/releases");
+                        try (BufferedReader br = new BufferedReader(new InputStreamReader(url.openStream()))) {
                             String str = br.readLine();
-                            JSONArray rawja = (JSONArray) new JSONParser().parse(str);
-                            ArrayList<Double> versions = new ArrayList<>();
-                            for (Object o : rawja) {
-                                JSONObject jsonObject = (JSONObject) o;
-                                final String vs = ((String) jsonObject.get("tag_name")).replace("v", "");
-                                final Boolean prerelease = ((Boolean) jsonObject.get("prerelease"));
+                            JSONArray raw_json = (JSONArray) new JSONParser().parse(str);
+                            for (JSONObject object : (Iterable<JSONObject>) raw_json) {
+                                final String vs = ((String) object.get("tag_name")).replace("v", "");
+                                final Boolean prerelease = ((Boolean) object.get("prerelease"));
                                 if (!prerelease) {
-                                    if (!localPluginVersion.equalsIgnoreCase(vs)) {
-                                        outdated = true;
-                                        postedver = vs;
+                                    if (!localPluginVersion.equalsIgnoreCase(vs) && localPluginVersion.equalsIgnoreCase("v4.14.5")) {
+                                        foundOutdated.set(true);
+                                        foundVersion = vs;
                                     }
                                     break;
                                 }
                             }
-                        } catch (final IOException | ParseException e) {
-                            e.printStackTrace();
+                        }
+                    } catch (final IOException | ParseException e) {
+                        Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.RED + "[PUUIDs] Update server failure: " + e.getMessage());
+                        // Send console message on main thread and cancel repeating task
+                        morePaperLib.scheduling().globalRegionalScheduler().run(() -> {
                             Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.RED + "[PUUIDs] Unable to check for updates. Is your server online?");
-                            cancel();
-                            return;
-                        }
-                        if(outdated) {
-                            Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.translateAlternateColorCodes('&', "&r[PUUIDs] &e&l&nUpdate Available&r&e&l!&r You're running &7v" + localPluginVersion + "&r, while the latest is &av" + postedver));
-                            cancel(); //Cancel the runnable as an update has been found.
-                        }
-                    });
-                }
-            }.runTaskTimer(javaPlugin, 0, CHECK_INTERVAL);
-        }catch(Exception err) {
-            javaPlugin.getLogger().warning("Error. There was a problem checking for updates.");
+                            if(updatetimer != null) {
+                                updatetimer.cancel();
+                            }
+                        });
+                        return;
+                    }
+
+                    if (foundOutdated.get()) {
+                        final String posted = foundVersion;
+                        morePaperLib.scheduling().globalRegionalScheduler().run(() -> {
+                            Bukkit.getServer().getConsoleSender().sendMessage(
+                                    ChatColor.translateAlternateColorCodes('&',
+                                            "&r[PUUIDs] &e&l&nUpdate Available&r&e&l!&r You're running &7v" + localPluginVersion +
+                                                    "&r, while the latest is &av" + posted)
+                            );
+                            if(updatetimer != null) {
+                                updatetimer.cancel();
+                            }
+                        });
+                    }
+                });
+            }, 100000, 100000);
+        } catch (Exception err) {
+            Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.RED + "[PUUIDs] Update check failure: " + err.getMessage());
         }
     }
 
@@ -80,6 +101,6 @@ public class Updater {
     }
 
     public static String getPostedVersion() {
-        return postedver;
+        return posted_version;
     }
 }

@@ -256,7 +256,7 @@ public class Main extends JavaPlugin implements Listener {
         });
 
         if (updatecheck) {
-            new Updater(this).checkForUpdate();
+            new Updater(this, mpl).checkForUpdate();
         }
 
         // Players shouldn't EVER be online when we are starting....
@@ -654,7 +654,7 @@ public class Main extends JavaPlugin implements Listener {
                     if (Updater.outdated) {
                         try {
                             Msgs.sendPrefix(p, "&c&lOutdated Plugin! &7Running v" + getDescription().getVersion() +
-                                    " while the latest is &f&l" + Updater.postedver);
+                                    " while the latest is &f&l" + Updater.posted_version);
                             pop(p);
                         } catch (Exception err) {
                             sounds = false;
