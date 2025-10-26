@@ -1,5 +1,6 @@
 Settings:
-  Prefix: '&8[&e&lPUUIDs&8]'
+  # noinspection SpellCheckingInspection
+  Prefix: '&8[#4ec483&lPUUIDs&8]'
   Update-Checking: true
   Cooldowns:
     On-Time:

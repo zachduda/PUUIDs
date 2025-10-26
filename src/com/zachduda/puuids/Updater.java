@@ -44,7 +44,7 @@ public class Updater {
                             BufferedReader br = new BufferedReader(new InputStreamReader(url.openStream()));
                             String str = br.readLine();
                             JSONArray rawja = (JSONArray) new JSONParser().parse(str);
-                            ArrayList<Double> versions = new ArrayList<Double>();
+                            ArrayList<Double> versions = new ArrayList<>();
                             for (Object o : rawja) {
                                 JSONObject jsonObject = (JSONObject) o;
                                 final String vs = ((String) jsonObject.get("tag_name")).replace("v", "");

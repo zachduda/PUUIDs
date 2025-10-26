@@ -36,7 +36,7 @@ PUUIDs is a Spigot plugin for MC versions 1.13-1.20. Please check out the [Spigo
 
 # License
 This project is licensed under [Creative Commons (CC-BY-NC-4)](https://creativecommons.org/licenses/by-nc/4.0/).
-You can do whatever you'd like: just give credit and make sure it's non-commerical.
+You can do whatever you'd like: just give credit and make sure it's non-commercial.
 
 
 # Need a hand?

@@ -1,8 +1,9 @@
 name: PUUIDs
 main: com.zachduda.puuids.Main
-website: https://www.spigotmc.org/resources/api-puuids.71496/
-author: zach_attack
-version: 3.2.3
+website: https://zachduda.com/puuids
+authors: [zach_attack]
+version: 4.0.0
+folia-supported: true
 api-version: 1.13
 softdepend: [ Essentials ]
 load: STARTUP

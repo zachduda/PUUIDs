@@ -10,8 +10,10 @@ import java.util.UUID;
 public class Cooldowns {
     protected static boolean canRunLargeTask = true;
     static ArrayList<UUID> joined = new ArrayList<>();
+    @SuppressWarnings("SpellCheckingInspection")
     static ArrayList<UUID> ontime = new ArrayList<>();
 
+    @SuppressWarnings("SpellCheckingInspection")
     static HashMap<Player, String> confirmall = new HashMap<>();
     private static final Main plugin = Main.getPlugin(Main.class);
 

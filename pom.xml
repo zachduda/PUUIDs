@@ -7,11 +7,11 @@
     <artifactId>puuids</artifactId>
     <url>https://github.com/zachduda/PUUIDs</url>
     <packaging>jar</packaging>
-    <version>3.2.3</version>
+    <version>4.0.0</version>
     <description>Fully async per-player file saving all in one easy to use API.</description>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spigot.version>1.21.4-R0.1-SNAPSHOT</spigot.version>
+        <spigot.version>1.21.10-R0.1-SNAPSHOT</spigot.version>
     </properties>
     <distributionManagement>
         <repository>
@@ -95,7 +95,10 @@
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
         </repository>
-
+        <repository>
+            <id>arim-mvn-lgpl3</id>
+            <url>https://mvn-repo.arim.space/lesser-gpl3/</url>
+        </repository>
     </repositories>
     <dependencies>
         <dependency>

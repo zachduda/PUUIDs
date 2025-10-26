@@ -3,6 +3,7 @@ package com.zachduda.puuids;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 
+import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -12,7 +13,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitTask;
+import space.arim.morepaperlib.scheduling.ScheduledTask;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -31,7 +32,7 @@ public class Timer {
     private static int taskid = 1;
     //                                 UUID   PLUGIN   PATH     DATA    ID
     private static final ArrayList<Quartet<String, String, String, Object, Integer>> rawdata = new ArrayList<>();
-    final static BukkitTask timer = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+    final static ScheduledTask timer = plugin.mpl.scheduling().asyncScheduler().runAtFixedRate(() -> {
         final int size = getQSize();
         final int ssize = updateSystem.size();
         if ((ssize == 0 && size == 0) || busy || plugin.asyncrunning) {
@@ -45,8 +46,9 @@ public class Timer {
         // internal puuids updates
         while (!updateSystem.isEmpty()) {
             final Player p = updateSystem.keys().iterator().next();
-            final boolean quit = updateSystem.get(p).iterator().next();
+            final boolean quit = Boolean.TRUE.equals(updateSystem.get(p).iterator().next());
 
+            assert p != null;
             final String uuid = p.getUniqueId().toString();
             final String name = p.getName();
 
@@ -124,7 +126,8 @@ public class Timer {
             if (!f.exists()) {
                 try {
                     setcache.save(f);
-                } catch (Exception err) {
+                } catch (Exception ignored) {
+                    // First creation fail can happen. meh.
                 }
             }
 
@@ -160,7 +163,7 @@ public class Timer {
             plugin.getLogger().warning("Saving player data took " + plugin.qTimesMS + "ms. Try reducding max your task limit!");
         }
         busy = false;
-    }, processrate, processrate);
+    }, Duration.ofMillis(processrate), Duration.ofMillis(processrate));
 
     static int getQSize() {
         return rawdata.size();
@@ -169,7 +172,7 @@ public class Timer {
     static int queueSet(String pl, String uuid, String location, Object value) {
         final int thisid = taskid;
         taskid += 1;
-        Bukkit.getScheduler().runTask(plugin, () -> { // Ensures running SYNC to place.
+        plugin.mpl.scheduling().globalRegionalScheduler().run(() -> { // Ensures running SYNC to place.
             Quartet<String, String, String, Object, Integer> quart = new Quartet<String, String, String, Object, Integer>(uuid, pl.toUpperCase(), location, value, thisid);
             rawdata.add(quart);
         });
@@ -190,8 +193,9 @@ public class Timer {
         if (systemsize > 0) {
             for (int i = 0; i < systemsize; i++) {
                 final Player p = updateSystem.keys().iterator().next();
-                final boolean quit = updateSystem.get(p).iterator().next();
+                final boolean quit = Boolean.TRUE.equals(updateSystem.get(p).iterator().next());
 
+                assert p != null;
                 final String uuid = p.getUniqueId().toString();
                 final String name = p.getName();
 
@@ -201,7 +205,8 @@ public class Timer {
                 if (!f.exists()) {
                     try {
                         setcache.save(f);
-                    } catch (Exception err) {
+                    } catch (Exception ignored) {
+                        // Forced mostly so we don't care.
                     }
                 }
 

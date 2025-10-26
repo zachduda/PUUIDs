@@ -22,7 +22,8 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitTask;
+import space.arim.morepaperlib.MorePaperLib;
+import space.arim.morepaperlib.scheduling.ScheduledTask;
 
 import javax.management.Attribute;
 import javax.management.AttributeList;
@@ -31,6 +32,7 @@ import javax.management.ObjectName;
 import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.InvocationTargetException;
+import java.time.Duration;
 import java.util.*;
 
 public class Main extends JavaPlugin implements Listener {
@@ -43,6 +45,7 @@ public class Main extends JavaPlugin implements Listener {
     private static boolean allow_unsafe_reloads = false;
     public int getTimes = 0;
     public PUUIDS api;
+    public MorePaperLib mpl = new MorePaperLib(this);
     boolean debug = false;
     boolean asyncrunning = false;
     long setTimeMS = 0; // how long in ms for file saving
@@ -89,7 +92,7 @@ public class Main extends JavaPlugin implements Listener {
         final boolean useclean = getConfig().getBoolean("Settings.File-Cleanup.Enabled");
         final boolean cleaness = getConfig().getBoolean("Settings.File-Cleanup.Clean-Essentials");
 
-        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+        mpl.scheduling().asyncScheduler().run(() -> {
             final Essentials ess = (Essentials) Bukkit.getPluginManager().getPlugin("Essentials");
             final File folder = new File(this.getDataFolder(), File.separator + "Data");
             if (!folder.exists()) {
@@ -215,7 +218,7 @@ public class Main extends JavaPlugin implements Listener {
 
         updateConfig();
 
-        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(this, () -> {
+        mpl.scheduling().globalRegionalScheduler().run(() -> {
 
             if (debug) {
                 int total = plugins.size() - 1;
@@ -281,7 +284,7 @@ public class Main extends JavaPlugin implements Listener {
         taskresetid = startStatResetTimer();
         playerupdateid = startPlayerUpdateTimer();
 
-        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+        mpl.scheduling().asyncScheduler().run(() -> {
             ConnectionOpen coe = new ConnectionOpen();
             Bukkit.getPluginManager().callEvent(coe);
         });
@@ -290,7 +293,7 @@ public class Main extends JavaPlugin implements Listener {
 
     // Update player file, mostly for accurate playtime's every 10 minutes!
     private int startPlayerUpdateTimer() {
-        final BukkitTask playerupdatetime = Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
+        final ScheduledTask playerupdatetime = mpl.scheduling().asyncScheduler().runAtFixedRate(() -> {
             asyncrunning = true;
             debug("Updating any online players data files...");
             for (Player p : Bukkit.getOnlinePlayers()) {
@@ -299,21 +302,21 @@ public class Main extends JavaPlugin implements Listener {
             asyncrunning = false;
             UpdatedPlayerStats ups = new UpdatedPlayerStats();
             Bukkit.getPluginManager().callEvent(ups);
-        }, 12000L, 12000L);
-        return playerupdatetime.getTaskId();
+        }, Duration.ofMillis(12000),  Duration.ofMillis(12000));
+        return playerupdatetime.hashCode();
     }
 
     // Reset Stats every 12 hours
     private int startStatResetTimer() {
-        final BukkitTask resetstatstimer = Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
+        final ScheduledTask resetstatstimer =  mpl.scheduling().asyncScheduler().runAtFixedRate(() -> {
             debug("Resetting the puuids debug statistics, it's been over 12 hours...");
             setTimeMS = 0;
             setTimes = 0;
             getTimes = 0;
             qTimesMS = 0;
             setQRequests = 0;
-        }, 864000L, 864000L);
-        return resetstatstimer.getTaskId();
+        }, Duration.ofMillis(864000), Duration.ofMillis(864000));
+        return resetstatstimer.hashCode();
     }
     // End of 12 hour Stat Reset timer
 
@@ -339,6 +342,7 @@ public class Main extends JavaPlugin implements Listener {
         Timer.stopTimer();
         getServer().getScheduler().cancelTask(taskresetid);
         getServer().getScheduler().cancelTask(playerupdateid);
+        mpl.scheduling().cancelGlobalTasks();
 
         plugins.clear();
 
@@ -402,7 +406,7 @@ public class Main extends JavaPlugin implements Listener {
 
         if(getConfig().getBoolean("Advanced.Allow-Unsafe-Reloads")) {
             allow_unsafe_reloads = true;
-            getLogger().warning("Unsafe reloading (via /rl, /reload, /restart) is permited per config.yml. This is VERY dangerous! You will get no support for corrupted files.");
+            getLogger().warning("Unsafe reloading (via /rl, /reload, /restart) is permitted per config.yml. This is VERY dangerous! You will get no support for corrupted files.");
         }
     }
 
@@ -448,7 +452,7 @@ public class Main extends JavaPlugin implements Listener {
             plugins.put(pl, vers);
             debug("Plugin " + plname + " has been registered.");
 
-            Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            mpl.scheduling().asyncScheduler().run(() -> {
                 PluginRegistered plr = new PluginRegistered(plname);
                 Bukkit.getPluginManager().callEvent(plr);
             });
@@ -626,7 +630,7 @@ public class Main extends JavaPlugin implements Listener {
         }
         String cmd = e.getMessage().split(" ")[0].replace("/", "").replaceAll("(?i)bukkit", "");
         if(cmd.equalsIgnoreCase("reload") || cmd.equalsIgnoreCase("rl") || cmd.equalsIgnoreCase("restart")) {
-            Msgs.sendPrefix(e.getPlayer(), "&fThis will &c&lharm&f your servers memory, including PUUIDs'.");
+            Msgs.sendPrefix(e.getPlayer(), "&fThis will &c&lcorrupt&f your servers running memory, including PUUIDs'.");
             bass(e.getPlayer());
             e.setCancelled(true);
         }
@@ -634,7 +638,7 @@ public class Main extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onJoin(PlayerJoinEvent e) {
-        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+        mpl.scheduling().asyncScheduler().run(() -> {
             Player p = e.getPlayer();
             UUID uuid = p.getUniqueId();
             if (Cooldowns.joined.contains(uuid)) {
@@ -764,7 +768,7 @@ public class Main extends JavaPlugin implements Listener {
 
             if (args.length == 0) {
                 Msgs.send(sender, "");
-                Msgs.send(sender, "&e&lPUUIDs");
+                Msgs.send(sender, "#4ec483&lPUUIDs");
                 Msgs.send(sender, "&8&l> &f&o/puuids help &7&ofor commands & help.");
                 Msgs.send(sender, "");
                 pop(sender);
@@ -773,7 +777,7 @@ public class Main extends JavaPlugin implements Listener {
 
             if (args[0].equalsIgnoreCase("help")) {
                 Msgs.send(sender, "");
-                Msgs.send(sender, "&e&lPUUIDs");
+                Msgs.send(sender, "#4ec483&lPUUIDs");
                 Msgs.send(sender, "&8&l> &f&l/puuids version &7Get the current version of your puuids system.");
                 Msgs.send(sender, "&8&l> &f&l/puuids ontime (player) &7See how long you or someone else been playing.");
                 Msgs.send(sender, "&8&l> &f&l/puuids reload &7Reload your config.yml.");
@@ -815,12 +819,12 @@ public class Main extends JavaPlugin implements Listener {
                 if (!debug) {
                     bass(sender);
                     Msgs.send(sender, "&7");
-                    Msgs.send(sender, "&e&lPUUIDs");
+                    Msgs.send(sender, "#4ec483&lPUUIDs");
                     Msgs.send(sender, "&8&l> &c&lCommand Disabled. &fTo enable, please turn on debug mode.");
                     Msgs.send(sender, "&7");
                     return true;
                 }
-                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                mpl.scheduling().asyncScheduler().run(() -> {
                     double jversion = Double.parseDouble(System.getProperty("java.specification.version"));
                     StringBuilder sb = getStringBuilder();
 
@@ -885,7 +889,7 @@ public class Main extends JavaPlugin implements Listener {
                 if (!debug) {
                     bass(sender);
                     Msgs.send(sender, "&7");
-                    Msgs.send(sender, "&e&lPUUIDs");
+                    Msgs.send(sender, "#4ec483&lPUUIDs");
                     Msgs.send(sender, "&8&l> &c&lCommand Disabled. &fTo enable, please turn on debug mode.");
                     Msgs.send(sender, "&7");
                     return true;
@@ -927,7 +931,7 @@ public class Main extends JavaPlugin implements Listener {
                 }
 
                 Msgs.send(p, "&7");
-                Msgs.send(p, "&e&lPUUIDs");
+                Msgs.send(p, "#4ec483&lPUUIDs");
                 if (asyncrunning) {
                     Msgs.send(p, "&8&l> &a&lUnfrozen. &fNow processing saving requests...");
                     asyncrunning = false;
@@ -945,7 +949,7 @@ public class Main extends JavaPlugin implements Listener {
                 if (!debug) {
                     bass(sender);
                     Msgs.send(sender, "&7");
-                    Msgs.send(sender, "&e&lPUUIDs");
+                    Msgs.send(sender, "#4ec483&lPUUIDs");
                     Msgs.send(sender, "&8&l> &c&lCommand Disabled. &fTo enable, please turn on debug mode.");
                     Msgs.send(sender, "&7");
                     return true;
@@ -980,14 +984,14 @@ public class Main extends JavaPlugin implements Listener {
                 if (args[1].equalsIgnoreCase("ontime")) {
                     Cooldowns.startLargeTask();
                     Msgs.send(sender, "&7");
-                    Msgs.send(sender, "&e&lPUUIDs");
+                    Msgs.send(sender, "#4ec483&lPUUIDs");
                     Msgs.send(sender, "&8&l> &7&oPlease wait... this may take a long time.");
                     Msgs.send(sender, "&7");
                     thinking(sender);
 
                     asyncrunning = true;
 
-                    Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    mpl.scheduling().asyncScheduler().run(() -> {
                         int total = 0;
                         final long start = System.currentTimeMillis();
                         for (File AllData : Objects.requireNonNull(folder.listFiles())) {
@@ -1010,7 +1014,7 @@ public class Main extends JavaPlugin implements Listener {
                         asyncrunning = false;
 
                         Msgs.send(sender, "");
-                        Msgs.send(sender, "&e&lPUUIDs");
+                        Msgs.send(sender, "#4ec483&lPUUIDs");
                         Msgs.send(sender, "&8&l> &a&lDone. &fReset everyone's Time-Played back to zero in &7&l" + finished + "ms");
                         Msgs.send(sender, "");
                         pop(sender);
@@ -1060,12 +1064,12 @@ public class Main extends JavaPlugin implements Listener {
 
                     Cooldowns.startLargeTask();
                     Msgs.send(sender, "&7");
-                    Msgs.send(sender, "&e&lPUUIDs");
+                    Msgs.send(sender, "#4ec483&lPUUIDs");
                     Msgs.send(sender, "&8&l> &7&oPlease wait... this may take a long time.");
                     Msgs.send(sender, "&7");
                     thinking(sender);
 
-                    Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    mpl.scheduling().asyncScheduler().run(() -> {
                         int total = 0;
                         final long start = System.currentTimeMillis();
                         for (File AllData : Objects.requireNonNull(folder.listFiles())) {
@@ -1089,7 +1093,7 @@ public class Main extends JavaPlugin implements Listener {
                         asyncrunning = false;
 
                         Msgs.send(sender, "");
-                        Msgs.send(sender, "&e&lPUUIDs");
+                        Msgs.send(sender, "#4ec483&lPUUIDs");
                         Msgs.send(sender, "&8&l> &a&lDone. &fCleared player files back to basics in &7&l" + finished + "ms");
                         Msgs.send(sender, "");
                         pop(sender);
@@ -1100,7 +1104,7 @@ public class Main extends JavaPlugin implements Listener {
                 }
 
                 Msgs.send(sender, "");
-                Msgs.send(sender, "&e&lPUUIDs");
+                Msgs.send(sender, "#4ec483&lPUUIDs");
                 Msgs.send(sender, "&8&l> &c&lError. &fSomething went wrong here.");
                 Msgs.send(sender, "");
                 bass(sender);
@@ -1112,7 +1116,7 @@ public class Main extends JavaPlugin implements Listener {
 
             if (args[0].equalsIgnoreCase("version")) {
                 Msgs.send(sender, "");
-                Msgs.send(sender, "&e&lPUUIDs");
+                Msgs.send(sender, "#4ec483&lPUUIDs");
                 Msgs.send(sender, "&8&l> &7You are currently running &f&lv" + getDescription().getVersion());
                 Msgs.send(sender, "");
                 pop(sender);
@@ -1124,7 +1128,7 @@ public class Main extends JavaPlugin implements Listener {
                 reloadConfig();
                 updateConfig();
                 Msgs.send(sender, "");
-                Msgs.send(sender, "&e&lPUUIDs");
+                Msgs.send(sender, "#4ec483&lPUUIDs");
                 Msgs.send(sender, "&8&l> &fConfiguration has been reloaded in &6" + (System.currentTimeMillis() - start) + "ms");
                 Msgs.send(sender, "");
                 pop(sender);
@@ -1174,7 +1178,7 @@ public class Main extends JavaPlugin implements Listener {
 
             if (args[0].equalsIgnoreCase("info")) {
                 Msgs.send(sender, "");
-                Msgs.send(sender, "&e&lPUUIDs");
+                Msgs.send(sender, "#4ec483&lPUUIDs");
                 final int active = getPlugins().size() - 1;
                 if (active > 0) {
                     Msgs.send(sender, "&8&l> &fHooked Plugins: &e&l" + active);
@@ -1231,7 +1235,7 @@ public class Main extends JavaPlugin implements Listener {
 
             bass(sender);
             Msgs.send(sender, "");
-            Msgs.send(sender, "&e&lPUUIDs");
+            Msgs.send(sender, "#4ec483&lPUUIDs");
             Msgs.send(sender, "&8&l> &c&lCommand Not Found. &fWe couldn't find that command.");
             Msgs.send(sender, "");
             return true;
@@ -1250,7 +1254,7 @@ public class Main extends JavaPlugin implements Listener {
                     sb.append(plname);
                 }
 
-                sb.append(plname + "&f, &e");
+                sb.append(plname).append("&f, &e");
                 plsb++;
             }
         }
