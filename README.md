@@ -25,13 +25,13 @@ Then add PUUIDs dependency from Github:
 <dependency>
   <groupId>com.github.zachduda</groupId>
   <artifactId>PUUIDs</artifactId>
-  <version>v3.2.2</version>
+  <version>v4.0.0</version>
 </dependency>
 ```
 
 
 # Spigot
-PUUIDs is a Spigot plugin for MC versions 1.13-1.20. Please check out the [Spigot Page](https://www.spigotmc.org/resources/puuids-•-an-async-file-api.71496/). for full documentation.
+PUUIDs is a Spigot plugin for MC versions 1.13-1.21. Please check out the [Spigot Page](https://www.spigotmc.org/resources/puuids-•-an-async-file-api.71496/). for full documentation.
 
 
 # License
@@ -40,7 +40,7 @@ You can do whatever you'd like: just give credit and make sure it's non-commerci
 
 
 # Need a hand?
-Feel free to join the developer discord server and ask me for help with PUUIDs! I'd be happy to answer any questions you might have or implement any functionality you feel would assist you with your projects: https://discord.com/invite/6ugXPfX
+Feel free to join the developer discord server and ask me for help with PUUIDs! I'd be happy to answer any questions you might have or implement any functionality you feel would assist you with your projects: https://zachduda.com/discord
 
 
 # Contact Me
