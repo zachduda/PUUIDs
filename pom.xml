@@ -10,9 +10,10 @@
     <version>4.0.0</version>
     <description>Fully async per-player file saving all in one easy to use API.</description>
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+       <maven.compiler.release>21</maven.compiler.release>
+       <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+       <shade.plugin.version>3.6.1</shade.plugin.version>
+       <maven.compiler.plugin.version>3.14.1</maven.compiler.plugin.version>
     </properties>
     <distributionManagement>
         <repository>
@@ -39,10 +40,14 @@
         </resources>
         <sourceDirectory>src</sourceDirectory>
         <plugins>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.1</version>
-            </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>${maven.compiler.plugin.version}</version>
+            <configuration>
+              <release>${maven.compiler.release}</release>
+            </configuration>
+          </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -62,7 +67,7 @@
                             <shadedPattern>com.zachduda.puuids.metrics</shadedPattern>
                         </relocation>
                     </relocations>
-                    <minimizeJar>true</minimizeJar>
+                    <minimizeJar>false</minimizeJar>
                 </configuration>
                 <executions>
                     <execution>
