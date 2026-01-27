@@ -15,13 +15,6 @@
        <shade.plugin.version>3.6.1</shade.plugin.version>
        <maven.compiler.plugin.version>3.14.1</maven.compiler.plugin.version>
     </properties>
-    <distributionManagement>
-        <repository>
-            <id>github</id>
-            <name>puuids</name>
-            <url>https://maven.pkg.github.com/zachduda/puuids</url>
-        </repository>
-    </distributionManagement>
     <licenses>
         <license>
             <name>CC-BY-NC-v4</name>
