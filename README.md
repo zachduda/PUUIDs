@@ -14,8 +14,8 @@ soft-depend: [PUUIDs]
 If you haven't already, make sure jitpack repo is listed:
 ```xml
 <repository>
-    <id>jitpack.io</id>
-    <url>https://jitpack.io</url>
+    <id>zachduda</id>
+    <url>https://maven.zachduda.com/repository/maven-releases/</url>
 </repository>
 ```
 
