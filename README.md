@@ -15,7 +15,7 @@ If you haven't already, make sure jitpack repo is listed:
 ```xml
 <repository>
     <id>zachduda</id>
-    <url>https://maven.zachduda.com/repository/maven-releases/</url>
+    <url>https://zachduda.com/maven</url>
 </repository>
 ```
 
