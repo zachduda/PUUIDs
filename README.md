@@ -11,7 +11,7 @@ Make sure that you add PUUIDs as a soft-depend plugin like so:
 soft-depend: [PUUIDs]
 ```
 # Using Maven
-If you haven't already, make sure jitpack repo is listed:
+If you haven't already, make sure the maven repo is listed:
 ```xml
 <repository>
     <id>zachduda</id>
