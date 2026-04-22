@@ -5,9 +5,9 @@
     <name>PUUIDs</name>
     <groupId>com.zachduda</groupId>
     <artifactId>puuids</artifactId>
-    <url>https://github.com/zachduda/PUUIDs</url>
+    <url>https://zachduda.com/puuids</url>
     <packaging>jar</packaging>
-    <version>4.0.0</version>
+    <version>4.0.1</version>
     <description>Fully async per-player file saving all in one easy to use API.</description>
     <properties>
        <maven.compiler.release>21</maven.compiler.release>
