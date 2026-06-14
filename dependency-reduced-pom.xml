@@ -4,9 +4,9 @@
   <groupId>com.zachduda</groupId>
   <artifactId>puuids</artifactId>
   <name>PUUIDs</name>
-  <version>4.0.0</version>
+  <version>4.0.1</version>
   <description>Fully async per-player file saving all in one easy to use API.</description>
-  <url>https://github.com/zachduda/PUUIDs</url>
+  <url>https://zachduda.com/puuids</url>
   <licenses>
     <license>
       <name>CC-BY-NC-v4</name>
@@ -27,15 +27,14 @@
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.14.1</version>
+        <version>${maven.compiler.plugin.version}</version>
         <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
+          <release>${maven.compiler.release}</release>
         </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>3.6.1</version>
+        <version>3.6.2</version>
         <executions>
           <execution>
             <phase>package</phase>
@@ -90,7 +89,7 @@
     <dependency>
       <groupId>org.spigotmc</groupId>
       <artifactId>spigot-api</artifactId>
-      <version>1.21.10-R0.1-SNAPSHOT</version>
+      <version>1.21.11-R0.1-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -108,13 +107,14 @@
   </dependencies>
   <distributionManagement>
     <repository>
-      <id>github</id>
-      <name>puuids</name>
-      <url>https://maven.pkg.github.com/zachduda/puuids</url>
+      <id>zachduda-maven-release</id>
+      <url>https://maven.zachduda.com/releases</url>
     </repository>
   </distributionManagement>
   <properties>
-    <spigot.version>1.21.10-R0.1-SNAPSHOT</spigot.version>
+    <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <shade.plugin.version>3.6.1</shade.plugin.version>
+    <maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
   </properties>
 </project>

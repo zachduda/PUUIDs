@@ -15,6 +15,19 @@
        <shade.plugin.version>3.6.1</shade.plugin.version>
        <maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
     </properties>
+    <!---<distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>puuids</name>
+            <url>https://maven.pkg.github.com/zachduda/puuids</url>
+        </repository>
+    </distributionManagement>-->
+    <distributionManagement>
+        <repository>
+            <id>zachduda-maven-release</id>
+            <url>https://maven.zachduda.com/releases</url>
+        </repository>
+    </distributionManagement>
     <licenses>
         <license>
             <name>CC-BY-NC-v4</name>
@@ -60,7 +73,7 @@
                             <shadedPattern>com.zachduda.puuids.metrics</shadedPattern>
                         </relocation>
                     </relocations>
-                    <minimizeJar>false</minimizeJar>
+                    <minimizeJar>true</minimizeJar>
                 </configuration>
                 <executions>
                     <execution>

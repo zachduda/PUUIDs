@@ -263,7 +263,8 @@ public class Main extends JavaPlugin implements Listener {
         Collection<? extends Player> players = Bukkit.getOnlinePlayers();
         if (!players.isEmpty()) {
             status = false;
-            statusreason = "puuids was improperly reloaded. This may damage your player's data files! Please restart your server.";
+            statusreason = "" +
+                    " was improperly reloaded. This may damage your player's data files! Please restart your server.";
             Msgs.sendPrefix(Bukkit.getConsoleSender(), "&4&l<!> &c&l&nReloading puuids without a proper restart can severely damage PUUID's player data. PLEASE RESTART YOUR SERVER!");
             for (Player online : players) {
                 if (online.isOp() || online.hasPermission("puuids.admin")) {
