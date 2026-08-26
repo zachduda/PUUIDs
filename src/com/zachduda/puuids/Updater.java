@@ -56,7 +56,10 @@ public class Updater {
                                 final String vs = ((String) object.get("tag_name")).replace("v", "");
                                 final Boolean prerelease = ((Boolean) object.get("prerelease"));
                                 if (!prerelease) {
-                                    if (!localPluginVersion.equalsIgnoreCase(vs) && localPluginVersion.equalsIgnoreCase("v4.14.5")) {
+                                    // The second half of this used to require the local version to
+                                    // literally equal "v4.14.5", so no release could ever be
+                                    // reported as an update.
+                                    if (!localPluginVersion.equalsIgnoreCase(vs)) {
                                         foundOutdated.set(true);
                                         foundVersion = vs;
                                     }
@@ -78,6 +81,10 @@ public class Updater {
 
                     if (foundOutdated.get()) {
                         final String posted = foundVersion;
+                        // These back the in-game notice on join, which never fired because
+                        // nothing ever set them.
+                        outdated = true;
+                        posted_version = posted;
                         morePaperLib.scheduling().globalRegionalScheduler().run(() -> {
                             Bukkit.getServer().getConsoleSender().sendMessage(
                                     ChatColor.translateAlternateColorCodes('&',
