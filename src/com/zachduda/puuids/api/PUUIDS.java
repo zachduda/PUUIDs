@@ -2,7 +2,6 @@ package com.zachduda.puuids.api;
 
 import com.google.common.io.Files;
 import com.zachduda.puuids.Main;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -76,44 +75,52 @@ public class PUUIDS {
         return plugin.getPlayTime(uuid);
     }
 
+    /**
+     * Play time as a human readable string.
+     * <p>
+     * Time-Played is stored in seconds, so the value used to be divided by 100 for no reason
+     * before formatting: every play time shown was 100x too small.
+     */
     public static String getFormatedPlayTime(String uuid) {
-        long time = getPlayTime(uuid);
-        String ans = secsToFormatTime(time/100);
-        wasGet();
-        return ans;
+        return secsToFormatTime(getPlayTime(uuid));
     }
 
+    /**
+     * Formats a number of seconds, keeping the two largest useful units so that, say,
+     * 3 days and 23 hours doesn't simply read "3 days".
+     */
     public static String secsToFormatTime(long secs) {
-        if (secs == 0) {
+        if (secs <= 0) {
             return "Nothing Yet!";
-        } else if (secs < 60) {
-            if (secs == 1) {
-                return secs + " second";
-            } else {
-                return secs + " seconds";
-            }
-        } else if (secs < 3600) {
-            final long min = secs / 60;
-            if (min == 1) {
-                return min + " minute";
-            } else {
-                return min + " minutes";
-            }
-        } else if (secs < 86400) {
-            final long hours = secs / 3600;
-            if (hours == 1) {
-                return hours + " hour";
-            } else {
-                return hours + " hours";
-            }
-        } else {
-            final long days = secs / 86400;
-            if (days == 1) {
-                return days + " day";
-            } else {
-                return days + " days";
-            }
         }
+
+        if (secs < 60) {
+            return plural(secs, "second");
+        }
+
+        if (secs < 3600) {
+            return join(plural(secs / 60, "minute"), plural(secs % 60, "second"));
+        }
+
+        if (secs < 86400) {
+            return join(plural(secs / 3600, "hour"), plural((secs % 3600) / 60, "minute"));
+        }
+
+        return join(plural(secs / 86400, "day"), plural((secs % 86400) / 3600, "hour"));
+    }
+
+    private static String plural(long amount, String unit) {
+        if (amount == 0) {
+            return null;
+        }
+        return amount + " " + unit + (amount == 1 ? "" : "s");
+    }
+
+    private static String join(String largest, String remainder) {
+        if (remainder == null) {
+            return largest;
+        }
+        return largest + ", " + remainder;
     }
 
     public static String getString(Plugin pl, String uuid, String location) {
@@ -156,7 +163,7 @@ public class PUUIDS {
 
         ArrayList<String> allplayers = new ArrayList<>();
 
-        for (String playeruuid : Objects.requireNonNull(getAllPlayerUUIDs(pl, quickmode))) {
+        for (String playeruuid : getAllPlayerUUIDs(pl, quickmode)) {
             File f = new File(cache, File.separator + playeruuid + ".yml");
             FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
@@ -175,7 +182,7 @@ public class PUUIDS {
 
         ArrayList<String> allplayers = new ArrayList<>();
 
-        for (String playeruuid : Objects.requireNonNull(getAllPlayerUUIDs(pl, quickmode))) {
+        for (String playeruuid : getAllPlayerUUIDs(pl, quickmode)) {
             File f = new File(cache, File.separator + playeruuid + ".yml");
             FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
@@ -280,18 +287,17 @@ public class PUUIDS {
     }
 
     public static ArrayList<String> getAllPlayerNames(Plugin pl) {
-        String plname = pl.getName();
+        ArrayList<String> allplayers = new ArrayList<>();
+
         if (!plugin.getPlugins().containsKey(pl)) {
-            return null;
+            return allplayers;
         }
 
         // Gets the player names of all we have record of.
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 
-        ArrayList<String> allplayers = new ArrayList<>();
-
-        for (File cachefile : Objects.requireNonNull(cache.listFiles())) {
+        for (File cachefile : listData(cache)) {
             String path = cachefile.getPath();
 
             if (Files.getFileExtension(path).equalsIgnoreCase("yml")) {
@@ -305,17 +311,19 @@ public class PUUIDS {
     }
 
     public static ArrayList<String> getAllPlayerUUIDs(Plugin pl, boolean quickmode) {
+        ArrayList<String> allplayers = new ArrayList<>();
+
+        // Returns an empty list rather than null: callers were passing this straight into a
+        // for-each wrapped in requireNonNull, so an unregistered plugin threw instead of no-oping.
         if (!plugin.getPlugins().containsKey(pl)) {
-            return null;
+            return allplayers;
         }
 
         // Gets a list of all the uuids we have a record of.
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 
-        ArrayList<String> allplayers = new ArrayList<>();
-
-        for (File cachefile : Objects.requireNonNull(cache.listFiles())) {
+        for (File cachefile : listData(cache)) {
             String path = cachefile.getPath();
 
             if (Files.getFileExtension(path).equalsIgnoreCase("yml")) {
@@ -330,6 +338,12 @@ public class PUUIDS {
         }
         wasGet();
         return allplayers;
+    }
+
+    /** listFiles() returns null for a folder that doesn't exist yet, which is not an error here. */
+    private static File[] listData(File cache) {
+        final File[] files = cache.isDirectory() ? cache.listFiles() : null;
+        return files == null ? new File[0] : files;
     }
 
     public static int setLocation(Plugin pl, String uuid, String location, Location input) {
@@ -573,7 +587,8 @@ public class PUUIDS {
         }
 
         List<Integer> input = getIntList(pl, uuid, location);
-        input.add(add);
+        // Was input.add(add): this method appended instead of removing.
+        input.remove(Integer.valueOf(add));
         return plugin.set(pl, uuid, location, input);
     }
     // End of List Add
@@ -631,20 +646,21 @@ public class PUUIDS {
 
         int total = 0;
 
-        for (String playeruuid : Objects.requireNonNull(getAllPlayerUUIDs(pl, false))) {
+        /*
+          Each missing default now goes through the plugin's own async queue. It used to schedule
+          one main-thread task per player file, each of which loaded and saved a file on the main
+          thread - the exact thing this plugin exists to avoid - and the Bukkit scheduler it used
+          isn't available on Folia at all.
+         */
+        for (String playeruuid : getAllPlayerUUIDs(pl, false)) {
             try {
                 File f = new File(cache, File.separator + playeruuid + ".yml");
                 FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    if (!setcache.contains("Plugins." + plname.toUpperCase() + "." + location) || setcache.get("Plugins." + plname.toUpperCase() + "." + location) == null) {
-                        setcache.set("Plugins." + plname.toUpperCase() + "." + location, input);
-                        try {
-                            setcache.save(f);
-                        } catch (Exception err) {
-                        }
-                    }
-                });
-                total++;
+                final String path = "Plugins." + plname.toUpperCase() + "." + location;
+                if (!setcache.contains(path) || setcache.get(path) == null) {
+                    plugin.set(pl, playeruuid, location, input);
+                    total++;
+                }
             } catch (Exception err) {
                 return false;
             }
@@ -667,7 +683,7 @@ public class PUUIDS {
 
     // Internal counter
     private static void wasGet() {
-        plugin.getTimes++;
+        plugin.getTimes.incrementAndGet();
     }
 
 

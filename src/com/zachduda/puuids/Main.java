@@ -34,6 +34,8 @@ import java.lang.management.ManagementFactory;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Main extends JavaPlugin implements Listener {
 
@@ -41,25 +43,29 @@ public class Main extends JavaPlugin implements Listener {
     @SuppressWarnings("FieldMayBeFinal")
     private static HashMap<Plugin, APIVersion> plugins = new HashMap<>();
 
-    private static boolean allowconnections = false;
-    private static boolean allow_unsafe_reloads = false;
-    public int getTimes = 0;
+    private static volatile boolean allowconnections = false;
+    private static volatile boolean allow_unsafe_reloads = false;
+    public final AtomicInteger getTimes = new AtomicInteger();
     public PUUIDS api;
     public MorePaperLib mpl = new MorePaperLib(this);
-    boolean debug = false;
-    boolean asyncrunning = false;
-    long setTimeMS = 0; // how long in ms for file saving
-    int setTimes = 0;
-    long qTimesMS = 0;
-    int setQRequests = 0;
+    volatile boolean debug = false;
+    volatile boolean asyncrunning = false;
+    volatile long setTimeMS = 0; // how long in ms for file saving
+    final AtomicInteger setTimes = new AtomicInteger();
+    volatile long qTimesMS = 0;
+    volatile int setQRequests = 0;
     private final String version = Bukkit.getBukkitVersion().replace("-SNAPSHOT", "");
-    private boolean sounds;
-    private boolean status;
-    private String statusreason = "0";
-    private boolean updatecheck = true;
+    private volatile boolean sounds;
+    private volatile boolean status;
+    private volatile String statusreason = "0";
+    private volatile boolean updatecheck = true;
     private final boolean isFullySupported = version.contains("1.21") || version.contains("1.20") || version.contains("1.19") || version.contains("1.18") || version.contains("1.17") || version.contains("1.16") || version.contains("1.15") || version.contains("1.14") || version.contains("1.13");
-    private int taskresetid = 0;
-    private int playerupdateid = 0;
+    private ScheduledTask taskresettimer;
+    private ScheduledTask playerupdatetimer;
+    private volatile int playerupdateseconds = 300;
+
+    // Lower-cased username -> UUID, so name lookups don't have to parse every file on disk.
+    private final Map<String, String> nameindex = new ConcurrentHashMap<>();
 
     private Metrics metrics;
 
@@ -71,10 +77,11 @@ public class Main extends JavaPlugin implements Listener {
         }
 
         try {
-            Class.forName("com.google.common.collect.Multimap");
-            Class.forName("com.google.common.collect.ArrayListMultimap");
+            // The queues are plain java.util.concurrent now, so Multimap is no longer required -
+            // checking for it would have disabled the plugin over a class it never touches.
+            Class.forName("com.google.common.io.Files");
         } catch (ClassNotFoundException e) {
-            getLogger().severe("Missing Google's Util Common Multimap. This is normally found in Java 8, but is missing with this version of Java. puuids will now disable...");
+            getLogger().severe("Missing Google's Util Common IO. This is normally shipped with the server, but is missing here. puuids will now disable...");
             Bukkit.getPluginManager().disablePlugin(this);
             return;
         }
@@ -89,13 +96,22 @@ public class Main extends JavaPlugin implements Listener {
         statusreason = "0";
         asyncrunning = true;
 
+        // Read the configuration up front: the cleanup scan below depends on it, and reading it
+        // from another thread while onEnable was still copying defaults meant File-Cleanup and
+        // Debug were both silently off for the whole scan.
+        getConfig().options().copyDefaults(true);
+        saveConfig();
+        updateConfig();
+
         final boolean useclean = getConfig().getBoolean("Settings.File-Cleanup.Enabled");
         final boolean cleaness = getConfig().getBoolean("Settings.File-Cleanup.Clean-Essentials");
 
         mpl.scheduling().asyncScheduler().run(() -> {
             final Essentials ess = (Essentials) Bukkit.getPluginManager().getPlugin("Essentials");
             final File folder = new File(this.getDataFolder(), File.separator + "Data");
-            if (!folder.exists()) {
+            final File[] cachefiles = folder.exists() ? folder.listFiles() : null;
+            if (cachefiles == null) {
+                asyncrunning = false;
                 return;
             }
 
@@ -103,7 +119,7 @@ public class Main extends JavaPlugin implements Listener {
 
             int maxDays = getConfig().getInt("Settings.File-Cleanup.Max-Days");
 
-            for (File cachefile : Objects.requireNonNull(folder.listFiles())) {
+            for (File cachefile : cachefiles) {
                 String path = cachefile.getPath();
 
                 final File f = new File(path);
@@ -154,10 +170,16 @@ public class Main extends JavaPlugin implements Listener {
                                   https://github.com/EssentialsX/Essentials/blob/3af931740b20507837276f87f9456221653ac43d/Essentials/src/main/java/com/earth2me/essentials/commands/Commandplaytime.java
                                  */
                                 final String uuid = setcache.getString("UUID");
+                                indexName(playername, uuid);
                                 long playtime = 0;
                                 if(isFullySupported) {
                                     try {
-                                        playtime = ((getServer().getOfflinePlayer(UUID.fromString(Objects.requireNonNull(uuid))).getStatistic(EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK"))) * 50L);
+                                        // The statistic counts ticks; Time-Played is in seconds.
+                                        // This used to multiply by 50 (giving milliseconds), which
+                                        // overwrote every file with a play time 1000x too large.
+                                        final long ticks = getServer().getOfflinePlayer(UUID.fromString(Objects.requireNonNull(uuid)))
+                                                .getStatistic(EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK"));
+                                        playtime = ticks / 20L;
                                     } catch (Exception e) {
                                         if(debug) {
                                             debug("Unable to use getStatistic for player playtime:");
@@ -213,10 +235,10 @@ public class Main extends JavaPlugin implements Listener {
 
         Bukkit.getServer().getPluginManager().registerEvents(this, this);
 
-        getConfig().options().copyDefaults(true);
-        saveConfig();
-
-        updateConfig();
+        // Idempotent; updateConfig() above already started it at the configured rate. The timer
+        // used to be a static final field built during class-load with the hardcoded defaults,
+        // so Advanced.Save-Rate-Ticks never had any effect at all.
+        Timer.startTimer();
 
         mpl.scheduling().globalRegionalScheduler().run(() -> {
 
@@ -282,8 +304,14 @@ public class Main extends JavaPlugin implements Listener {
             debug("Metrics have been disabled in the config.yml. Guess we won't support all this hard work today!");
         }
 
-        taskresetid = startStatResetTimer();
-        playerupdateid = startPlayerUpdateTimer();
+        // Anyone already online (an improper reload) still needs a play time session opened,
+        // or nothing would accrue for them until they reconnected.
+        for (Player online : players) {
+            Timer.startSession(online.getUniqueId());
+        }
+
+        taskresettimer = startStatResetTimer();
+        playerupdatetimer = startPlayerUpdateTimer();
 
         mpl.scheduling().asyncScheduler().run(() -> {
             ConnectionOpen coe = new ConnectionOpen();
@@ -292,32 +320,36 @@ public class Main extends JavaPlugin implements Listener {
     }
 
 
-    // Update player file, mostly for accurate playtime's every 10 minutes!
-    private int startPlayerUpdateTimer() {
-        final ScheduledTask playerupdatetime = mpl.scheduling().asyncScheduler().runAtFixedRate(() -> {
-            asyncrunning = true;
+    /*
+      Checkpoints every online player's file so play time survives a crash. A normal quit is
+      always exact; this interval only bounds how much of a session is lost if the server dies
+      without a shutdown. It used to be hardcoded to 12 seconds despite the comment claiming
+      ten minutes, which meant a write per online player every 12 seconds.
+     */
+    private ScheduledTask startPlayerUpdateTimer() {
+        final Duration interval = Duration.ofSeconds(playerupdateseconds);
+        return mpl.scheduling().asyncScheduler().runAtFixedRate(() -> {
             debug("Updating any online players data files...");
             for (Player p : Bukkit.getOnlinePlayers()) {
                 updateFile(p, false);
             }
-            asyncrunning = false;
             UpdatedPlayerStats ups = new UpdatedPlayerStats();
             Bukkit.getPluginManager().callEvent(ups);
-        }, Duration.ofMillis(12000),  Duration.ofMillis(12000));
-        return playerupdatetime.hashCode();
+        }, interval, interval);
     }
 
     // Reset Stats every 12 hours
-    private int startStatResetTimer() {
-        final ScheduledTask resetstatstimer =  mpl.scheduling().asyncScheduler().runAtFixedRate(() -> {
+    private ScheduledTask startStatResetTimer() {
+        // Was 864000ms (14 minutes), not the 12 hours the comment promised.
+        final Duration interval = Duration.ofHours(12);
+        return mpl.scheduling().asyncScheduler().runAtFixedRate(() -> {
             debug("Resetting the puuids debug statistics, it's been over 12 hours...");
             setTimeMS = 0;
-            setTimes = 0;
-            getTimes = 0;
+            setTimes.set(0);
+            getTimes.set(0);
             qTimesMS = 0;
             setQRequests = 0;
-        }, Duration.ofMillis(864000), Duration.ofMillis(864000));
-        return resetstatstimer.hashCode();
+        }, interval, interval);
     }
     // End of 12 hour Stat Reset timer
 
@@ -335,21 +367,33 @@ public class Main extends JavaPlugin implements Listener {
 
         allowconnections = false;
 
+        // Stop the repeating tasks before flushing, so nothing queues more work behind us.
+        // These used to be cancelled by passing a ScheduledTask's hashCode to the Bukkit
+        // scheduler as if it were a task id, which cancelled nothing of ours (and could well
+        // have cancelled another plugin's task that happened to hold that id).
+        if (taskresettimer != null) {
+            taskresettimer.cancel();
+            taskresettimer = null;
+        }
+        if (playerupdatetimer != null) {
+            playerupdatetimer.cancel();
+            playerupdatetimer = null;
+        }
+
         for (Player p : Bukkit.getOnlinePlayers()) {
-            Cooldowns.clearAll(p);
+            Cooldowns.clearAll(p.getUniqueId());
             updateFile(p, true);
         }
 
         Timer.stopTimer();
-        getServer().getScheduler().cancelTask(taskresetid);
-        getServer().getScheduler().cancelTask(playerupdateid);
         mpl.scheduling().cancelGlobalTasks();
 
         plugins.clear();
+        nameindex.clear();
 
         setTimeMS = 0;
-        setTimes = 0;
-        getTimes = 0;
+        setTimes.set(0);
+        getTimes.set(0);
         qTimesMS = 0;
         setQRequests = 0;
 
@@ -384,18 +428,31 @@ public class Main extends JavaPlugin implements Listener {
         updatecheck = getConfig().getBoolean("Settings.Update-Checking", true);
         Msgs.prefix = getConfig().getString("Settings.Prefix", "&8[&e&lPUUIDs&8]");
 
-        if (getConfig().getLong("Advanced.Save-Rate-Ticks", 10) != 0) {
+        if (getConfig().getLong("Advanced.Save-Rate-Ticks", 10) > 0) {
             Timer.processrate = getConfig().getLong("Advanced.Save-Rate-Ticks", 10);
         } else {
             Timer.processrate = 10;
             getLogger().warning("Save Rate was set to 0 ticks in the config, this will cause damage. Defaulting to 10 ticks.");
         }
 
-        if (getConfig().getLong("Advanced.Max-Processes-Per-Queue", 25) != 0) {
+        if (getConfig().getInt("Advanced.Max-Processes-Per-Queue", 25) > 0) {
             Timer.sizelimit = getConfig().getInt("Advanced.Max-Processes-Per-Queue", 25);
         } else {
-            Timer.processrate = 25;
+            // This used to reset processrate instead of sizelimit, so a queue size of 0 both
+            // kept the broken limit and quietly changed the save rate.
+            Timer.sizelimit = 25;
             getLogger().warning("Max-Processes-Per-Queue was set to 0 in the config, this will prevent data from being set. Defaulting to 25.");
+        }
+
+        playerupdateseconds = Math.max(5, getConfig().getInt("Advanced.Player-Update-Seconds", 300));
+
+        // Picks up a changed Save-Rate-Ticks on /puuids reload. No-op before the timer exists.
+        Timer.startTimer();
+
+        if (playerupdatetimer != null) {
+            // Only on reload; during onEnable the timer hasn't been created yet.
+            playerupdatetimer.cancel();
+            playerupdatetimer = startPlayerUpdateTimer();
         }
 
         if (isFullySupported) {
@@ -506,16 +563,52 @@ public class Main extends JavaPlugin implements Listener {
         return Timer.queueSet(plname, uuid, "PUUIDS_SET_AS_ALL_NULL", null);
     }
 
-    public String nametoUUID(String inputsearch) {
-        File folder = new File(this.getDataFolder(), File.separator + "Data");
+    /** Remembers a username so the next lookup for it doesn't have to scan the data folder. */
+    void indexName(String name, String uuid) {
+        if (name == null || uuid == null) {
+            return;
+        }
+        nameindex.put(name.toLowerCase(Locale.ROOT), uuid);
+    }
 
-        for (File AllData : Objects.requireNonNull(folder.listFiles())) {
+    /*
+      This used to load and parse every file in the data folder on the calling thread, which is
+      the main thread for /puuids ontime <player> and for the PUUIDS.getUUID(name) API. On a
+      server with thousands of player files that's a visible freeze on every single call.
+      The index answers the common case outright; a miss still falls back to the full scan.
+     */
+    public String nametoUUID(String inputsearch) {
+        if (inputsearch == null) {
+            return "0";
+        }
+
+        final String key = inputsearch.toLowerCase(Locale.ROOT);
+        final File folder = new File(this.getDataFolder(), File.separator + "Data");
+
+        final String cached = nameindex.get(key);
+        if (cached != null) {
+            // Confirm against the one file it points at, in case they've since changed name.
+            final File f = new File(folder, File.separator + cached + ".yml");
+            if (f.exists() && inputsearch.equalsIgnoreCase(YamlConfiguration.loadConfiguration(f).getString("Username"))) {
+                return cached;
+            }
+            nameindex.remove(key, cached);
+        }
+
+        final File[] files = folder.exists() ? folder.listFiles() : null;
+        if (files == null) {
+            return "0";
+        }
+
+        for (File AllData : files) {
             File f = new File(AllData.getPath());
 
             FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
             String playername = setcache.getString("Username");
             String UUID = setcache.getString("UUID");
+
+            indexName(playername, UUID);
 
             if (inputsearch.equalsIgnoreCase(playername)) {
                 return UUID;
@@ -562,25 +655,35 @@ public class Main extends JavaPlugin implements Listener {
         return setcache.getLong("Last-On");
     }
 
+    /**
+     * Total play time in seconds, including the part of a live session that hasn't been
+     * written to file yet. Without that, asking an online player how long they'd played
+     * reported whatever was last checkpointed rather than the truth.
+     */
     public long getPlayTime(String uuid) {
+        if (uuid == null) {
+            return 0;
+        }
+
+        long played = 0;
+
         File cache = new File(this.getDataFolder(), File.separator + "Data");
-
-        if (!cache.exists()) {
-            return 0;
-        }
-
         File f = new File(cache, File.separator + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
-        if (!f.exists()) {
-            return 0;
+        if (cache.exists() && f.exists()) {
+            FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+            if (setcache.contains("Time-Played")) {
+                played = setcache.getLong("Time-Played");
+            }
         }
 
-        if (!setcache.contains("Time-Played")) {
-            return 0;
+        try {
+            played += Timer.liveSessionSeconds(UUID.fromString(uuid));
+        } catch (IllegalArgumentException notAUuid) {
+            // Nothing live to add for a malformed UUID.
         }
 
-        return setcache.getLong("Time-Played");
+        return played;
     }
 
     public String getPlayerIP(String uuid) {
@@ -617,7 +720,7 @@ public class Main extends JavaPlugin implements Listener {
 
 
     private void updateFile(Player p, boolean quit) {
-        Timer.updateSystem.put(p, quit);
+        Timer.queuePlayerUpdate(p, quit);
     }
 
     /*
@@ -639,10 +742,16 @@ public class Main extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onJoin(PlayerJoinEvent e) {
+        final Player joining = e.getPlayer();
+
+        // Open the play time session here and unconditionally: it has to happen even when the
+        // file refresh below is skipped by the cooldown, or a quick reconnect accrues nothing.
+        Timer.startSession(joining.getUniqueId());
+
         mpl.scheduling().asyncScheduler().run(() -> {
-            Player p = e.getPlayer();
+            Player p = joining;
             UUID uuid = p.getUniqueId();
-            if (Cooldowns.joined.contains(uuid)) {
+            if (Cooldowns.recentlyJoined(uuid)) {
                 debug(p.getName() + "'s file won't be refreshed, it was updated less than 60s ago. [Join]");
                 return;
             }
@@ -678,14 +787,14 @@ public class Main extends JavaPlugin implements Listener {
         Player p = e.getPlayer();
         UUID uuid = p.getUniqueId();
 
-        if (!Cooldowns.joined.contains(uuid)) {
-            updateFile(p, true);
-            Cooldowns.justJoined(uuid);
-        } else {
-            debug(p.getName() + "'s file won't be refreshed, it was updated less than 60s ago. [Quit]");
-        }
-
-        Cooldowns.confirmall.remove(p);
+        /*
+          The quit write is never skipped any more. It used to be suppressed whenever the player
+          had joined within the cooldown window, which threw away the whole session: the quit
+          write is the only thing that closes the session and banks the time.
+         */
+        updateFile(p, true);
+        Cooldowns.justJoined(uuid);
+        Cooldowns.clearConfirm(uuid);
     }
 
     private String randomString() {
@@ -853,8 +962,8 @@ public class Main extends JavaPlugin implements Listener {
                             Msgs.send(sender, "&fBukkit Version: &e" + version);
                         }
                     }
-                    Msgs.send(sender, "&fTotal Sets: &e" + setTimes);
-                    Msgs.send(sender, "&fTotal Gets: &e" + getTimes);
+                    Msgs.send(sender, "&fTotal Sets: &e" + setTimes.get());
+                    Msgs.send(sender, "&fTotal Gets: &e" + getTimes.get());
 
                     try {
                         Runtime r = Runtime.getRuntime();
@@ -909,23 +1018,25 @@ public class Main extends JavaPlugin implements Listener {
                     return true;
                 }
 
-                if (!Cooldowns.confirmall.containsKey(p)) {
+                String pendingkey = Cooldowns.confirmKey(p.getUniqueId());
+
+                if (pendingkey == null) {
                     String key = randomString();
                     thinking(p);
                     Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fThis may corrupt data. Do &7&l/puuids togglesave " + key + "&f in 10s to confirm.");
-                    Cooldowns.confirm(p, key);
+                    Cooldowns.confirm(p.getUniqueId(), key);
                     return true;
                 } else {
                     // Has reset all confirmation key active v v v
                     if (args.length == 1) {
-                        Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fType &7&l/puuids togglesave " + Cooldowns.confirmall.get(p) + "&f to confirm.");
+                        Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fType &7&l/puuids togglesave " + pendingkey + "&f to confirm.");
                         thinking(p);
                         return true;
                     } else {
-                        if (!args[1].equalsIgnoreCase(Cooldowns.confirmall.get(p))) {
+                        if (!args[1].equalsIgnoreCase(pendingkey)) {
                             bass(p);
                             Msgs.sendPrefix(p, "&6&lToggle Saving Canceled. &fThat was an invalid confirmation key.");
-                            Cooldowns.confirmall.remove(p);
+                            Cooldowns.clearConfirm(p.getUniqueId());
                             return true;
                         }
                     }
@@ -942,7 +1053,7 @@ public class Main extends JavaPlugin implements Listener {
                 }
                 Msgs.send(p, "&7");
                 pop(p);
-                Cooldowns.confirmall.remove(p);
+                Cooldowns.clearConfirm(p.getUniqueId());
                 return true;
             }
 
@@ -956,7 +1067,7 @@ public class Main extends JavaPlugin implements Listener {
                     return true;
                 }
 
-                if (!Cooldowns.canRunLargeTask) {
+                if (!Cooldowns.canRunLargeTask()) {
                     bass(sender);
                     Msgs.sendPrefix(sender, "&6&lPlease Wait. &fRunning large tasks this quickly can have a negative impact on your server's performance.");
                     return true;
@@ -1039,23 +1150,25 @@ public class Main extends JavaPlugin implements Listener {
                         return true;
                     }
 
-                    if (!Cooldowns.confirmall.containsKey(p)) {
+                    String pendingkey = Cooldowns.confirmKey(p.getUniqueId());
+
+                    if (pendingkey == null) {
                         String key = randomString();
                         thinking(p);
                         Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fThis will erase ALL player data from your PUUID's data folder. Do &7&l/puuids reset all " + key + "&f in 10s to confirm.");
-                        Cooldowns.confirm(p, key);
+                        Cooldowns.confirm(p.getUniqueId(), key);
                         return true;
                     } else {
                         // Has reset all confirmation key active v v v
                         if (args.length == 2) {
-                            Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fType &7&l/puuids reset all " + Cooldowns.confirmall.get(p) + "&f to confirm.");
+                            Msgs.sendPrefix(p, "&c&lARE YOU SURE? &fType &7&l/puuids reset all " + pendingkey + "&f to confirm.");
                             thinking(p);
                             return true;
                         } else {
-                            if (!args[2].equalsIgnoreCase(Cooldowns.confirmall.get(p))) {
+                            if (!args[2].equalsIgnoreCase(pendingkey)) {
                                 bass(p);
                                 Msgs.sendPrefix(p, "&6&lReset Canceled. &fThat was an invalid reset key.");
-                                Cooldowns.confirmall.remove(p);
+                                Cooldowns.clearConfirm(p.getUniqueId());
                                 return true;
                             }
                         }
@@ -1141,7 +1254,7 @@ public class Main extends JavaPlugin implements Listener {
 
                 if (sender instanceof Player) {
                     Player p = (Player) sender;
-                    if (Cooldowns.ontime.contains(p.getUniqueId())) {
+                    if (Cooldowns.onTimeCooling(p.getUniqueId())) {
                         Msgs.sendPrefix(sender, "&c&lSlow Down. &fPlease wait before checking that again.");
                         bass(p);
                         return true;
@@ -1186,7 +1299,7 @@ public class Main extends JavaPlugin implements Listener {
                 } else {
                     Msgs.send(sender, "&8&l> &fHooked Plugins: &7&l0");
                 }
-                if (setTimeMS == 0 && setTimes == 0) {
+                if (setTimeMS == 0 && setTimes.get() == 0) {
                     Msgs.send(sender, "&8&l> &fSet Information: &7&l--ms");
                 } else {
                     Msgs.send(sender, "&8&l> &fSet Information: &e&l" + setTimeMS + "ms");
@@ -1202,8 +1315,8 @@ public class Main extends JavaPlugin implements Listener {
                     }
                 }
 
-                Msgs.send(sender, "&8&l> &fSet Requests: &e&l" + setTimes);
-                Msgs.send(sender, "&8&l> &fGet Requests: &e&l" + getTimes);
+                Msgs.send(sender, "&8&l> &fSet Requests: &e&l" + setTimes.get());
+                Msgs.send(sender, "&8&l> &fGet Requests: &e&l" + getTimes.get());
 
                 if (status) {
                     if (setTimeMS < 10 || qTimesMS < 650) {
