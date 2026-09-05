@@ -15,7 +15,7 @@ If you haven't already, make sure the maven repo is listed:
 ```xml
 <repository>
     <id>zachduda</id>
-    <url>https://zachduda.com/maven</url>
+    <url>https://maven.zachduda.com/releases</url>
 </repository>
 ```
 
