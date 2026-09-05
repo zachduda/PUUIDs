@@ -1224,6 +1224,7 @@ public class Main extends JavaPlugin implements Listener {
                     mpl.scheduling().asyncScheduler().run(() -> {
                         int total = 0;
                         final long start = System.currentTimeMillis();
+                        final MySQLStorage db = storage;
                         for (File AllData : Objects.requireNonNull(folder.listFiles())) {
                             File f = new File(AllData.getPath());
 
@@ -1232,8 +1233,15 @@ public class Main extends JavaPlugin implements Listener {
                             setcache.set("Time-Played", 0);
 
                             try {
-                                setcache.save(f);
+                                FileStore.save(setcache, f);
+                                if (db != null && db.isConnected()) {
+                                    // Or the database would hand the old play time straight back
+                                    // on the next sync.
+                                    db.mirrorPlayer(setcache.getString("UUID"), setcache.getString("Username"),
+                                            setcache.getString("IP"), setcache.getLong("Last-On"), 0);
+                                }
                             } catch (Exception err) {
+                                debug("Unable to reset " + f.getName() + ": " + err);
                             }
                             total++;
                         }
@@ -1304,6 +1312,7 @@ public class Main extends JavaPlugin implements Listener {
                     mpl.scheduling().asyncScheduler().run(() -> {
                         int total = 0;
                         final long start = System.currentTimeMillis();
+                        final List<String> wiped = new ArrayList<>();
                         for (File AllData : Objects.requireNonNull(folder.listFiles())) {
                             File f = new File(AllData.getPath());
 
@@ -1313,10 +1322,19 @@ public class Main extends JavaPlugin implements Listener {
                             debug("Reset" + setcache.getString("Username") + "'s file back to basics. (" + f.getName() + ")");
 
                             try {
-                                setcache.save(f);
+                                FileStore.save(setcache, f);
+                                wiped.add(setcache.getString("UUID"));
                             } catch (Exception err) {
+                                debug("Unable to reset " + f.getName() + ": " + err);
                             }
                             total++;
+                        }
+
+                        final MySQLStorage db = storage;
+                        if (db != null && db.isConnected()) {
+                            // The same rows have to go from MySQL, or a later import or join
+                            // sync would put everything that was just erased back again.
+                            db.clearPluginData(wiped, line -> Msgs.sendPrefix(sender, line));
                         }
 
                         final String finished = Long.toString(System.currentTimeMillis() - start);

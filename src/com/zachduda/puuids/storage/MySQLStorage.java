@@ -594,6 +594,48 @@ public final class MySQLStorage {
         }
     }
 
+    /**
+     * Drops every plugin's rows for the given players, leaving their player record alone.
+     * <p>
+     * This is what {@code /puuids reset all} does to the files, and it has to happen here too:
+     * otherwise a later import - or a join refresh - would hand back exactly the data an admin
+     * had just erased.
+     */
+    public void clearPluginData(List<String> uuids, Consumer<String> progress) {
+        if (uuids == null || uuids.isEmpty()) {
+            return;
+        }
+
+        final List<String> targets = new ArrayList<>(uuids);
+        targets.removeIf(java.util.Objects::isNull);
+
+        submit(() -> {
+            try {
+                // Anything already queued for these players has to land first, or it would be
+                // written back in behind the delete.
+                flush();
+
+                final Map<String, String> tables = pluginTables();
+                for (Map.Entry<String, String> entry : tables.entrySet()) {
+                    final String table = entry.getValue();
+                    for (int from = 0; from < targets.size(); from += IMPORT_PAGE) {
+                        final List<String> page = targets.subList(from, Math.min(targets.size(), from + IMPORT_PAGE));
+                        final List<Op> deletes = new ArrayList<>(page.size());
+                        for (String uuid : page) {
+                            deletes.add(new Op.Clear(table, entry.getKey(), uuid));
+                        }
+                        write(deletes);
+                    }
+                }
+                progress.accept("&a&lDone. &fCleared the same data out of MySQL.");
+            } catch (SQLException err) {
+                fail("Unable to clear plugin data from MySQL", err);
+                progress.accept("&c&lHeads Up. &fThe files were reset, but MySQL still holds the old data: "
+                        + err.getMessage());
+            }
+        });
+    }
+
     /** Turns one player's file into the rows that represent it. */
     private void collect(String uuid, FileConfiguration data, List<Op> batch) {
         batch.add(new Op.Player(playerstable, uuid,
