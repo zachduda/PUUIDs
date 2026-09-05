@@ -3,6 +3,9 @@ package com.zachduda.puuids;
 import com.zachduda.puuids.api.PUUIDS.*;
 import com.zachduda.puuids.api.*;
 import com.zachduda.puuids.api.VersionManager.VersionTest;
+import com.zachduda.puuids.storage.FileStore;
+import com.zachduda.puuids.storage.MySQLSettings;
+import com.zachduda.puuids.storage.MySQLStorage;
 import com.earth2me.essentials.Essentials;
 import com.earth2me.essentials.User;
 import com.google.common.io.Files;
@@ -67,6 +70,9 @@ public class Main extends JavaPlugin implements Listener {
     // Lower-cased username -> UUID, so name lookups don't have to parse every file on disk.
     private final Map<String, String> nameindex = new ConcurrentHashMap<>();
 
+    // Optional MySQL mirror of the Data folder. Null whenever it is off or couldn't connect.
+    private volatile MySQLStorage storage;
+
     private Metrics metrics;
 
     public void onEnable() {
@@ -103,132 +109,19 @@ public class Main extends JavaPlugin implements Listener {
         saveConfig();
         updateConfig();
 
-        final boolean useclean = getConfig().getBoolean("Settings.File-Cleanup.Enabled");
-        final boolean cleaness = getConfig().getBoolean("Settings.File-Cleanup.Clean-Essentials");
-
-        mpl.scheduling().asyncScheduler().run(() -> {
-            final Essentials ess = (Essentials) Bukkit.getPluginManager().getPlugin("Essentials");
-            final File folder = new File(this.getDataFolder(), File.separator + "Data");
-            final File[] cachefiles = folder.exists() ? folder.listFiles() : null;
-            if (cachefiles == null) {
-                asyncrunning = false;
-                return;
-            }
-
-            ArrayList<String> unknownfiles = new ArrayList<>();
-
-            int maxDays = getConfig().getInt("Settings.File-Cleanup.Max-Days");
-
-            for (File cachefile : cachefiles) {
-                String path = cachefile.getPath();
-
-                final File f = new File(path);
-                if (!Files.getFileExtension(path).equalsIgnoreCase("yml")) {
-                    if(f.getName().toLowerCase().contains("ds_store")) {
-                        if(!f.delete()) {
-                            debug("Error deleting file:" + f.toPath());
-                        }
-                        debug("Found macOS .ds_store file in folder. Deleting!");
-                    } else {
-                        unknownfiles.add(f.getName());
-                    }
-                } else {
-
-                    try {
-                        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
-                        if (!setcache.contains("Last-On") || (!setcache.contains("Username")) || (!setcache.contains("UUID"))) {
-                            if(!f.delete()) {
-                                debug("Error deleting file:" + f.toPath());
-                            }
-                            debug("Deleted file: " + f.getName() + "... It was invalid!");
-                        } else {
-
-                            long daysAgo = Math
-                                    .abs(((setcache.getLong("Last-On")) / 86400000) - (System.currentTimeMillis() / 86400000));
-
-                            String playername = setcache.getString("Username");
-
-                            if (daysAgo >= maxDays && useclean) {
-                                if(!f.delete()) {
-                                    debug("Error deleting file:" + f.toPath());
-                                }
-                                if (hasess && cleaness) {
-                                    User user = Objects.requireNonNull(ess).getUser(playername);
-                                    if (!user.getBase().isBanned()) {
-                                        // Cleanup EssentialsX data too unless they are banned, in which case their data file should be left alone as to not unban them.
-                                        user.reset();
-                                    }
-                                }
-                                if (debug) {
-                                    getLogger().info("[Debug] Deleted " + playername + "'s data file because it's " + daysAgo +
-                                            "s old. (Max: " + maxDays + " Days)");
-                                }
-                            } else {
-                                /*
-                                  The following EnumUtil code call for native Spigot player's ontime contains code from EssentialsX.
-                                  https://github.com/EssentialsX/Essentials/blob/3af931740b20507837276f87f9456221653ac43d/Essentials/src/main/java/com/earth2me/essentials/commands/Commandplaytime.java
-                                 */
-                                final String uuid = setcache.getString("UUID");
-                                indexName(playername, uuid);
-                                long playtime = 0;
-                                if(isFullySupported) {
-                                    try {
-                                        // The statistic counts ticks; Time-Played is in seconds.
-                                        // This used to multiply by 50 (giving milliseconds), which
-                                        // overwrote every file with a play time 1000x too large.
-                                        final long ticks = getServer().getOfflinePlayer(UUID.fromString(Objects.requireNonNull(uuid)))
-                                                .getStatistic(EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK"));
-                                        playtime = ticks / 20L;
-                                    } catch (Exception e) {
-                                        if(debug) {
-                                            debug("Unable to use getStatistic for player playtime:");
-                                            e.printStackTrace();
-                                        }
-                                    }
-                                }
-                                debug("Spigot playtime for " + playername + " is " + playtime/60 + " minutes");
-                                final long puuids_playtime = getPlayTime(uuid);
-                                debug("PUUIDS playtime for " + playername + " is " + puuids_playtime/60 + " minutes");
-                                if(playtime > puuids_playtime) {
-                                    debug("Using native MC playtime for puuids data file for " + playername);
-                                    setcache.set("Time-Played", playtime);
-                                    setcache.save(f);
-                                }
-                                if (debug) {
-                                    if (useclean) {
-                                        getLogger().info("[Debug] Keeping " + playername + "'s data file. (" + daysAgo + "/" + maxDays +
-                                                ")");
-                                    } else {
-                                        getLogger().info("[Debug] Found " + playername + "'s data file. (" + daysAgo + " days)");
-                                    }
-                                }
-                            } // end of not too old check.
-                        } // end of contains variables check.
-                    } catch (Exception err) {
-                        status = false;
-                        statusreason = "Error when trying to save a player file during the clean-up start cycle.";
-                        if (debug) {
-                            debug("Error when trying to work with player file: " + f.getName() + ", see below:");
-                            err.printStackTrace();
-                        }
-                    } // end of catch err
-                } // end of if not global check
-            } // end of For loop
-
-            if (!unknownfiles.isEmpty()) {
-                getLogger().warning("Found " + unknownfiles.size() + " unknown files in your Data folder:");
-                for (String file : unknownfiles) {
-                    debug("   - " + file);
-                }
-                getLogger().warning("Make sure that the files above weren't misplaced or corrupted.");
-                status = false;
-                statusreason = "Unknown file was found in your puuids Data folder, please remove the following files: " + unknownfiles;
-            }
-
-            asyncrunning = false;
-            unknownfiles.clear();
-        }); // End of Async;
+        /*
+          When the database is the master copy - a fresh server joining a network, or one being
+          restored - the folder has to be rebuilt before anything reads or cleans it, so the scan
+          waits for the import rather than racing it.
+         */
+        final MySQLStorage atstartup = storage;
+        if (atstartup != null && atstartup.settings().importonstartup) {
+            getLogger().info("Importing player data from MySQL before start-up checks...");
+            atstartup.importAll(line -> Msgs.sendPrefix(Bukkit.getConsoleSender(), line),
+                    () -> mpl.scheduling().asyncScheduler().run(this::startupScan));
+        } else {
+            mpl.scheduling().asyncScheduler().run(this::startupScan);
+        }
 
         plugins.put(this, APIVersion.V4);
         allowconnections = true;
@@ -319,6 +212,155 @@ public class Main extends JavaPlugin implements Listener {
         });
     }
 
+    /**
+     * Walks the Data folder once at start-up: drops files that are corrupt or long abandoned,
+     * fills the username index, and reconciles play time with the server's own statistic.
+     * <p>
+     * Runs off the main thread, and always ends by clearing {@code asyncrunning} - the file
+     * writer is held until it does.
+     */
+    private void startupScan() {
+        try {
+            final boolean useclean = getConfig().getBoolean("Settings.File-Cleanup.Enabled", true);
+            final boolean cleaness = getConfig().getBoolean("Settings.File-Cleanup.Clean-Essentials", true);
+            // Without the default a missing (or mistyped) key read as 0 days, which deletes the
+            // entire Data folder on the next start-up.
+            final int maxDays = Math.max(1, getConfig().getInt("Settings.File-Cleanup.Max-Days", 365));
+
+            final Essentials ess = (Essentials) Bukkit.getPluginManager().getPlugin("Essentials");
+            final File folder = new File(this.getDataFolder(), File.separator + "Data");
+            final File[] cachefiles = folder.exists() ? folder.listFiles() : null;
+            if (cachefiles == null) {
+                return;
+            }
+
+            ArrayList<String> unknownfiles = new ArrayList<>();
+
+            for (File cachefile : cachefiles) {
+                String path = cachefile.getPath();
+
+                final File f = new File(path);
+                if (!Files.getFileExtension(path).equalsIgnoreCase("yml")) {
+                    if (f.getName().toLowerCase().contains("ds_store")) {
+                        if (!f.delete()) {
+                            debug("Error deleting file:" + f.toPath());
+                        }
+                        debug("Found macOS .ds_store file in folder. Deleting!");
+                    } else if (f.getName().endsWith(FileStore.TEMP_SUFFIX)) {
+                        // Left behind by a save that was interrupted; the real file is intact.
+                        if (!f.delete()) {
+                            debug("Error deleting file:" + f.toPath());
+                        }
+                        debug("Cleaned up a leftover temporary file: " + f.getName());
+                    } else {
+                        unknownfiles.add(f.getName());
+                    }
+                } else {
+
+                    try {
+                        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+
+                        if (!setcache.contains("Last-On") || (!setcache.contains("Username")) || (!setcache.contains("UUID"))) {
+                            if(!f.delete()) {
+                                debug("Error deleting file:" + f.toPath());
+                            }
+                            debug("Deleted file: " + f.getName() + "... It was invalid!");
+                        } else {
+
+                            long daysAgo = Math
+                                    .abs(((setcache.getLong("Last-On")) / 86400000) - (System.currentTimeMillis() / 86400000));
+
+                            String playername = setcache.getString("Username");
+
+                            if (daysAgo >= maxDays && useclean) {
+                                if(!f.delete()) {
+                                    debug("Error deleting file:" + f.toPath());
+                                }
+                                if (hasess && cleaness) {
+                                    User user = Objects.requireNonNull(ess).getUser(playername);
+                                    if (!user.getBase().isBanned()) {
+                                        // Cleanup EssentialsX data too unless they are banned, in which case their data file should be left alone as to not unban them.
+                                        user.reset();
+                                    }
+                                }
+                                if (debug) {
+                                    getLogger().info("[Debug] Deleted " + playername + "'s data file because it's " + daysAgo +
+                                            "s old. (Max: " + maxDays + " Days)");
+                                }
+                            } else {
+                                /*
+                                  The following EnumUtil code call for native Spigot player's ontime contains code from EssentialsX.
+                                  https://github.com/EssentialsX/Essentials/blob/3af931740b20507837276f87f9456221653ac43d/Essentials/src/main/java/com/earth2me/essentials/commands/Commandplaytime.java
+                                 */
+                                final String uuid = setcache.getString("UUID");
+                                indexName(playername, uuid);
+                                long playtime = 0;
+                                if(isFullySupported) {
+                                    try {
+                                        // The statistic counts ticks; Time-Played is in seconds.
+                                        // This used to multiply by 50 (giving milliseconds), which
+                                        // overwrote every file with a play time 1000x too large.
+                                        final long ticks = getServer().getOfflinePlayer(UUID.fromString(Objects.requireNonNull(uuid)))
+                                                .getStatistic(EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK"));
+                                        playtime = ticks / 20L;
+                                    } catch (Exception e) {
+                                        if(debug) {
+                                            debug("Unable to use getStatistic for player playtime:");
+                                            e.printStackTrace();
+                                        }
+                                    }
+                                }
+                                debug("Spigot playtime for " + playername + " is " + playtime/60 + " minutes");
+                                final long puuids_playtime = getPlayTime(uuid);
+                                debug("PUUIDS playtime for " + playername + " is " + puuids_playtime/60 + " minutes");
+                                if(playtime > puuids_playtime) {
+                                    debug("Using native MC playtime for puuids data file for " + playername);
+                                    setcache.set("Time-Played", playtime);
+                                    FileStore.save(setcache, f);
+                                }
+                                if (debug) {
+                                    if (useclean) {
+                                        getLogger().info("[Debug] Keeping " + playername + "'s data file. (" + daysAgo + "/" + maxDays +
+                                                ")");
+                                    } else {
+                                        getLogger().info("[Debug] Found " + playername + "'s data file. (" + daysAgo + " days)");
+                                    }
+                                }
+                            } // end of not too old check.
+                        } // end of contains variables check.
+                    } catch (Exception err) {
+                        status = false;
+                        statusreason = "Error when trying to save a player file during the clean-up start cycle.";
+                        if (debug) {
+                            debug("Error when trying to work with player file: " + f.getName() + ", see below:");
+                            err.printStackTrace();
+                        }
+                    } // end of catch err
+                } // end of if not global check
+            } // end of For loop
+
+            if (!unknownfiles.isEmpty()) {
+                getLogger().warning("Found " + unknownfiles.size() + " unknown files in your Data folder:");
+                for (String file : unknownfiles) {
+                    debug("   - " + file);
+                }
+                getLogger().warning("Make sure that the files above weren't misplaced or corrupted.");
+                status = false;
+                statusreason = "Unknown file was found in your puuids Data folder, please remove the following files: " + unknownfiles;
+            }
+
+            unknownfiles.clear();
+        } finally {
+            // Saving stays frozen until this returns, however it returns.
+            asyncrunning = false;
+        }
+
+        final MySQLStorage started = storage;
+        if (started != null && started.settings().exportonstartup) {
+            getLogger().info("Exporting the Data folder to MySQL...");
+            started.exportAll(line -> Msgs.sendPrefix(Bukkit.getConsoleSender(), line), null);
+        }
+    }
 
     /*
       Checkpoints every online player's file so play time survives a crash. A normal quit is
@@ -359,6 +401,55 @@ public class Main extends JavaPlugin implements Listener {
         }
     }
 
+    public boolean isDebug() {
+        return debug;
+    }
+
+    /** The MySQL mirror, or null when it is switched off or couldn't connect. */
+    public MySQLStorage getStorage() {
+        return storage;
+    }
+
+    /**
+     * Whether the file writer is currently held. Queued changes accumulate while it is, which is
+     * how the start-up scan, the reset commands and a MySQL import all keep the folder to
+     * themselves.
+     */
+    public boolean isSavingPaused() {
+        return asyncrunning;
+    }
+
+    public void setSavingPaused(boolean paused) {
+        asyncrunning = paused;
+    }
+
+    /**
+     * Starts, stops or rebuilds the MySQL mirror so it matches the config. Safe to call on a
+     * reload: an unchanged MySQL section leaves the existing connection alone.
+     */
+    private void applyStorageConfig() {
+        final MySQLSettings updated = MySQLSettings.from(getConfig());
+        final MySQLStorage current = storage;
+
+        if (current != null && current.settings().sameAs(updated)) {
+            return;
+        }
+
+        if (current != null) {
+            storage = null;
+            current.shutdown();
+        }
+
+        if (!updated.enabled) {
+            return;
+        }
+
+        final MySQLStorage created = new MySQLStorage(this, updated);
+        if (created.start()) {
+            storage = created;
+        }
+    }
+
     public void onDisable() {
         final long start = System.currentTimeMillis();
 
@@ -386,6 +477,14 @@ public class Main extends JavaPlugin implements Listener {
         }
 
         Timer.stopTimer();
+
+        // After the file writer, so every last change it made is mirrored before we disconnect.
+        final MySQLStorage closing = storage;
+        storage = null;
+        if (closing != null) {
+            closing.shutdown();
+        }
+
         mpl.scheduling().cancelGlobalTasks();
 
         plugins.clear();
@@ -410,9 +509,11 @@ public class Main extends JavaPlugin implements Listener {
         }
         debug("Configuration version is: " + conf_ver);
 
-        if((Objects.equals(getConfig().getString("Advanced.UUID"), "0")) || (conf_ver < 2)) {
+        // The id is read back from Advanced.UUID, but used to be written to a top-level "UUID"
+        // key - so getServerId() always answered "0" and a fresh id was generated every start-up.
+        if(Objects.equals(getConfig().getString("Advanced.UUID"), "0") || getConfig().getString("Advanced.UUID") == null) {
             debug("Generating new server UUID for saving...");
-            getConfig().set("UUID", UUID.randomUUID().toString());
+            getConfig().set("Advanced.UUID", UUID.randomUUID().toString());
         }
 
         if(conf_ver < 2) {
@@ -462,10 +563,14 @@ public class Main extends JavaPlugin implements Listener {
             debug("Sounds have been disabled, this is an older version of Minecraft.");
         }
 
-        if(getConfig().getBoolean("Advanced.Allow-Unsafe-Reloads")) {
-            allow_unsafe_reloads = true;
+        // Assigned either way: turning the option back off and reloading used to leave unsafe
+        // reloads permitted until the next restart.
+        allow_unsafe_reloads = getConfig().getBoolean("Advanced.Allow-Unsafe-Reloads", false);
+        if(allow_unsafe_reloads) {
             getLogger().warning("Unsafe reloading (via /rl, /reload, /restart) is permitted per config.yml. This is VERY dangerous! You will get no support for corrupted files.");
         }
+
+        applyStorageConfig();
     }
 
 
@@ -564,7 +669,7 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     /** Remembers a username so the next lookup for it doesn't have to scan the data folder. */
-    void indexName(String name, String uuid) {
+    public void indexName(String name, String uuid) {
         if (name == null || uuid == null) {
             return;
         }
@@ -748,6 +853,13 @@ public class Main extends JavaPlugin implements Listener {
         // file refresh below is skipped by the cooldown, or a quick reconnect accrues nothing.
         Timer.startSession(joining.getUniqueId());
 
+        // On a network the player may have been on another server since we last saw them, so
+        // their file is refreshed from the shared database before anything reads it.
+        final MySQLStorage db = storage;
+        if (db != null && db.isConnected() && db.settings().synconjoin) {
+            db.pullPlayer(joining.getUniqueId().toString());
+        }
+
         mpl.scheduling().asyncScheduler().run(() -> {
             Player p = joining;
             UUID uuid = p.getUniqueId();
@@ -795,6 +907,7 @@ public class Main extends JavaPlugin implements Listener {
         updateFile(p, true);
         Cooldowns.justJoined(uuid);
         Cooldowns.clearConfirm(uuid);
+        Cooldowns.forgetOnTime(uuid);
     }
 
     private String randomString() {
@@ -898,9 +1011,14 @@ public class Main extends JavaPlugin implements Listener {
                     Msgs.send(sender, "&8&l> &f&l/puuids reset ontime &7Set everyone's total play-time back to 0.");
                 }
                 Msgs.send(sender, "&8&l> &f&l/puuids plugins &7Shows connected plugins.");
+                Msgs.send(sender, "&8&l> &f&l/puuids mysql &7Check on (or re-sync) the MySQL mirror.");
                 Msgs.send(sender, "");
                 pop(sender);
                 return true;
+            }
+
+            if (args[0].equalsIgnoreCase("mysql")) {
+                return mysqlCommand(sender, args);
             }
 
             if (args[0].equalsIgnoreCase("plugins")) {
@@ -1106,6 +1224,7 @@ public class Main extends JavaPlugin implements Listener {
                     mpl.scheduling().asyncScheduler().run(() -> {
                         int total = 0;
                         final long start = System.currentTimeMillis();
+                        final MySQLStorage db = storage;
                         for (File AllData : Objects.requireNonNull(folder.listFiles())) {
                             File f = new File(AllData.getPath());
 
@@ -1114,8 +1233,15 @@ public class Main extends JavaPlugin implements Listener {
                             setcache.set("Time-Played", 0);
 
                             try {
-                                setcache.save(f);
+                                FileStore.save(setcache, f);
+                                if (db != null && db.isConnected()) {
+                                    // Or the database would hand the old play time straight back
+                                    // on the next sync.
+                                    db.mirrorPlayer(setcache.getString("UUID"), setcache.getString("Username"),
+                                            setcache.getString("IP"), setcache.getLong("Last-On"), 0);
+                                }
                             } catch (Exception err) {
+                                debug("Unable to reset " + f.getName() + ": " + err);
                             }
                             total++;
                         }
@@ -1186,6 +1312,7 @@ public class Main extends JavaPlugin implements Listener {
                     mpl.scheduling().asyncScheduler().run(() -> {
                         int total = 0;
                         final long start = System.currentTimeMillis();
+                        final List<String> wiped = new ArrayList<>();
                         for (File AllData : Objects.requireNonNull(folder.listFiles())) {
                             File f = new File(AllData.getPath());
 
@@ -1195,10 +1322,19 @@ public class Main extends JavaPlugin implements Listener {
                             debug("Reset" + setcache.getString("Username") + "'s file back to basics. (" + f.getName() + ")");
 
                             try {
-                                setcache.save(f);
+                                FileStore.save(setcache, f);
+                                wiped.add(setcache.getString("UUID"));
                             } catch (Exception err) {
+                                debug("Unable to reset " + f.getName() + ": " + err);
                             }
                             total++;
+                        }
+
+                        final MySQLStorage db = storage;
+                        if (db != null && db.isConnected()) {
+                            // The same rows have to go from MySQL, or a later import or join
+                            // sync would put everything that was just erased back again.
+                            db.clearPluginData(wiped, line -> Msgs.sendPrefix(sender, line));
                         }
 
                         final String finished = Long.toString(System.currentTimeMillis() - start);
@@ -1358,20 +1494,102 @@ public class Main extends JavaPlugin implements Listener {
         return true;
     }
 
+    /*
+      Every connected plugin's name, comma separated. The old version appended the last plugin
+      twice and always left a trailing separator dangling on the end of the list.
+     */
     private StringBuilder getStringBuilder() {
         StringBuilder sb = new StringBuilder();
-        int plsb = 0;
         for(HashMap.Entry<Plugin, APIVersion> entry : plugins.entrySet()) {
             final String plname = entry.getKey().getDescription().getName();
             if (!plname.equalsIgnoreCase("puuids")) {
-                if (plsb == getPlugins().size() - 1) {
-                    sb.append(plname);
+                if (sb.length() > 0) {
+                    sb.append("&f, &e");
                 }
-
-                sb.append(plname).append("&f, &e");
-                plsb++;
+                sb.append(plname);
             }
         }
         return sb;
+    }
+
+    /**
+     * {@code /puuids mysql [export|import confirm|reconnect]}.
+     * <p>
+     * With no argument it reports on the mirror. The rest are the two directions of a manual
+     * re-sync plus a way to retry a connection that was down when the server started.
+     */
+    private boolean mysqlCommand(CommandSender sender, String[] args) {
+        final MySQLStorage db = storage;
+
+        if (args.length == 1) {
+            Msgs.send(sender, "");
+            Msgs.send(sender, "#4ec483&lPUUIDs &8&l| &fMySQL");
+            if (db == null) {
+                if (getConfig().getBoolean("MySQL.Enabled", false)) {
+                    Msgs.send(sender, "&8&l> &c&lNot Connected. &fCheck the console, then &7/puuids mysql reconnect");
+                } else {
+                    Msgs.send(sender, "&8&l> &7&lDisabled. &fSet &fMySQL.Enabled &fto true in your config.yml.");
+                }
+            } else {
+                for (String line : db.status()) {
+                    Msgs.send(sender, line);
+                }
+                Msgs.send(sender, "&8&l> &7&o/puuids mysql export &8- &7push the Data folder to MySQL");
+                Msgs.send(sender, "&8&l> &7&o/puuids mysql import confirm &8- &7overwrite the Data folder from MySQL");
+            }
+            Msgs.send(sender, "");
+            pop(sender);
+            return true;
+        }
+
+        if (args[1].equalsIgnoreCase("reconnect")) {
+            Msgs.sendPrefix(sender, "&7&oReconnecting to MySQL...");
+            thinking(sender);
+            if (db != null) {
+                storage = null;
+                db.shutdown();
+            }
+            applyStorageConfig();
+            if (storage == null) {
+                bass(sender);
+                Msgs.sendPrefix(sender, "&c&lStill Down. &fSee the console for what MySQL said.");
+            } else {
+                pop(sender);
+                Msgs.sendPrefix(sender, "&a&lConnected. &fPlayer data is being mirrored again.");
+            }
+            return true;
+        }
+
+        if (db == null || !db.isConnected()) {
+            bass(sender);
+            Msgs.sendPrefix(sender, "&c&lNot Connected. &fMySQL has to be on and reachable for that.");
+            return true;
+        }
+
+        if (args[1].equalsIgnoreCase("export")) {
+            Msgs.sendPrefix(sender, "&7&oExporting to MySQL, this may take a while...");
+            thinking(sender);
+            db.exportAll(line -> Msgs.sendPrefix(sender, line), null);
+            return true;
+        }
+
+        if (args[1].equalsIgnoreCase("import")) {
+            // This overwrites files with whatever the database holds, so it is never one word.
+            if (args.length < 3 || !args[2].equalsIgnoreCase("confirm")) {
+                bass(sender);
+                Msgs.sendPrefix(sender, "&c&lARE YOU SURE? &fEvery value in MySQL will overwrite the one in your Data folder.");
+                Msgs.sendPrefix(sender, "&fRun &7&l/puuids mysql import confirm&f if that is what you want.");
+                return true;
+            }
+
+            Msgs.sendPrefix(sender, "&7&oImporting from MySQL, saving is paused until it finishes...");
+            thinking(sender);
+            db.importAll(line -> Msgs.sendPrefix(sender, line), null);
+            return true;
+        }
+
+        bass(sender);
+        Msgs.sendPrefix(sender, "&c&lOops. &fTry &7/puuids mysql &f(export/import/reconnect)");
+        return true;
     }
 }

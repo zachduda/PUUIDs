@@ -57,6 +57,15 @@ public class Cooldowns {
         return active(ontime, p);
     }
 
+    /**
+     * Drops a leaving player's /ontime cooldown. Without this the map keeps an entry for every
+     * player who ever ran the command and never came back.
+     */
+    @SuppressWarnings("SpellCheckingInspection")
+    static void forgetOnTime(UUID p) {
+        ontime.remove(p);
+    }
+
     @SuppressWarnings("SpellCheckingInspection")
     static void onTime(UUID p) {
         if (!plugin.getConfig().getBoolean("Settings.Cooldowns.On-Time.Enabled", true)) {

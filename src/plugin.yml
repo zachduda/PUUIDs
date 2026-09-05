@@ -2,7 +2,7 @@ name: PUUIDs
 main: com.zachduda.puuids.Main
 website: https://zachduda.com/puuids
 authors: [zach_attack]
-version: 4.0.0
+version: ${project.version}
 folia-supported: true
 api-version: 1.13
 softdepend: [ Essentials ]
