@@ -10,6 +10,7 @@ public class Msgs {
 
     static String prefix = "&8[#4ec483PUUIDs&8]";
 
+    @SuppressWarnings("ReplaceAllNonRegex")
     static String color(String msg) {
         msg = msg.replaceAll("&#", "#");
         Pattern pattern = Pattern.compile("(?<!\\w)(?:#|&x)([A-Fa-f0-9]{6})(?!\\w)");

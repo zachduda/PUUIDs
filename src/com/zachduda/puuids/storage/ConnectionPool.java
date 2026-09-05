@@ -9,14 +9,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * A deliberately small JDBC pool.
- * <p>
- * Nothing here needs a full pooling library: writes come from one dedicated thread and the only
- * other borrowers are the occasional import / export / join lookup. What it does have to get
- * right is handing back a connection that is actually alive - MySQL closes idle connections
- * after {@code wait_timeout} (eight hours by default), and a Minecraft server is idle at 4am.
- */
 final class ConnectionPool {
 
     private final String url;
@@ -34,11 +26,6 @@ final class ConnectionPool {
         this.borrowtimeout = borrowtimeout;
     }
 
-    /**
-     * Takes a live connection out of the pool, opening one if the pool isn't full yet.
-     * Every successful borrow must be matched by exactly one {@link #release(Connection)} or
-     * {@link #discard(Connection)}, or the pool leaks a permit and eventually deadlocks.
-     */
     Connection borrow() throws SQLException {
         if (closed.get()) {
             throw new SQLException("The puuids MySQL pool has been shut down.");
@@ -68,7 +55,6 @@ final class ConnectionPool {
         }
     }
 
-    /** Returns a healthy connection to the pool. */
     void release(Connection connection) {
         if (connection == null) {
             permits.release();
@@ -83,7 +69,6 @@ final class ConnectionPool {
         permits.release();
     }
 
-    /** Throws a connection away - use this after any error, the connection may be poisoned. */
     void discard(Connection connection) {
         closeQuietly(connection);
         permits.release();
@@ -111,7 +96,7 @@ final class ConnectionPool {
         try {
             connection.close();
         } catch (SQLException ignored) {
-            // Already broken; there is nothing useful to do about it.
+            // Something went wrong while something went wrong, who cares.
         }
     }
 }

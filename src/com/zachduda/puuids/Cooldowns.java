@@ -4,11 +4,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/*
-  Cooldowns are held as expiry timestamps rather than as scheduled removal tasks. That keeps
-  them correct when they're read from the async queue threads, and means no scheduler work at
-  all (the Bukkit scheduler this used to call isn't available on Folia anyway).
- */
 public class Cooldowns {
     private static final long JOIN_COOLDOWN_MS = 30_000L;
     private static final long LARGE_TASK_COOLDOWN_MS = 45_000L;
@@ -52,7 +47,6 @@ public class Cooldowns {
         joined.put(p, System.currentTimeMillis() + JOIN_COOLDOWN_MS);
     }
 
-    @SuppressWarnings("SpellCheckingInspection")
     static boolean onTimeCooling(UUID p) {
         return active(ontime, p);
     }
@@ -61,12 +55,10 @@ public class Cooldowns {
      * Drops a leaving player's /ontime cooldown. Without this the map keeps an entry for every
      * player who ever ran the command and never came back.
      */
-    @SuppressWarnings("SpellCheckingInspection")
     static void forgetOnTime(UUID p) {
         ontime.remove(p);
     }
 
-    @SuppressWarnings("SpellCheckingInspection")
     static void onTime(UUID p) {
         if (!plugin.getConfig().getBoolean("Settings.Cooldowns.On-Time.Enabled", true)) {
             return;

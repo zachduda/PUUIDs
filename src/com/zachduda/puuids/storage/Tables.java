@@ -2,18 +2,8 @@ package com.zachduda.puuids.storage;
 
 import java.util.Locale;
 
-/**
- * Builds the table names, and the DDL for them.
- * <p>
- * Every plugin that stores data gets its own table, so a server owner can look at
- * {@code puuids_data_myplugin} and see exactly that plugin's rows - and drop the table when the
- * plugin is gone without touching anybody else's data. Plugin names come from another author's
- * plugin.yml, so they are reduced to plain identifier characters here: the result is
- * interpolated into a statement, and nothing but this method is allowed to produce a table name.
- */
 final class Tables {
 
-    /** MySQL's identifier limit; the sanitized plugin name has to fit inside it with the prefix. */
     private static final int MAX_IDENTIFIER = 64;
 
     private Tables() {
@@ -41,12 +31,8 @@ final class Tables {
         }
 
         if (cleaned.length() > room) {
-            /*
-              Two plugins whose names only differ past the cut-off would otherwise share a table,
-              so the tail is replaced by a hash of the full name rather than simply dropped.
-             */
             final String hash = Integer.toHexString(cleaned.hashCode());
-            final int keep = Math.max(1, Math.min(cleaned.length(), room - hash.length() - 1));
+            final int keep = Math.clamp(room - hash.length() - 1, 1, cleaned.length());
             cleaned = cleaned.substring(0, keep) + "_" + hash;
         }
 

@@ -76,18 +76,15 @@ public class PUUIDS {
     }
 
     /**
-     * Play time as a human readable string.
-     * <p>
-     * Time-Played is stored in seconds, so the value used to be divided by 100 for no reason
-     * before formatting: every play time shown was 100x too small.
+     * Play time as a readable string.
+     * Stored in seconds.
      */
     public static String getFormatedPlayTime(String uuid) {
         return secsToFormatTime(getPlayTime(uuid));
     }
 
     /**
-     * Formats a number of seconds, keeping the two largest useful units so that, say,
-     * 3 days and 23 hours doesn't simply read "3 days".
+     * Formats a number of seconds, keeping the two largest useful units.
      */
     public static String secsToFormatTime(long secs) {
         if (secs <= 0) {
@@ -646,12 +643,6 @@ public class PUUIDS {
 
         int total = 0;
 
-        /*
-          Each missing default now goes through the plugin's own async queue. It used to schedule
-          one main-thread task per player file, each of which loaded and saved a file on the main
-          thread - the exact thing this plugin exists to avoid - and the Bukkit scheduler it used
-          isn't available on Folia at all.
-         */
         for (String playeruuid : getAllPlayerUUIDs(pl, false)) {
             try {
                 File f = new File(cache, File.separator + playeruuid + ".yml");

@@ -4,23 +4,11 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
 
-/**
- * One queued change, waiting to be sent to MySQL.
- * <p>
- * A flush coalesces the queue before sending it (see {@code MySQLStorage#reduce}) and then
- * groups what is left by {@link #batchKey()}, so a busy queue costs a couple of round trips
- * rather than one per change.
- */
 abstract class Op {
 
-    /**
-     * Index-friendly cap on a data path. Deeper than anything a plugin sensibly stores, and
-     * short enough that (uuid, path) stays inside InnoDB's index limit on utf8mb4.
-     */
     static final int MAX_PATH = 191;
 
     final String table;
-    /** The plugin name as written in the .yml files, or null for puuids' own player table. */
     final String plugin;
     final String uuid;
 
@@ -30,17 +18,12 @@ abstract class Op {
         this.uuid = uuid;
     }
 
-    /** Operations sharing this key, and sitting next to each other, are batched together. */
     abstract String batchKey();
 
     abstract String sql();
 
     abstract void bind(PreparedStatement ps) throws SQLException;
 
-    /**
-     * Escapes a path for use as a LIKE prefix. Data paths routinely contain underscores, which
-     * LIKE would otherwise treat as "any character" and delete a sibling's rows with.
-     */
     private static String childPattern(String path) {
         final StringBuilder pattern = new StringBuilder(path.length() + 4);
         for (int i = 0; i < path.length(); i++) {
@@ -53,7 +36,6 @@ abstract class Op {
         return pattern.append(".%").toString();
     }
 
-    /** puuids' own record of a player: name, address, last seen and total play time. */
     static final class Player extends Op {
         private final String username;
         private final String ip;
@@ -99,7 +81,6 @@ abstract class Op {
         }
     }
 
-    /** A single value belonging to one plugin. */
     static final class Set extends Op {
         final String path;
         private final String value;
@@ -129,14 +110,6 @@ abstract class Op {
         }
     }
 
-    /**
-     * Clears out what used to live under a path.
-     * <p>
-     * With {@code includeself} it is the mirror of setting null on file - the value and
-     * everything nested below it go. Without, only the nested values go: that is what runs
-     * before a value is re-written, so a path that used to hold a whole section can't leave
-     * orphaned children behind when it becomes a single value.
-     */
     static final class Remove extends Op {
         final String path;
         final boolean includeself;

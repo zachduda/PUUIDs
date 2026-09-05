@@ -5,12 +5,6 @@ import org.bukkit.configuration.file.FileConfiguration;
 import java.util.Locale;
 import java.util.Objects;
 
-/**
- * An immutable snapshot of the MySQL section of config.yml.
- * <p>
- * Taken once when the storage starts so a running flush never sees settings change underneath
- * it, and compared on {@code /puuids reload} to decide whether the connection has to be rebuilt.
- */
 public final class MySQLSettings {
 
     public final boolean enabled;
@@ -37,11 +31,12 @@ public final class MySQLSettings {
         database = text(cfg.getString("MySQL.Database", "minecraft"), "minecraft");
         username = text(cfg.getString("MySQL.Username", "root"), "root");
         // An empty password is legitimate, so this one only defends against a null.
-        password = cfg.getString("MySQL.Password", "") == null ? "" : cfg.getString("MySQL.Password", "");
+        cfg.getString("MySQL.Password", "");
+        password = cfg.getString("MySQL.Password", "");
         prefix = sanitizePrefix(cfg.getString("MySQL.Table-Prefix", "puuids_"));
         usessl = cfg.getBoolean("MySQL.Use-SSL", false);
-        extraproperties = cfg.getString("MySQL.Extra-Properties", "") == null
-                ? "" : cfg.getString("MySQL.Extra-Properties", "");
+        cfg.getString("MySQL.Extra-Properties", "");
+        extraproperties = cfg.getString("MySQL.Extra-Properties", "");
         poolsize = clamp(cfg.getInt("MySQL.Pool-Size", 3), 1, 16, 3);
         connecttimeout = clamp(cfg.getInt("MySQL.Connection-Timeout-Seconds", 10), 1, 120, 10);
         // Below ~100ms the writer thread spends more time waking up than working.
@@ -56,7 +51,6 @@ public final class MySQLSettings {
         return new MySQLSettings(cfg);
     }
 
-    /** A blank entry in the config means "I didn't set this", not "connect with nothing". */
     private static String text(String value, String fallback) {
         return value == null || value.trim().isEmpty() ? fallback : value.trim();
     }
@@ -68,10 +62,6 @@ public final class MySQLSettings {
         return value;
     }
 
-    /**
-     * Table names are built from this, so anything that isn't a plain identifier character is
-     * dropped rather than escaped - the prefix ends up inside a {@code CREATE TABLE}.
-     */
     private static String sanitizePrefix(String raw) {
         if (raw == null) {
             return "puuids_";
@@ -84,10 +74,6 @@ public final class MySQLSettings {
         return cleaned.length() > 24 ? cleaned.substring(0, 24) : cleaned;
     }
 
-    /**
-     * Whether two snapshots point at the same server with the same credentials. A reload that
-     * only changes, say, the flush rate doesn't need to tear the connection down.
-     */
     public boolean sameConnection(MySQLSettings other) {
         return other != null
                 && enabled == other.enabled
@@ -103,7 +89,6 @@ public final class MySQLSettings {
                 && Objects.equals(extraproperties, other.extraproperties);
     }
 
-    /** True when nothing at all changed, so a reload can leave a working connection alone. */
     public boolean sameAs(MySQLSettings other) {
         return sameConnection(other)
                 && flushms == other.flushms
@@ -113,7 +98,6 @@ public final class MySQLSettings {
                 && synconjoin == other.synconjoin;
     }
 
-    /** Host and database only - never the credentials, this ends up in the server log. */
     public String describe() {
         return host + ":" + port + "/" + database;
     }

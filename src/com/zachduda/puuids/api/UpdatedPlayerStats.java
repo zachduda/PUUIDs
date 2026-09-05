@@ -2,6 +2,7 @@ package com.zachduda.puuids.api;
 
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
+import org.jspecify.annotations.NonNull;
 
 public class UpdatedPlayerStats extends Event {
 
@@ -17,7 +18,7 @@ public class UpdatedPlayerStats extends Event {
         return HANDLERS;
     }
 
-    public HandlerList getHandlers() {
+    public @NonNull HandlerList getHandlers() {
         return HANDLERS;
     }
 

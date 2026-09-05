@@ -30,17 +30,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
-/**
- * Mirrors the Data folder into MySQL.
- * <p>
- * The .yml files stay the source of truth - every read the API serves still comes off disk, so
- * turning this on can never make a get slower or fail because a database is down. What it adds
- * is a copy of each write, queued and sent from a single background thread, so the same data is
- * available to a web panel, a backup job, or the other servers on a network.
- * <p>
- * Layout is one table per plugin ({@code puuids_data_<plugin>}), plus {@code puuids_players} for
- * puuids' own record of each player and {@code puuids_plugins} mapping plugin names to tables.
- */
 public final class MySQLStorage {
 
     private static final String[] MYSQL_DRIVERS = {"com.mysql.cj.jdbc.Driver", "com.mysql.jdbc.Driver"};
@@ -83,11 +72,6 @@ public final class MySQLStorage {
 
     // Lifecycle ---------------------------------------------------------------------------
 
-    /**
-     * Connects, creates the two fixed tables, and starts the writer thread.
-     *
-     * @return false if MySQL couldn't be reached; puuids carries on with files only.
-     */
     public boolean start() {
         if (!running.compareAndSet(false, true)) {
             return connected;
@@ -138,7 +122,6 @@ public final class MySQLStorage {
         return true;
     }
 
-    /** Flushes whatever is still queued and closes the connections. Called from onDisable. */
     public void shutdown() {
         final ScheduledExecutorService service = worker;
         worker = null;
@@ -155,7 +138,6 @@ public final class MySQLStorage {
             }
         }
 
-        // Anything still queued is written here, on the shutdown thread, before we let go.
         final int leftover = queue.size();
         if (leftover > 0 && connected) {
             plugin.getLogger().info("Sending " + leftover + " leftover changes to MySQL...");
@@ -166,7 +148,7 @@ public final class MySQLStorage {
             final int before = queue.size();
             flushQuietly();
             if (queue.size() >= before) {
-                // No progress: the database is unreachable, and waiting won't change that.
+                // Nothing happening, something went wrong.
                 break;
             }
         }
@@ -195,7 +177,6 @@ public final class MySQLStorage {
         return queue.size();
     }
 
-    /** Human readable lines for {@code /puuids mysql}. */
     public List<String> status() {
         final List<String> lines = new ArrayList<>();
         lines.add("&8&l> &fServer: &e" + settings.describe());
@@ -214,7 +195,6 @@ public final class MySQLStorage {
 
     // Mirroring ---------------------------------------------------------------------------
 
-    /** Mirrors puuids' own record of a player, taken from their file after it was written. */
     public void mirrorPlayer(String uuid, String username, String ip, long laston, long timeplayed) {
         if (uuid == null) {
             return;
@@ -222,11 +202,6 @@ public final class MySQLStorage {
         enqueue(new Op.Player(playerstable, uuid, username, ip, laston, timeplayed));
     }
 
-    /**
-     * Mirrors one value a plugin has just written.
-     *
-     * @param current the value as it now stands in the player's file - null means it was cleared.
-     */
     public void mirrorSet(String pluginname, String uuid, String path, Object current) {
         if (uuid == null || pluginname == null || path == null) {
             return;
@@ -244,16 +219,13 @@ public final class MySQLStorage {
             return;
         }
 
-        // Anything that used to be nested under this path is gone now that it holds a value
-        // again, and would otherwise be read back as a phantom child on the next import.
         enqueue(new Op.Remove(table, pluginname, uuid, path, false));
 
-        if (current instanceof ConfigurationSection) {
-            final ConfigurationSection section = (ConfigurationSection) current;
+        if (current instanceof ConfigurationSection section) {
             for (String key : section.getKeys(true)) {
                 final Object leaf = section.get(key);
                 if (leaf == null || leaf instanceof ConfigurationSection) {
-                    continue; // Only the leaves carry data; the sections are implied by the paths.
+                    continue;
                 }
                 queueValue(table, pluginname, uuid, path + "." + key, leaf);
             }
@@ -263,7 +235,6 @@ public final class MySQLStorage {
         queueValue(table, pluginname, uuid, path, current);
     }
 
-    /** Mirrors {@code setNull(plugin, uuid)} - everything that plugin stored for that player. */
     public void mirrorClear(String pluginname, String uuid) {
         if (uuid == null || pluginname == null) {
             return;
@@ -278,10 +249,6 @@ public final class MySQLStorage {
         enqueue(new Op.Set(table, pluginname, uuid, path, ValueCodec.encode(value)));
     }
 
-    /**
-     * Warns once about a path that can't be indexed, and only for the first few hundred of them:
-     * a plugin generating unbounded path names must not be able to grow this set for ever.
-     */
     private boolean tooLong(String pluginname, String path, String what) {
         if (path.length() <= Op.MAX_PATH) {
             return false;
@@ -300,11 +267,6 @@ public final class MySQLStorage {
 
         queue.add(op);
 
-        /*
-          If MySQL has been unreachable for a while the queue must not be allowed to grow until
-          the server runs out of memory. The files are still correct, so the oldest changes are
-          the ones to lose - /puuids mysql export rebuilds the database from them afterwards.
-         */
         while (queue.size() > settings.maxqueued) {
             if (queue.poll() == null) {
                 break;
@@ -323,7 +285,6 @@ public final class MySQLStorage {
         try {
             flush();
         } catch (Throwable err) {
-            // The writer thread must survive anything, or mirroring silently stops for good.
             fail("Unexpected error while writing to MySQL", err);
         }
     }
@@ -359,11 +320,6 @@ public final class MySQLStorage {
             retryafter = 0;
             lasterror = null;
         } catch (SQLException err) {
-            /*
-              Put the work back at the front so ordering survives the retry, then back off - a
-              database that is down stays down for a while, and hammering it every flush just
-              fills the log.
-             */
             for (int i = ready.size() - 1; i >= 0; i--) {
                 queue.addFirst(ready.get(i));
             }
@@ -372,9 +328,7 @@ public final class MySQLStorage {
         }
     }
 
-    /** Creates any table this batch touches that we haven't already seen this session. */
     private void ensureTables(Connection connection, List<Op> batch) throws SQLException {
-        // DDL commits implicitly in MySQL, so it has to happen before the transaction opens.
         final Map<String, String> missing = new LinkedHashMap<>();
         for (Op op : batch) {
             if (op.plugin != null && !ensured.contains(op.table)) {
@@ -403,16 +357,6 @@ public final class MySQLStorage {
         }
     }
 
-    /**
-     * Collapses a batch down to the state it ends in, and orders what is left so that
-     * operations sharing a statement sit together.
-     * <p>
-     * A player who earns points ten times in a flush window is one row, not ten writes, and a
-     * value that was cleared and re-set is a single insert. What comes out is, per plugin
-     * table: the clears, then the removes, then the sets - which is safe because anything a
-     * later remove would have wiped has already been dropped here, and anything an earlier
-     * remove has to precede is a set that stays behind it.
-     */
     private List<Op> reduce(List<Op> ops) {
         final Map<String, Op.Player> players = new LinkedHashMap<>();
         final Map<String, List<Pending>> bytable = new LinkedHashMap<>();
@@ -420,7 +364,6 @@ public final class MySQLStorage {
 
         for (Op op : ops) {
             if (op instanceof Op.Player) {
-                // Every player row is a whole-row upsert, so only the last one matters.
                 players.put(op.uuid, (Op.Player) op);
                 continue;
             }
@@ -464,7 +407,6 @@ public final class MySQLStorage {
         return out;
     }
 
-    /** What is still outstanding for one plugin table and one player. */
     private static final class Pending {
         private Op.Clear clear;
         private final Map<String, Op.Remove> removes = new LinkedHashMap<>();
@@ -479,8 +421,7 @@ public final class MySQLStorage {
                 return;
             }
 
-            if (op instanceof Op.Remove) {
-                final Op.Remove remove = (Op.Remove) op;
+            if (op instanceof Op.Remove remove) {
                 sets.keySet().removeIf(remove::covers);
 
                 if (clear != null) {
@@ -497,10 +438,6 @@ public final class MySQLStorage {
         }
     }
 
-    /**
-     * Sends the batch in order, grouping neighbouring operations that share a statement into one
-     * JDBC batch. Order matters: a remove followed by a set has to reach MySQL that way round.
-     */
     private void apply(Connection connection, List<Op> batch) throws SQLException {
         final boolean autocommit = connection.getAutoCommit();
         connection.setAutoCommit(false);
@@ -538,10 +475,6 @@ public final class MySQLStorage {
 
     // Export ------------------------------------------------------------------------------
 
-    /**
-     * Pushes every file in the Data folder up to MySQL. This is what you run once after turning
-     * the option on, and after any spell where the database was unreachable.
-     */
     public void exportAll(Consumer<String> progress, Runnable then) {
         final boolean queued = submit(() -> {
             if (!longtask.compareAndSet(false, true)) {
@@ -594,13 +527,6 @@ public final class MySQLStorage {
         }
     }
 
-    /**
-     * Drops every plugin's rows for the given players, leaving their player record alone.
-     * <p>
-     * This is what {@code /puuids reset all} does to the files, and it has to happen here too:
-     * otherwise a later import - or a join refresh - would hand back exactly the data an admin
-     * had just erased.
-     */
     public void clearPluginData(List<String> uuids, Consumer<String> progress) {
         if (uuids == null || uuids.isEmpty()) {
             return;
@@ -611,8 +537,6 @@ public final class MySQLStorage {
 
         submit(() -> {
             try {
-                // Anything already queued for these players has to land first, or it would be
-                // written back in behind the delete.
                 flush();
 
                 final Map<String, String> tables = pluginTables();
@@ -636,7 +560,6 @@ public final class MySQLStorage {
         });
     }
 
-    /** Turns one player's file into the rows that represent it. */
     private void collect(String uuid, FileConfiguration data, List<Op> batch) {
         batch.add(new Op.Player(playerstable, uuid,
                 data.getString("Username"), data.getString("IP"),
@@ -667,7 +590,6 @@ public final class MySQLStorage {
         }
     }
 
-    /** Writes a batch straight through, bypassing the queue - used by import / export. */
     private void write(List<Op> batch) throws SQLException {
         if (batch.isEmpty()) {
             return;
@@ -683,10 +605,6 @@ public final class MySQLStorage {
 
     // Import ------------------------------------------------------------------------------
 
-    /**
-     * Rebuilds the Data folder from MySQL. Used to stand a new server up from an existing
-     * database, or to pull a network's shared data down after a wipe.
-     */
     public void importAll(Consumer<String> progress, Runnable then) {
         final boolean queued = submit(() -> {
             if (!longtask.compareAndSet(false, true)) {
@@ -719,7 +637,7 @@ public final class MySQLStorage {
                         imported++;
                     }
 
-                    cursor = page.get(page.size() - 1).uuid;
+                    cursor = page.getLast().uuid;
                     progress.accept("&7&oImported " + imported + " players...");
                 }
 
@@ -740,11 +658,6 @@ public final class MySQLStorage {
         }
     }
 
-    /**
-     * Refreshes a single player's file from MySQL, for networks where a player's data follows
-     * them between servers. Their own file wins wherever it is newer, so a player who was last
-     * seen here never loses time to a stale row.
-     */
     public void pullPlayer(String uuid) {
         submit(() -> {
             try {
@@ -764,7 +677,6 @@ public final class MySQLStorage {
         });
     }
 
-    /** plugin name (as used in the files) -> table holding its rows. */
     private Map<String, String> pluginTables() throws SQLException {
         return withConnection(connection -> {
             final Map<String, String> tables = new LinkedHashMap<>();
@@ -813,7 +725,6 @@ public final class MySQLStorage {
         });
     }
 
-    /** uuid -> plugin name -> path -> encoded value, for one page of players. */
     private Map<String, Map<String, Map<String, String>>> valuesFor(Map<String, String> tables, List<PlayerRow> page)
             throws SQLException {
         final Map<String, Map<String, Map<String, String>>> out = new LinkedHashMap<>();
@@ -858,12 +769,6 @@ public final class MySQLStorage {
         return out;
     }
 
-    /**
-     * Writes one player's database state into their file.
-     *
-     * @param overwritecore true for a full import (the database is authoritative); false for a
-     *                      join refresh, where the local file wins if it has seen them since.
-     */
     private void applyToFile(PlayerRow row, Map<String, Map<String, String>> values, boolean overwritecore) {
         final File folder = new File(plugin.getDataFolder(), File.separator + "Data");
         final File file = new File(folder, File.separator + row.uuid + ".yml");
@@ -915,7 +820,6 @@ public final class MySQLStorage {
 
     // Plumbing ----------------------------------------------------------------------------
 
-    /** @return false if the writer thread is gone, in which case the task never runs. */
     private boolean submit(Runnable task) {
         final ScheduledExecutorService service = worker;
         if (service == null) {
@@ -931,7 +835,6 @@ public final class MySQLStorage {
         }
     }
 
-    /** Runs a caller's follow-up work without letting it take the writer thread down. */
     private void finish(Runnable then) {
         if (then == null) {
             return;
@@ -978,7 +881,6 @@ public final class MySQLStorage {
         }
     }
 
-    /** True at most once a minute, so a database that is down doesn't flood the console. */
     private boolean quiet() {
         final long now = System.currentTimeMillis();
         if (now < quietuntil) {
@@ -1035,6 +937,7 @@ public final class MySQLStorage {
     }
 
     /** One row of the players table. */
+    @SuppressWarnings("ClassCanBeRecord")
     private static final class PlayerRow {
         private final String uuid;
         private final String username;

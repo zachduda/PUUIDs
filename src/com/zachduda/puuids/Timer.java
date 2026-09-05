@@ -41,21 +41,11 @@ public class Timer {
     // ConcurrentLinkedQueue#size() walks the whole queue, so the depth is tracked separately.
     private static final AtomicInteger rawsize = new AtomicInteger();
 
-    /*
-      Play time is only ever credited for the span between two checkpoints of a session that
-      we watched begin. Last-On can't be used for this: it is also refreshed for players who
-      are merely seen, so reading it back as "when they joined" credited offline time as play
-      time. Anything not in this map simply isn't accruing.
-     */
     private static final ConcurrentHashMap<UUID, Long> sessions = new ConcurrentHashMap<>();
 
     private static volatile ScheduledTask timer;
     private static volatile long scheduledrate = -1;
 
-    /**
-     * Starts (or reschedules, after a config reload) the queue timer.
-     * Called once the configuration has been read so Save-Rate-Ticks is actually honoured.
-     */
     static synchronized void startTimer() {
         final long rate = Math.max(1L, processrate) * 50L; // ticks -> ms
 
@@ -71,10 +61,6 @@ public class Timer {
                 Timer::process, Duration.ofMillis(rate), Duration.ofMillis(rate));
     }
 
-    /**
-     * Drains both queues and writes each affected player file exactly once.
-     * Every path out of here has to clear {@code busy}, or saving stops for good.
-     */
     private static void process() {
         if (plugin.asyncrunning || (updateSystem.isEmpty() && rawdata.isEmpty())) {
             return;
@@ -93,8 +79,7 @@ public class Timer {
                 work.computeIfAbsent(update.uuid, k -> new Batch()).updates.add(update);
             }
 
-            int queued = rawsize.get();
-            plugin.setQRequests = queued;
+            plugin.setQRequests = rawsize.get();
 
             int processed = 0;
             while (processed < sizelimit) {
@@ -131,11 +116,6 @@ public class Timer {
         }
     }
 
-    /**
-     * Applies every queued change for one player to one file, with a single load and a single save.
-     *
-     * @param events whether the OnNewFile / TimerSaved events should be fired (skipped on shutdown).
-     */
     private static void writeBatch(String uuid, Batch batch, boolean events) {
         final long startset = System.currentTimeMillis();
         final File cache = new File(plugin.getDataFolder(), File.separator + "Data");
@@ -144,10 +124,6 @@ public class Timer {
 
         final FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
-        /*
-          A file created by plugin data alone (a set for someone who has never joined) used to be
-          written without a UUID key, which the start-up scan then treats as corrupt and deletes.
-         */
         if (!setcache.contains("UUID")) {
             setcache.set("UUID", uuid);
         }
@@ -156,7 +132,6 @@ public class Timer {
             setcache.set("UUID", update.uuid);
             setcache.set("Username", update.name);
             if (update.ip != null) {
-                // A player who has already dropped has no address; keep the last known one.
                 setcache.set("IP", update.ip);
             }
             setcache.set("Last-On", update.timestamp);
@@ -190,7 +165,7 @@ public class Timer {
 
         if (!batch.updates.isEmpty()) {
             plugin.setTimes.incrementAndGet();
-            plugin.indexName(batch.updates.get(batch.updates.size() - 1).name, uuid);
+            plugin.indexName(batch.updates.getLast().name, uuid);
         }
 
         if (!batch.sets.isEmpty()) {
@@ -216,10 +191,6 @@ public class Timer {
         }
     }
 
-    /**
-     * Writes to a sibling temp file and moves it into place, so a crash mid-write can't
-     * leave a player with a half-written (and therefore unreadable) data file.
-     */
     private static boolean save(FileConfiguration config, File target) {
         try {
             FileStore.save(config, target);
@@ -233,14 +204,6 @@ public class Timer {
         }
     }
 
-    /**
-     * Hands the same changes to MySQL, if it is switched on.
-     * <p>
-     * This runs after the file has been written, never instead of it: the file is still the
-     * source of truth, and a database that is slow or down only ever delays the copy. Values are
-     * read back out of the freshly saved config rather than taken from the queue, so what lands
-     * in MySQL is exactly what landed on disk.
-     */
     private static void mirror(String uuid, Batch batch, FileConfiguration setcache, boolean isnewfile) {
         final MySQLStorage storage = plugin.getStorage();
         if (storage == null || !storage.isConnected()) {
@@ -272,18 +235,10 @@ public class Timer {
         }
     }
 
-    /**
-     * Opens a play time session. Called the moment a player joins, before any of the
-     * asynchronous join handling, so a session is never missed.
-     */
     static void startSession(UUID uuid) {
         sessions.put(uuid, System.currentTimeMillis());
     }
 
-    /**
-     * Seconds of the current session that haven't been written to file yet.
-     * Returns 0 for anyone who isn't currently accruing.
-     */
     static long liveSessionSeconds(UUID uuid) {
         final Long anchor = sessions.get(uuid);
         if (anchor == null) {
@@ -292,12 +247,6 @@ public class Timer {
         return Math.max(0L, (System.currentTimeMillis() - anchor) / 1000L);
     }
 
-    /**
-     * Snapshots a player and queues their file update.
-     * <p>
-     * Everything is read here, on the thread that still has a valid Player, rather than later
-     * on the writer thread where a quitting player's address (and name) may already be gone.
-     */
     static void queuePlayerUpdate(Player p, boolean quit) {
         if (p == null) {
             return;
@@ -349,9 +298,6 @@ public class Timer {
         return thisid;
     }
 
-    /**
-     * Cancels the timer and flushes whatever is still queued. Runs on the shutdown thread.
-     */
     static void stopTimer() {
         final ScheduledTask running = timer;
         if (running != null) {
@@ -404,13 +350,11 @@ public class Timer {
         sessions.clear();
     }
 
-    /** Everything queued for a single player file. */
     private static final class Batch {
         private final List<PlayerUpdate> updates = new ArrayList<>(1);
         private final List<Quartet<String, String, String, Object, Integer>> sets = new ArrayList<>(1);
     }
 
-    /** An immutable snapshot of a player, taken while they were still valid to read. */
     private static final class PlayerUpdate {
         private final Player player;
         private final String uuid;

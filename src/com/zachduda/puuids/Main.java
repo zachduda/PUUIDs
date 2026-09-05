@@ -11,6 +11,7 @@ import com.earth2me.essentials.User;
 import com.google.common.io.Files;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -25,6 +26,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jspecify.annotations.NonNull;
 import space.arim.morepaperlib.MorePaperLib;
 import space.arim.morepaperlib.scheduling.ScheduledTask;
 
@@ -39,6 +41,8 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Main extends JavaPlugin implements Listener {
 
@@ -62,7 +66,7 @@ public class Main extends JavaPlugin implements Listener {
     private volatile boolean status;
     private volatile String statusreason = "0";
     private volatile boolean updatecheck = true;
-    private final boolean isFullySupported = version.contains("1.21") || version.contains("1.20") || version.contains("1.19") || version.contains("1.18") || version.contains("1.17") || version.contains("1.16") || version.contains("1.15") || version.contains("1.14") || version.contains("1.13");
+    private final boolean isFullySupported = getMCSupportedStatus();
     private ScheduledTask taskresettimer;
     private ScheduledTask playerupdatetimer;
     private volatile int playerupdateseconds = 300;
@@ -74,6 +78,53 @@ public class Main extends JavaPlugin implements Listener {
     private volatile MySQLStorage storage;
 
     private Metrics metrics;
+
+    private int mcMajorVersion;
+    private int mcMinorVersion;
+    private int mcPatchVersion;
+
+    public String getMCVersion(String separator) {
+        String this_ver = Bukkit.getBukkitVersion()
+                .toUpperCase()
+                .replaceAll("-.+$", "");
+
+        if (separator == null) {
+            separator = ".";
+        }
+
+        Pattern versionPattern = Pattern.compile("^(\\d+)\\.(\\d+)(?:\\.(\\d+))?");
+        Matcher version = versionPattern.matcher(this_ver);
+
+        if (version.find()) {
+            mcMajorVersion = Integer.parseInt(version.group(1));
+            mcMinorVersion = Integer.parseInt(version.group(2));
+            try {
+                mcPatchVersion = Integer.parseInt(version.group(3));
+            } catch (final Exception e) {
+                mcPatchVersion = 0;
+            }
+
+        } else {
+            getLogger().warning(ChatColor.RED + "Unable to read Minecraft Version: " + this_ver);
+            return this_ver;
+        }
+
+        debug("Parsed Version -> M:" + mcMajorVersion + " MN: " + mcMinorVersion + " P:" + mcPatchVersion);
+        return (version.group(1) + separator + version.group(2));
+    }
+
+    public String getMCVersion() {
+        return getMCVersion(".");
+    }
+
+    public boolean getMCSupportedStatus() {
+        if(mcMajorVersion == 1) {
+            if(mcMinorVersion >= 13) {
+                return true;
+            }
+        }
+        return mcMajorVersion >= 26;
+    }
 
     public void onEnable() {
         double jversion = Double.parseDouble(System.getProperty("java.specification.version"));
@@ -178,8 +229,7 @@ public class Main extends JavaPlugin implements Listener {
         Collection<? extends Player> players = Bukkit.getOnlinePlayers();
         if (!players.isEmpty()) {
             status = false;
-            statusreason = "" +
-                    " was improperly reloaded. This may damage your player's data files! Please restart your server.";
+            statusreason = " was improperly reloaded. This may damage your player's data files! Please restart your server.";
             Msgs.sendPrefix(Bukkit.getConsoleSender(), "&4&l<!> &c&l&nReloading puuids without a proper restart can severely damage PUUID's player data. PLEASE RESTART YOUR SERVER!");
             for (Player online : players) {
                 if (online.isOp() || online.hasPermission("puuids.admin")) {
@@ -861,23 +911,22 @@ public class Main extends JavaPlugin implements Listener {
         }
 
         mpl.scheduling().asyncScheduler().run(() -> {
-            Player p = joining;
-            UUID uuid = p.getUniqueId();
+            UUID uuid = joining.getUniqueId();
             if (Cooldowns.recentlyJoined(uuid)) {
-                debug(p.getName() + "'s file won't be refreshed, it was updated less than 60s ago. [Join]");
+                debug(joining.getName() + "'s file won't be refreshed, it was updated less than 60s ago. [Join]");
                 return;
             }
 
             Cooldowns.justJoined(uuid);
-            updateFile(p, false);
+            updateFile(joining, false);
 
             if (updatecheck) {
-                if (p.hasPermission("puuids.admin") || p.isOp()) {
+                if (joining.hasPermission("puuids.admin") || joining.isOp()) {
                     if (Updater.outdated) {
                         try {
-                            Msgs.sendPrefix(p, "&c&lOutdated Plugin! &7Running v" + getDescription().getVersion() +
+                            Msgs.sendPrefix(joining, "&c&lOutdated Plugin! &7Running v" + getDescription().getVersion() +
                                     " while the latest is &f&l" + Updater.posted_version);
-                            pop(p);
+                            pop(joining);
                         } catch (Exception err) {
                             sounds = false;
                             debug("Error on update notif. on join: ");
@@ -887,9 +936,9 @@ public class Main extends JavaPlugin implements Listener {
                 }
             }
 
-            if (p.getUniqueId().toString().equals("6191ff85-e092-4e9a-94bd-63df409c2079")) {
-                Msgs.send(p, "&7This server is running &fPUUIDs &6v" + getDescription().getVersion() +
-                        " &7for " + Bukkit.getBukkitVersion().replace("-SNAPSHOT", ""));
+            if (joining.getUniqueId().toString().equals("6191ff85-e092-4e9a-94bd-63df409c2079")) {
+                Msgs.send(joining, "&7This server is running &fPUUIDs &6v" + getDescription().getVersion() +
+                        " &7for " + getMCVersion());
             }
         });
     }
@@ -930,11 +979,10 @@ public class Main extends JavaPlugin implements Listener {
                 return;
             }
 
-            if (!(sender instanceof Player)) {
+            if (!(sender instanceof Player p)) {
                 return;
             }
 
-            Player p = (Player) sender;
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 2.0F, 1.3F);
 
         } catch (Exception err) {
@@ -948,11 +996,10 @@ public class Main extends JavaPlugin implements Listener {
                 return;
             }
 
-            if (!(sender instanceof Player)) {
+            if (!(sender instanceof Player p)) {
                 return;
             }
 
-            Player p = (Player) sender;
             p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 2.0F, 2.0F);
 
         } catch (Exception err) {
@@ -966,11 +1013,10 @@ public class Main extends JavaPlugin implements Listener {
                 return;
             }
 
-            if (!(sender instanceof Player)) {
+            if (!(sender instanceof Player p)) {
                 return;
             }
 
-            Player p = (Player) sender;
             p.playSound(p.getLocation(), Sound.ENTITY_ITEM_FRAME_PLACE, 2.0F, 2.0F);
         } catch (Exception err) {
             sounds = false;
@@ -982,7 +1028,7 @@ public class Main extends JavaPlugin implements Listener {
         bass(sender);
     }
 
-    public boolean onCommand(CommandSender sender, Command cmd, String cmdLabel, String[] args) {
+    public boolean onCommand(@NonNull CommandSender sender, Command cmd, @NonNull String cmdLabel, String[] args) {
         if (cmd.getName().equalsIgnoreCase("puuids")) {
             if (!sender.hasPermission("puuids.admin") && !sender.isOp()) {
                 noPermission(sender);
@@ -1098,7 +1144,7 @@ public class Main extends JavaPlugin implements Listener {
                         AttributeList list = mbs.getAttributes(name, new String[]{
                                 "ProcessCpuLoad"
                         });
-                        Attribute att = (Attribute) list.get(0);
+                        Attribute att = (Attribute) list.getFirst();
                         Double value = (Double) att.getValue();
                         long cpu = Math.round(((int) (value * 1000) / 10.0) * 39);
                         Msgs.send(sender, "&fCPU: &e" + cpu + "%");
@@ -1123,12 +1169,10 @@ public class Main extends JavaPlugin implements Listener {
                     return true;
                 }
 
-                if (!(sender instanceof Player)) {
+                if (!(sender instanceof Player p)) {
                     Msgs.sendPrefix(sender, "&6&lFOR SECURITY REASONS: &fOnly a player with permission & op may run this command.");
                     return true;
                 }
-
-                Player p = (Player) sender;
 
                 if (!p.hasPermission("puuids.admin") || !p.isOp()) {
                     bass(p);
@@ -1263,12 +1307,10 @@ public class Main extends JavaPlugin implements Listener {
                 }
 
                 if (args[1].equalsIgnoreCase("all")) {
-                    if (!(sender instanceof Player)) {
+                    if (!(sender instanceof Player p)) {
                         Msgs.sendPrefix(sender, "&6&lFOR SECURITY REASONS: &fOnly a player with permission & op may run this command.");
                         return true;
                     }
-
-                    Player p = (Player) sender;
 
                     if (!p.hasPermission("puuids.admin") || !p.isOp()) {
                         bass(p);
@@ -1388,8 +1430,7 @@ public class Main extends JavaPlugin implements Listener {
             if (args[0].equalsIgnoreCase("ontime")) {
                 // Need to optimize, TOO many sender instanceof Player stuffs.
 
-                if (sender instanceof Player) {
-                    Player p = (Player) sender;
+                if (sender instanceof Player p) {
                     if (Cooldowns.onTimeCooling(p.getUniqueId())) {
                         Msgs.sendPrefix(sender, "&c&lSlow Down. &fPlease wait before checking that again.");
                         bass(p);
@@ -1398,19 +1439,17 @@ public class Main extends JavaPlugin implements Listener {
                 }
 
                 if (args.length == 1) {
-                    if (!(sender instanceof Player)) {
+                    if (!(sender instanceof Player p)) {
                         Msgs.sendPrefix(sender, "&c&lOops. &fYou must specify a player: &7&l/puuids ontime (player)");
                         return true;
                     }
-                    Player p = (Player) sender;
                     Msgs.sendPrefix(sender, "&6So far, you've played for &f&l" + PUUIDS.getFormatedPlayTime(p.getUniqueId().toString()));
                     pop(p);
                     Cooldowns.onTime(p.getUniqueId());
                     return true;
                 }
 
-                if (sender instanceof Player) {
-                    Player p = (Player) sender;
+                if (sender instanceof Player p) {
                     Cooldowns.onTime(p.getUniqueId());
                 }
 
@@ -1503,7 +1542,7 @@ public class Main extends JavaPlugin implements Listener {
         for(HashMap.Entry<Plugin, APIVersion> entry : plugins.entrySet()) {
             final String plname = entry.getKey().getDescription().getName();
             if (!plname.equalsIgnoreCase("puuids")) {
-                if (sb.length() > 0) {
+                if (!sb.isEmpty()) {
                     sb.append("&f, &e");
                 }
                 sb.append(plname);

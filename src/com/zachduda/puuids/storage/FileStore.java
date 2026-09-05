@@ -7,11 +7,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
-/**
- * Writes a player file the safe way: to a sibling temp file first, then moved into place, so a
- * crash halfway through a save can't leave somebody with a half-written (and therefore
- * unreadable) data file.
- */
 public final class FileStore {
 
     public static final String TEMP_SUFFIX = ".tmp";
