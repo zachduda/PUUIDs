@@ -2,6 +2,8 @@ package com.zachduda.puuids;
 
 import com.zachduda.puuids.api.OnNewFile;
 import com.zachduda.puuids.api.TimerSaved;
+import com.zachduda.puuids.storage.FileStore;
+import com.zachduda.puuids.storage.MySQLStorage;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -10,8 +12,6 @@ import space.arim.morepaperlib.scheduling.ScheduledTask;
 
 import java.io.File;
 import java.net.InetSocketAddress;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -144,6 +144,14 @@ public class Timer {
 
         final FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
+        /*
+          A file created by plugin data alone (a set for someone who has never joined) used to be
+          written without a UUID key, which the start-up scan then treats as corrupt and deletes.
+         */
+        if (!setcache.contains("UUID")) {
+            setcache.set("UUID", uuid);
+        }
+
         for (PlayerUpdate update : batch.updates) {
             setcache.set("UUID", update.uuid);
             setcache.set("Username", update.name);
@@ -178,6 +186,8 @@ public class Timer {
             return;
         }
 
+        mirror(uuid, batch, setcache, isnewfile);
+
         if (!batch.updates.isEmpty()) {
             plugin.setTimes.incrementAndGet();
             plugin.indexName(batch.updates.get(batch.updates.size() - 1).name, uuid);
@@ -211,24 +221,54 @@ public class Timer {
      * leave a player with a half-written (and therefore unreadable) data file.
      */
     private static boolean save(FileConfiguration config, File target) {
-        final File temp = new File(target.getParentFile(), target.getName() + ".tmp");
         try {
-            config.save(temp);
-            try {
-                Files.move(temp.toPath(), target.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (Exception atomicUnsupported) {
-                Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            }
+            FileStore.save(config, target);
             return true;
         } catch (Exception err) {
             plugin.getLogger().warning("Unable to save puuids file " + target.getName() + ": " + err);
             if (plugin.debug) {
                 err.printStackTrace();
             }
-            //noinspection ResultOfMethodCallIgnored
-            temp.delete();
             return false;
+        }
+    }
+
+    /**
+     * Hands the same changes to MySQL, if it is switched on.
+     * <p>
+     * This runs after the file has been written, never instead of it: the file is still the
+     * source of truth, and a database that is slow or down only ever delays the copy. Values are
+     * read back out of the freshly saved config rather than taken from the queue, so what lands
+     * in MySQL is exactly what landed on disk.
+     */
+    private static void mirror(String uuid, Batch batch, FileConfiguration setcache, boolean isnewfile) {
+        final MySQLStorage storage = plugin.getStorage();
+        if (storage == null || !storage.isConnected()) {
+            return;
+        }
+
+        try {
+            if (!batch.updates.isEmpty() || isnewfile) {
+                storage.mirrorPlayer(uuid, setcache.getString("Username"), setcache.getString("IP"),
+                        setcache.getLong("Last-On"), setcache.getLong("Time-Played"));
+            }
+
+            for (Quartet<String, String, String, Object, Integer> data : batch.sets) {
+                final String plname = data.getPlugin();
+                final String path = data.getPath();
+
+                if (path.equals("PUUIDS_SET_AS_ALL_NULL")) {
+                    storage.mirrorClear(plname, uuid);
+                } else {
+                    storage.mirrorSet(plname, uuid, path, setcache.get("Plugins." + plname + "." + path));
+                }
+            }
+        } catch (Exception err) {
+            // Mirroring is never allowed to break the file pipeline.
+            plugin.getLogger().warning("Unable to queue a MySQL update for " + uuid + ": " + err);
+            if (plugin.debug) {
+                err.printStackTrace();
+            }
         }
     }
 
