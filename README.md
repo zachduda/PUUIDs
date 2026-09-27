@@ -2,16 +2,17 @@
 ![Alt text](Images/banner.png?raw=true "PUUIDs Banner")
 Async per player file saving: Made Easy!
 
-# API
-Ready to get started? Check out: [Setting Your Data](https://github.com/zachduda/PUUIDs/wiki/Start-Setting-Data).
+# Documentation
+Everything is in the [docs](docs/README.md) folder:
 
-# Soft-Depend in plugin.yml
-Make sure that you add PUUIDs as a soft-depend plugin like so:
-```yaml
-soft-depend: [PUUIDs]
-```
-# Using Maven
-If you haven't already, make sure the maven repo is listed:
+* [Getting Started](docs/Getting-Started.md): add PUUIDs to your project and connect your plugin.
+* [Storing Data](docs/Storing-Data.md) and [Reading Data](docs/Reading-Data.md): the core API.
+* [How Saving Works](docs/How-Saving-Works.md): read this before building anything that updates values often.
+* [API Reference](docs/API-Reference.md): every method on one page.
+* [Server Owners](docs/Server-Owners.md): config, commands and permissions.
+
+# Quick Start
+Add the repository and dependency. Use `provided` scope, since PUUIDs is already installed on the server:
 ```xml
 <repository>
     <id>zachduda</id>
@@ -19,18 +20,36 @@ If you haven't already, make sure the maven repo is listed:
 </repository>
 ```
 
-Then add PUUIDs dependency from Github:
-
 ```xml
 <dependency>
-  <groupId>com.zachduda</groupId>
-  <artifactId>PUUIDs</artifactId>
-  <version>4.0.0</version>
+    <groupId>com.zachduda</groupId>
+    <artifactId>puuids</artifactId>
+    <version>4.0.1</version>
+    <scope>provided</scope>
 </dependency>
 ```
 
+Gradle users can add `maven("https://maven.zachduda.com/releases")` and `compileOnly("com.zachduda:puuids:4.0.1")`.
+
+Declare PUUIDs in your `plugin.yml`, using `depend` if your plugin needs it or `softdepend` if it's optional:
+```yaml
+depend: [PUUIDs]
+```
+
+Then connect in `onEnable`, and start saving:
+```java
+@Override
+public void onEnable() {
+    PUUIDS.connect(this, PUUIDS.APIVersion.V4);
+}
+
+public void saveTitle(Player player, String title) {
+    PUUIDS.set(this, player.getUniqueId().toString(), "Title", title);
+}
+```
+
 # Spigot
-PUUIDs is a Spigot plugin for MC versions 1.13-1.21. Please check out the [Spigot Page](https://www.spigotmc.org/resources/puuids-•-an-async-file-api.71496/). for full documentation.
+PUUIDs is a Spigot plugin for Minecraft 1.13 and newer, and also runs on Paper and Folia. It requires Java 21. Check out the [Spigot Page](https://www.spigotmc.org/resources/puuids-•-an-async-file-api.71496/) for downloads.
 
 
 # License

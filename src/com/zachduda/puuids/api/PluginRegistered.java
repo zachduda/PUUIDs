@@ -3,10 +3,10 @@ package com.zachduda.puuids.api;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 
+/**
+ * Fired asynchronously when a plugin connects to puuids successfully.
+ */
 public class PluginRegistered extends Event {
-
-    // Event that is Fired when a plugin is registered with puuids
-
 
     private static final HandlerList HANDLERS = new HandlerList();
     private final String plname;
@@ -24,6 +24,9 @@ public class PluginRegistered extends Event {
         return HANDLERS;
     }
 
+    /**
+     * @return The name of the plugin that connected, as written in its plugin.yml.
+     */
     public String getPlugin() {
         return this.plname;
     }
