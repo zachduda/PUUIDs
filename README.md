@@ -49,7 +49,7 @@ public void saveTitle(Player player, String title) {
 ```
 
 # Spigot
-PUUIDs is a Spigot plugin for Minecraft 1.13 and newer, and also runs on Paper and Folia. It requires Java 21. Check out the [Spigot Page](https://www.spigotmc.org/resources/puuids-•-an-async-file-api.71496/) for downloads.
+PUUIDs is a Spigot plugin that also runs on Paper and Folia. It requires Java 21, so it is supported on Minecraft 1.20.5 and newer; older versions (back to 1.13) only work where the server itself can be started on Java 21. Check out the [Spigot Page](https://www.spigotmc.org/resources/puuids-•-an-async-file-api.71496/) for downloads.
 
 
 # License

@@ -11,6 +11,10 @@ Settings:
     Clean-Essentials: true
     Max-Days: 365
   Metrics: true
+  # Keep each player's last IP address in their file (and in MySQL, if that is on). Turn this
+  # off if you don't need it: saved addresses are then removed as each player is next seen, and
+  # plugins asking puuids for an IP are told there isn't one.
+  Store-IPs: true
   Debug: false
 Messages:
   No-Permission: '&c&lSorry! &fYou are not able to do that.'
@@ -50,7 +54,8 @@ MySQL:
   # database (a fresh network member, or one being restored) - it overwrites local files.
   Import-On-Startup: false
   # Push the whole Data folder up at start-up. Handy the first time you switch MySQL on;
-  # /puuids mysql export does the same thing on demand.
+  # /puuids mysql export does the same thing on demand. For each plugin a player's file has
+  # data for, an export replaces that player's rows with exactly what the file holds.
   Export-On-Startup: false
   # Refresh a player's file from MySQL as they join, for networks where their data follows them
   # between servers. Their local file wins wherever it has seen them more recently.
@@ -58,10 +63,16 @@ MySQL:
 Advanced:
   # Only mess with the following if you are sure as to what you're doing.
   Save-Rate-Ticks: 10
+  # How many player files plugin data is written to per save run. Every change queued for the
+  # same file is saved together and counts once.
   Max-Processes-Per-Queue: 25
+  # How many recently read player files are kept parsed in memory, so plugins reading values
+  # don't re-open the file each time. 0 turns this off.
+  Cache-Size: 500
   # How often every online player's file is checkpointed, in seconds. A normal quit always
   # saves play time exactly; this only limits how much of a session is lost in a hard crash.
   Player-Update-Seconds: 300
   Allow-Post-Startup-Connections: false
+  # /reload and /rl are blocked (for players and the console) unless this is true.
   Allow-Unsafe-Reloads: false
   UUID: "0"

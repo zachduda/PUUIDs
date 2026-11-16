@@ -13,9 +13,13 @@ import java.io.File;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -42,6 +46,10 @@ public class Timer {
 
     private static final ConcurrentHashMap<UUID, Long> sessions = new ConcurrentHashMap<>();
 
+    // Batches whose file couldn't be read or saved, waiting for another go. Keyed by UUID.
+    private static final ConcurrentHashMap<String, Batch> retries = new ConcurrentHashMap<>();
+    private static final long RETRY_WINDOW_MS = 60_000L;
+
     private static volatile ScheduledTask timer;
     private static volatile long scheduledrate = -1;
 
@@ -60,8 +68,59 @@ public class Timer {
                 Timer::process, Duration.ofMillis(rate), Duration.ofMillis(rate));
     }
 
+    /*
+      Gathers the next run's work, grouped per player file so each file is loaded and saved once
+      however many values changed in it.
+
+      filelimit caps how many files plugin writes may touch in one run. It used to cap individual
+      values instead, which threw the batching away: one setLocation is six values, so the
+      default of 25 could mean as few as four files per run.
+     */
+    private static Map<String, Batch> collect(int filelimit) {
+        final Map<String, Batch> work = new LinkedHashMap<>();
+
+        // Batches that failed last time go first, so anything queued since lands on top of them.
+        for (Iterator<Map.Entry<String, Batch>> it = retries.entrySet().iterator(); it.hasNext(); ) {
+            final Map.Entry<String, Batch> failed = it.next();
+            work.put(failed.getKey(), failed.getValue());
+            it.remove();
+        }
+
+        PlayerUpdate update;
+        while ((update = updateSystem.poll()) != null) {
+            work.computeIfAbsent(update.uuid, k -> new Batch()).updates.add(update);
+        }
+
+        final boolean unlimited = filelimit == Integer.MAX_VALUE;
+        // Stops one player with an enormous backlog from holding a run open indefinitely.
+        final long oplimit = unlimited ? Long.MAX_VALUE : filelimit * 200L;
+        final Set<String> setfiles = new HashSet<>();
+
+        long taken = 0;
+        while (taken < oplimit) {
+            final Quartet<String, String, String, Object, Integer> next = rawdata.peek();
+            if (next == null) {
+                break;
+            }
+            if (!unlimited && setfiles.size() >= filelimit && !setfiles.contains(next.getUUID())) {
+                break; // A new file, and this run is full. Order per file is untouched.
+            }
+
+            final Quartet<String, String, String, Object, Integer> data = rawdata.poll();
+            if (data == null) {
+                break;
+            }
+            rawsize.decrementAndGet();
+            setfiles.add(data.getUUID());
+            work.computeIfAbsent(data.getUUID(), k -> new Batch()).sets.add(data);
+            taken++;
+        }
+
+        return work;
+    }
+
     private static void process() {
-        if (plugin.asyncrunning || (updateSystem.isEmpty() && rawdata.isEmpty())) {
+        if (plugin.isSavingPaused() || (updateSystem.isEmpty() && rawdata.isEmpty() && retries.isEmpty())) {
             return;
         }
 
@@ -71,32 +130,28 @@ public class Timer {
 
         final long start = System.currentTimeMillis();
         try {
-            final Map<String, Batch> work = new LinkedHashMap<>();
-
-            PlayerUpdate update;
-            while ((update = updateSystem.poll()) != null) {
-                work.computeIfAbsent(update.uuid, k -> new Batch()).updates.add(update);
-            }
-
             plugin.setQRequests = rawsize.get();
 
-            int processed = 0;
-            while (processed < sizelimit) {
-                Quartet<String, String, String, Object, Integer> data = rawdata.poll();
-                if (data == null) {
-                    break;
-                }
-                rawsize.decrementAndGet();
-                work.computeIfAbsent(data.getUUID(), k -> new Batch()).sets.add(data);
-                processed++;
-            }
+            final Map<String, Batch> work = collect(sizelimit);
 
-            if (processed == sizelimit && !rawdata.isEmpty()) {
-                plugin.debug("Q reached size limit of " + sizelimit + "... sending other updates to next run.");
+            if (!rawdata.isEmpty()) {
+                plugin.debug("Q reached its limit of " + sizelimit + " files... sending other updates to next run.");
             }
 
             for (Map.Entry<String, Batch> entry : work.entrySet()) {
-                writeBatch(entry.getKey(), entry.getValue(), true);
+                final String uuid = entry.getKey();
+                final Batch batch = entry.getValue();
+                try {
+                    if (!writeBatch(uuid, batch, true)) {
+                        retryLater(uuid, batch);
+                    }
+                } catch (Throwable err) {
+                    // One bad value must not take every other player's batch down with it.
+                    plugin.getLogger().warning("Unexpected error while saving puuids data for " + uuid + ": " + err);
+                    if (plugin.debug) {
+                        err.printStackTrace();
+                    }
+                }
             }
         } catch (Throwable err) {
             // Never let a bad file take the whole pipeline down with it.
@@ -115,60 +170,98 @@ public class Timer {
         }
     }
 
-    private static void writeBatch(String uuid, Batch batch, boolean events) {
+    /*
+      A file that couldn't be read or saved (disk full, a passing I/O error) keeps its changes
+      and tries again on the following runs, instead of losing them on the first failure.
+     */
+    private static void retryLater(String uuid, Batch batch) {
+        final long now = System.currentTimeMillis();
+        final int changes = batch.updates.size() + batch.sets.size();
+
+        if (batch.failedsince == 0L) {
+            batch.failedsince = now;
+            plugin.getLogger().warning("Unable to save puuids file " + uuid + ".yml (" + batch.error
+                    + "). Its " + changes + " queued changes will be retried for up to "
+                    + (RETRY_WINDOW_MS / 1000L) + "s.");
+        } else if (now - batch.failedsince > RETRY_WINDOW_MS) {
+            plugin.getLogger().severe("Giving up on puuids file " + uuid + ".yml after "
+                    + (RETRY_WINDOW_MS / 1000L) + "s (" + batch.error + "). " + changes + " changes were lost.");
+            return;
+        }
+
+        retries.put(uuid, batch);
+    }
+
+    /** @return false if the file couldn't be read or saved; {@code batch.error} then says why. */
+    private static boolean writeBatch(String uuid, Batch batch, boolean events) {
         final long startset = System.currentTimeMillis();
-        final File cache = new File(plugin.getDataFolder(), File.separator + "Data");
-        final File f = new File(cache, File.separator + uuid + ".yml");
+        final File f = plugin.playerFile(uuid);
         final boolean isnewfile;
         final FileConfiguration setcache;
+        final boolean storeips = plugin.storeIPs();
 
         synchronized (FileStore.LOCK) {
-        try {
-            setcache = FileStore.loadForUpdate(f, plugin.getLogger());
-        } catch (Exception err) {
-            // Saving now would replace a file we couldn't read with only this batch.
-            plugin.getLogger().warning("Unable to read puuids file " + f.getName() + ", its queued changes were not saved: " + err);
-            return;
-        }
-        isnewfile = !f.exists();
-
-        if (!setcache.contains("UUID")) {
-            setcache.set("UUID", uuid);
-        }
-
-        for (PlayerUpdate update : batch.updates) {
-            setcache.set("UUID", update.uuid);
-            setcache.set("Username", update.name);
-            if (update.ip != null) {
-                setcache.set("IP", update.ip);
+            try {
+                // Never YamlConfiguration.loadConfiguration here: it answers an unreadable file
+                // with an empty one, and saving that would wipe the player's whole file.
+                setcache = FileStore.loadForUpdate(f, plugin.getLogger());
+            } catch (Exception err) {
+                batch.error = "unreadable: " + err;
+                return false;
             }
-            setcache.set("Last-On", update.timestamp);
+            isnewfile = !f.exists();
 
-            if (update.playedSeconds > 0) {
-                final long current = setcache.getLong("Time-Played");
-                setcache.set("Time-Played", current + update.playedSeconds);
-                plugin.debug("Credited " + update.name + " with " + update.playedSeconds + "s of play time (total "
-                        + (current + update.playedSeconds) + "s)" + (update.quit ? " on quit." : "."));
-            }
-        }
-
-        for (Quartet<String, String, String, Object, Integer> data : batch.sets) {
-            final String plname = data.getPlugin();
-            final String path = data.getPath();
-
-            if (path.equals("PUUIDS_SET_AS_ALL_NULL")) {
-                setcache.set("Plugins." + plname, null);
-            } else {
-                setcache.set("Plugins." + plname + "." + path, data.getData());
+            if (!setcache.contains("UUID")) {
+                setcache.set("UUID", uuid);
             }
 
-            plugin.debug("(" + data.getId() + ") " + plname + " set " + data.getData() + " for " + uuid + " under: " + path);
-        }
+            long credited = 0;
+            for (PlayerUpdate update : batch.updates) {
+                setcache.set("UUID", update.uuid);
+                setcache.set("Username", update.name);
+                if (!storeips) {
+                    setcache.set("IP", null);
+                } else if (update.ip != null) {
+                    setcache.set("IP", update.ip);
+                }
+                setcache.set("Last-On", update.timestamp);
 
-        if (!save(setcache, f)) {
-            return;
+                if (update.playedSeconds > 0) {
+                    final long current = setcache.getLong("Time-Played");
+                    setcache.set("Time-Played", current + update.playedSeconds);
+                    credited += update.playedSeconds;
+                }
+            }
+
+            for (Quartet<String, String, String, Object, Integer> data : batch.sets) {
+                final String plname = data.getPlugin();
+                final String path = data.getPath();
+
+                if (path.equals("PUUIDS_SET_AS_ALL_NULL")) {
+                    setcache.set("Plugins." + plname, null);
+                } else {
+                    setcache.set("Plugins." + plname + "." + path, data.getData());
+                }
+            }
+
+            try {
+                FileStore.save(setcache, f);
+            } catch (Exception err) {
+                batch.error = err.toString();
+                return false;
+            }
+
+            if (plugin.debug) {
+                if (credited > 0) {
+                    plugin.debug("Credited " + setcache.getString("Username") + " with " + credited
+                            + "s of play time (total " + setcache.getLong("Time-Played") + "s).");
+                }
+                for (Quartet<String, String, String, Object, Integer> data : batch.sets) {
+                    plugin.debug("(" + data.getId() + ") " + data.getPlugin() + " set " + data.getData()
+                            + " for " + uuid + " under: " + data.getPath());
+                }
+            }
         }
-        } // FileStore.LOCK
 
         mirror(uuid, batch, setcache, isnewfile);
 
@@ -183,7 +276,7 @@ public class Timer {
         }
 
         if (!events) {
-            return;
+            return true;
         }
 
         if (isnewfile) {
@@ -198,19 +291,7 @@ public class Timer {
         for (Quartet<String, String, String, Object, Integer> data : batch.sets) {
             Bukkit.getServer().getPluginManager().callEvent(new TimerSaved(data.getPlugin(), uuid, data.getId()));
         }
-    }
-
-    private static boolean save(FileConfiguration config, File target) {
-        try {
-            FileStore.save(config, target);
-            return true;
-        } catch (Exception err) {
-            plugin.getLogger().warning("Unable to save puuids file " + target.getName() + ": " + err);
-            if (plugin.debug) {
-                err.printStackTrace();
-            }
-            return false;
-        }
+        return true;
     }
 
     private static void mirror(String uuid, Batch batch, FileConfiguration setcache, boolean isnewfile) {
@@ -277,7 +358,8 @@ public class Timer {
             return quit ? null : anchor + (secs * 1000L);
         });
 
-        updateSystem.add(new PlayerUpdate(p, id.toString(), p.getName(), readIP(p), now, credited[0], quit));
+        final String ip = plugin.storeIPs() ? readIP(p) : null;
+        updateSystem.add(new PlayerUpdate(p, id.toString(), p.getName(), ip, now, credited[0], quit));
     }
 
     private static String readIP(Player p) {
@@ -297,14 +379,16 @@ public class Timer {
     }
 
     static int queueSet(String pl, String uuid, String location, Object value) {
-        if (uuid == null) {
+        // The UUID becomes a file name, so anything that could step outside the Data folder
+        // (or isn't a plain name at all) is refused here rather than written somewhere odd.
+        if (!Main.validKey(uuid) || location == null) {
             return 0;
         }
 
         final int thisid = taskid.getAndIncrement();
         // Copied so the caller changing their list afterwards can't race the writer thread.
         final Object stored = value instanceof List<?> list ? new ArrayList<>(list) : value;
-        rawdata.add(new Quartet<>(uuid, pl.toUpperCase(), location, stored, thisid));
+        rawdata.add(new Quartet<>(uuid, pl.toUpperCase(Locale.ROOT), location, stored, thisid));
         rawsize.incrementAndGet();
         return thisid;
     }
@@ -328,32 +412,19 @@ public class Timer {
         }
 
         final int leftover = rawsize.get();
-        if (leftover == 0 && updateSystem.isEmpty()) {
-            return;
-        }
-
         if (leftover > 0) {
             plugin.getLogger().info("Saving " + leftover + " leftover tasks...");
         }
 
-        final Map<String, Batch> work = new LinkedHashMap<>();
-
-        PlayerUpdate update;
-        while ((update = updateSystem.poll()) != null) {
-            work.computeIfAbsent(update.uuid, k -> new Batch()).updates.add(update);
-        }
-
-        Quartet<String, String, String, Object, Integer> data;
-        while ((data = rawdata.poll()) != null) {
-            rawsize.decrementAndGet();
-            work.computeIfAbsent(data.getUUID(), k -> new Batch()).sets.add(data);
-        }
-
-        for (Map.Entry<String, Batch> entry : work.entrySet()) {
+        for (Map.Entry<String, Batch> entry : collect(Integer.MAX_VALUE).entrySet()) {
+            final Batch batch = entry.getValue();
             try {
                 // No events: the plugin manager is on its way down with us.
-                writeBatch(entry.getKey(), entry.getValue(), false);
-            } catch (Exception err) {
+                if (!writeBatch(entry.getKey(), batch, false)) {
+                    plugin.getLogger().severe("Unable to save leftover puuids data for " + entry.getKey() + " ("
+                            + batch.error + "). " + (batch.updates.size() + batch.sets.size()) + " changes were lost.");
+                }
+            } catch (Throwable err) {
                 plugin.getLogger().warning("Unable to save leftover puuids data for " + entry.getKey() + ": " + err);
             }
         }
@@ -364,6 +435,9 @@ public class Timer {
     private static final class Batch {
         private final List<PlayerUpdate> updates = new ArrayList<>(1);
         private final List<Quartet<String, String, String, Object, Integer>> sets = new ArrayList<>(1);
+        // When this batch first failed to save (0 if it never has), and why.
+        private long failedsince;
+        private String error;
     }
 
     private static final class PlayerUpdate {

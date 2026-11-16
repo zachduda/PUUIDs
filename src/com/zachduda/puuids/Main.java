@@ -6,8 +6,6 @@ import com.zachduda.puuids.api.VersionManager.VersionTest;
 import com.zachduda.puuids.storage.FileStore;
 import com.zachduda.puuids.storage.MySQLSettings;
 import com.zachduda.puuids.storage.MySQLStorage;
-import com.earth2me.essentials.Essentials;
-import com.earth2me.essentials.User;
 import com.google.common.io.Files;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
@@ -24,6 +22,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.server.ServerCommandEvent;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jspecify.annotations.NonNull;
@@ -40,15 +40,19 @@ import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Main extends JavaPlugin implements Listener {
 
-    static boolean hasess = false;
-    @SuppressWarnings("FieldMayBeFinal")
-    private static HashMap<Plugin, APIVersion> plugins = new HashMap<>();
+    static volatile boolean hasess = false;
+    // Read from whatever thread a plugin calls the API on, so it can't be a plain HashMap.
+    private static final Map<Plugin, APIVersion> plugins = new ConcurrentHashMap<>();
+
+    // A UUID (or any other key a plugin files data under) becomes a file name.
+    private static final Pattern VALID_KEY = Pattern.compile("[A-Za-z0-9_-]{1,64}");
 
     private static volatile boolean allowconnections = false;
     private static volatile boolean allow_unsafe_reloads = false;
@@ -56,7 +60,16 @@ public class Main extends JavaPlugin implements Listener {
     public PUUIDS api;
     public MorePaperLib mpl = new MorePaperLib(this);
     volatile boolean debug = false;
-    volatile boolean asyncrunning = false;
+    /*
+      Who is holding the file writer. This was one boolean shared by the start-up scan, the reset
+      commands, a MySQL import and /puuids togglesave, so whichever finished first switched
+      saving back on underneath the others. Each now takes and returns its own hold.
+     */
+    private final AtomicInteger pauseholders = new AtomicInteger();
+    private volatile boolean frozen = false; // /puuids togglesave
+    private volatile boolean storeips = true;
+    // UUIDs whose puuids file the start-up scan removed, waiting for Essentials to be enabled.
+    private final Queue<String> essentialscleanup = new ConcurrentLinkedQueue<>();
     volatile long setTimeMS = 0; // how long in ms for file saving
     final AtomicInteger setTimes = new AtomicInteger();
     volatile long qTimesMS = 0;
@@ -139,12 +152,6 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     public void onEnable() {
-        double jversion = Double.parseDouble(System.getProperty("java.specification.version"));
-        if (jversion < 1.8) {
-            getLogger().severe("Unsupported Java Version: " + jversion);
-            getLogger().warning("PUUIDs works best in Java 8 (or higher). JDK releases are NOT supported.");
-        }
-
         try {
             // The queues are plain java.util.concurrent now, so Multimap is no longer required -
             // checking for it would have disabled the plugin over a class it never touches.
@@ -155,22 +162,19 @@ public class Main extends JavaPlugin implements Listener {
             return;
         }
 
-        if (this.getServer().getPluginManager().isPluginEnabled("Essentials")
-                && this.getServer().getPluginManager().getPlugin("Essentials") != null) {
-            hasess = true;
-            getLogger().info("Hooking into Essentials...");
-        }
-
         status = true;
         statusreason = "0";
-        asyncrunning = true;
+        // Held until startupScan() returns it.
+        pauseholders.set(0);
+        frozen = false;
+        pauseSaving();
 
         // Read the configuration up front: the cleanup scan below depends on it, and reading it
         // from another thread while onEnable was still copying defaults meant File-Cleanup and
         // Debug were both silently off for the whole scan.
         getConfig().options().copyDefaults(true);
         saveConfig();
-        updateConfig();
+        updateConfig(true);
 
         /*
           When the database is the master copy - a fresh server joining a network, or one being
@@ -278,8 +282,7 @@ public class Main extends JavaPlugin implements Listener {
      * Walks the Data folder once at start-up: drops files that are corrupt or long abandoned,
      * fills the username index, and reconciles play time with the server's own statistic.
      * <p>
-     * Runs off the main thread, and always ends by clearing {@code asyncrunning} - the file
-     * writer is held until it does.
+     * Runs off the main thread, and always ends by returning its hold on the file writer.
      */
     private void startupScan() {
         try {
@@ -289,7 +292,11 @@ public class Main extends JavaPlugin implements Listener {
             // entire Data folder on the next start-up.
             final int maxDays = Math.max(1, getConfig().getInt("Settings.File-Cleanup.Max-Days", 365));
 
-            final Essentials ess = (Essentials) Bukkit.getPluginManager().getPlugin("Essentials");
+            // Turkish and Azeri upper-case "i" to a dotted capital, so plugin names used to be
+            // filed under a different key there than on every other server.
+            final String language = Locale.getDefault().getLanguage();
+            final boolean turkic = language.equals("tr") || language.equals("az");
+
             final File folder = new File(this.getDataFolder(), File.separator + "Data");
             final File[] cachefiles = folder.exists() ? folder.listFiles() : null;
             if (cachefiles == null) {
@@ -339,12 +346,10 @@ public class Main extends JavaPlugin implements Listener {
                                 if(!f.delete()) {
                                     debug("Error deleting file:" + f.toPath());
                                 }
-                                if (hasess && cleaness) {
-                                    User user = Objects.requireNonNull(ess).getUser(playername);
-                                    if (!user.getBase().isBanned()) {
-                                        // Cleanup EssentialsX data too unless they are banned, in which case their data file should be left alone as to not unban them.
-                                        user.reset();
-                                    }
+                                final String expired = setcache.getString("UUID");
+                                if (cleaness && expired != null) {
+                                    // Essentials isn't enabled this early; see cleanEssentials().
+                                    essentialscleanup.add(expired);
                                 }
                                 if (debug) {
                                     getLogger().info("[Debug] Deleted " + playername + "'s data file because it's " + daysAgo +
@@ -374,11 +379,15 @@ public class Main extends JavaPlugin implements Listener {
                                     }
                                 }
                                 debug("Spigot playtime for " + playername + " is " + playtime/60 + " minutes");
-                                final long puuids_playtime = getPlayTime(uuid);
+                                boolean dirty = turkic && migratePluginKeys(setcache);
+                                final long puuids_playtime = setcache.getLong("Time-Played");
                                 debug("PUUIDS playtime for " + playername + " is " + puuids_playtime/60 + " minutes");
                                 if(playtime > puuids_playtime) {
                                     debug("Using native MC playtime for puuids data file for " + playername);
                                     setcache.set("Time-Played", playtime);
+                                    dirty = true;
+                                }
+                                if (dirty) {
                                     FileStore.save(setcache, f);
                                 }
                                 if (debug) {
@@ -416,14 +425,68 @@ public class Main extends JavaPlugin implements Listener {
             nameindexready = true;
         } finally {
             // Saving stays frozen until this returns, however it returns.
-            asyncrunning = false;
+            resumeSaving();
         }
+
+        scheduleEssentialsCleanup();
 
         final MySQLStorage started = storage;
         if (started != null && started.settings().exportonstartup) {
             getLogger().info("Exporting the Data folder to MySQL...");
             started.exportAll(line -> Msgs.sendPrefix(Bukkit.getConsoleSender(), line), null);
         }
+    }
+
+    /** Moves plugin sections filed under a dotted capital I to the name every other locale uses. */
+    private boolean migratePluginKeys(FileConfiguration data) {
+        final ConfigurationSection section = data.getConfigurationSection("Plugins");
+        if (section == null) {
+            return false;
+        }
+
+        boolean changed = false;
+        for (String key : new ArrayList<>(section.getKeys(false))) {
+            if (key.indexOf('\u0130') < 0) {
+                continue;
+            }
+            final String fixed = key.replace('\u0130', 'I');
+            if (!section.contains(fixed)) {
+                section.set(fixed, section.get(key));
+                section.set(key, null);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    /*
+      File-Cleanup.Clean-Essentials never did anything: puuids loads at STARTUP, before
+      Essentials is enabled, so the hook was always off by the time the scan looked. The scan now
+      only notes who it removed, and this runs on the first tick - when every plugin is up.
+     */
+    private void scheduleEssentialsCleanup() {
+        if (essentialscleanup.isEmpty()) {
+            return;
+        }
+
+        mpl.scheduling().globalRegionalScheduler().run(() -> {
+            if (!getServer().getPluginManager().isPluginEnabled("Essentials")) {
+                essentialscleanup.clear();
+                return;
+            }
+            hasess = true;
+            mpl.scheduling().asyncScheduler().run(() -> {
+                try {
+                    final int cleaned = EssentialsHook.reset(essentialscleanup, this);
+                    if (cleaned > 0) {
+                        getLogger().info("Removed the Essentials data of " + cleaned + " players whose puuids file had expired.");
+                    }
+                } catch (Throwable err) {
+                    essentialscleanup.clear();
+                    getLogger().warning("Unable to clean up Essentials data: " + err);
+                }
+            });
+        });
     }
 
     /*
@@ -480,18 +543,82 @@ public class Main extends JavaPlugin implements Listener {
      * themselves.
      */
     public boolean isSavingPaused() {
-        return asyncrunning;
+        return frozen || pauseholders.get() > 0;
     }
 
+    /** Takes a hold on the file writer. Every call must be matched by one {@link #resumeSaving()}. */
+    public void pauseSaving() {
+        pauseholders.incrementAndGet();
+    }
+
+    public void resumeSaving() {
+        pauseholders.updateAndGet(held -> Math.max(0, held - 1));
+    }
+
+    /** @deprecated One caller's "false" used to undo everyone else's pause. Use {@link #pauseSaving()}. */
+    @Deprecated
     public void setSavingPaused(boolean paused) {
-        asyncrunning = paused;
+        frozen = paused;
+    }
+
+    public boolean storeIPs() {
+        return storeips;
+    }
+
+    /** Whether a UUID handed to the API is safe to use as a file name. */
+    public static boolean validKey(String uuid) {
+        return uuid != null && VALID_KEY.matcher(uuid).matches();
+    }
+
+    /** The key a plugin's values are filed under: its name in upper case, whatever the server's locale. */
+    public static String pluginKey(Plugin pl) {
+        return pl.getDescription().getName().toUpperCase(Locale.ROOT);
+    }
+
+    public File playerFile(String uuid) {
+        return new File(new File(getDataFolder(), "Data"), uuid + ".yml");
+    }
+
+    /**
+     * A player's file for reading, parsed at most once while it stays unchanged on disk. The
+     * result is shared: it must not be modified.
+     */
+    public FileConfiguration readFile(String uuid) {
+        if (!validKey(uuid)) {
+            return new YamlConfiguration();
+        }
+        return FileStore.read(playerFile(uuid));
+    }
+
+    /**
+     * Reads one value for handing to another plugin. Lists and items are copied, and anything
+     * else that could be modified is loaded fresh, so nothing a caller does reaches the cache.
+     */
+    public Object readDetached(String uuid, String path) {
+        final Object value = readFile(uuid).get(path);
+        if (value == null || value instanceof String || value instanceof Number
+                || value instanceof Boolean || value instanceof Character) {
+            return value;
+        }
+        if (value instanceof List<?> list) {
+            return new ArrayList<>(list);
+        }
+        return YamlConfiguration.loadConfiguration(playerFile(uuid)).get(path);
+    }
+
+    public boolean isRegistered(Plugin pl) {
+        return pl != null && plugins.containsKey(pl);
+    }
+
+    public APIVersion getAPIVersion(Plugin pl) {
+        return pl == null ? null : plugins.get(pl);
     }
 
     /**
      * Starts, stops or rebuilds the MySQL mirror so it matches the config. Safe to call on a
      * reload: an unchanged MySQL section leaves the existing connection alone.
      */
-    private void applyStorageConfig() {
+    private synchronized void applyStorageConfig() {
         final MySQLSettings updated = MySQLSettings.from(getConfig());
         final MySQLStorage current = storage;
 
@@ -566,7 +693,16 @@ public class Main extends JavaPlugin implements Listener {
         getLogger().info("Successfully disabled in " + (System.currentTimeMillis() - start) + "ms");
     }
 
-    private void updateConfig() {
+    private synchronized void reconnectStorage() {
+        final MySQLStorage current = storage;
+        if (current != null) {
+            storage = null;
+            current.shutdown();
+        }
+        applyStorageConfig();
+    }
+
+    private void updateConfig(boolean startup) {
         int conf_ver = 0;
         if(getConfig().contains("Version")) {
             conf_ver = getConfig().getInt("Version");
@@ -631,15 +767,26 @@ public class Main extends JavaPlugin implements Listener {
         // reloads permitted until the next restart.
         allow_unsafe_reloads = getConfig().getBoolean("Advanced.Allow-Unsafe-Reloads", false);
         if(allow_unsafe_reloads) {
-            getLogger().warning("Unsafe reloading (via /rl, /reload, /restart) is permitted per config.yml. This is VERY dangerous! You will get no support for corrupted files.");
+            getLogger().warning("Unsafe reloading (via /rl, /reload) is permitted per config.yml. This is VERY dangerous! You will get no support for corrupted files.");
         }
 
-        applyStorageConfig();
+        storeips = getConfig().getBoolean("Settings.Store-IPs", true);
+        FileStore.setCacheSize(getConfig().getInt("Advanced.Cache-Size", 500));
+
+        if (startup) {
+            // Start-up waits on the database once: an import has to finish before the scan.
+            applyStorageConfig();
+        } else {
+            // A reload must not: connecting can take the whole Connection-Timeout, and closing
+            // the old connection flushes its queue first. Both used to freeze the main thread.
+            mpl.scheduling().asyncScheduler().run(this::applyStorageConfig);
+        }
     }
 
 
+    /** A copy of the connected plugins. Use {@link #isRegistered(Plugin)} to check for one. */
     public HashMap<Plugin, APIVersion> getPlugins() {
-        return plugins;
+        return new HashMap<>(plugins);
     }
 
     public boolean connect(Plugin pl, APIVersion vers) {
@@ -697,8 +844,8 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     public int set(Plugin pl, String uuid, String loc, Object obj) {
-        final String plname = pl.getDescription().getName().toUpperCase();
-        if (!getPlugins().containsKey(pl)) {
+        final String plname = pluginKey(pl);
+        if (!isRegistered(pl)) {
             debug("Not allowing " + plname + " to access data. They didn't connect properly.");
             return 0;
         }
@@ -707,8 +854,8 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     public int set(Plugin pl, String uuid, String loc, List<?> obj) {
-        final String plname = pl.getDescription().getName().toUpperCase();
-        if (!getPlugins().containsKey(pl)) {
+        final String plname = pluginKey(pl);
+        if (!isRegistered(pl)) {
             debug("Not allowing " + plname + " to access data. They didn't connect properly.");
             return 0;
         }
@@ -719,8 +866,8 @@ public class Main extends JavaPlugin implements Listener {
 
     // ONLY for setting Null info
     public int set(Plugin pl, String uuid, Object should_be_null) {
-        final String plname = pl.getDescription().getName().toUpperCase();
-        if (!getPlugins().containsKey(pl)) {
+        final String plname = pluginKey(pl);
+        if (!isRegistered(pl)) {
             debug("Not allowing " + plname + " to access data. They didn't connect properly.");
             return 0;
         }
@@ -757,8 +904,7 @@ public class Main extends JavaPlugin implements Listener {
         final String cached = nameindex.get(key);
         if (cached != null) {
             // Confirm against the one file it points at, in case they've since changed name.
-            final File f = new File(folder, File.separator + cached + ".yml");
-            if (f.exists() && inputsearch.equalsIgnoreCase(YamlConfiguration.loadConfiguration(f).getString("Username"))) {
+            if (inputsearch.equalsIgnoreCase(readFile(cached).getString("Username"))) {
                 return cached;
             }
             nameindex.remove(key, cached);
@@ -795,15 +941,7 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     public boolean hasPlayedUUID(String uuid) {
-        File cache = new File(this.getDataFolder(), File.separator + "Data");
-
-        if (!cache.exists()) {
-            return false;
-        }
-
-        File f = new File(cache, File.separator + uuid + ".yml");
-
-        return f.exists();
+        return validKey(uuid) && playerFile(uuid).exists();
     }
 
     public boolean hasPlayedName(String name) {
@@ -811,24 +949,7 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     public long getLastOn(String uuid) {
-        File cache = new File(this.getDataFolder(), File.separator + "Data");
-
-        if (!cache.exists()) {
-            return 0;
-        }
-
-        File f = new File(cache, File.separator + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
-        if (!f.exists()) {
-            return 0;
-        }
-
-        if (!setcache.contains("Last-On")) {
-            return 0;
-        }
-
-        return setcache.getLong("Last-On");
+        return readFile(uuid).getLong("Last-On");
     }
 
     /**
@@ -841,17 +962,7 @@ public class Main extends JavaPlugin implements Listener {
             return 0;
         }
 
-        long played = 0;
-
-        File cache = new File(this.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + uuid + ".yml");
-
-        if (cache.exists() && f.exists()) {
-            FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-            if (setcache.contains("Time-Played")) {
-                played = setcache.getLong("Time-Played");
-            }
-        }
+        long played = readFile(uuid).getLong("Time-Played");
 
         try {
             played += Timer.liveSessionSeconds(UUID.fromString(uuid));
@@ -863,19 +974,11 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     public String getPlayerIP(String uuid) {
-        File cache = new File(this.getDataFolder(), File.separator + "Data");
-        File f = new File(cache, File.separator + uuid + ".yml");
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
-        if (!f.exists()) {
+        if (!storeips) {
             return "0";
         }
-
-        if (!setcache.contains("IP") || setcache.getString("IP") == null) {
-            return "0";
-        }
-
-        return setcache.getString("IP");
+        final String ip = readFile(uuid).getString("IP");
+        return ip == null ? "0" : ip;
     }
 
     public boolean allowConnections() {
@@ -883,17 +986,18 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     public String UUIDtoname(String inputsearch) {
-        File folder = new File(this.getDataFolder(), File.separator + "Data");
-        File f = new File(folder, File.separator + inputsearch + ".yml");
-
-        if (!f.exists()) {
+        if (!hasPlayedUUID(inputsearch)) {
             return "0";
         }
-
-        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-        return setcache.getString("Username");
+        return readFile(inputsearch).getString("Username");
     }
 
+
+    /** listFiles() answers null if the folder vanished; a reset has to finish (and unpause) regardless. */
+    private static File[] listData(File folder) {
+        final File[] files = folder.listFiles();
+        return files == null ? new File[0] : files;
+    }
 
     private void updateFile(Player p, boolean quit) {
         Timer.queuePlayerUpdate(p, quit);
@@ -905,16 +1009,46 @@ public class Main extends JavaPlugin implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPreventBozos(PlayerCommandPreprocessEvent e) {
-        if(allow_unsafe_reloads) {
+        if (allow_unsafe_reloads || !isReloadCommand(e.getMessage())) {
             return;
         }
-        // "/bukkit:reload" used to slip through: only the word was stripped, leaving ":reload".
-        String cmd = e.getMessage().split(" ")[0].replace("/", "").replaceAll("(?i)^bukkit:", "");
-        if(cmd.equalsIgnoreCase("reload") || cmd.equalsIgnoreCase("rl") || cmd.equalsIgnoreCase("restart")) {
-            Msgs.sendPrefix(e.getPlayer(), "&fThis will &c&lcorrupt&f your servers running memory, including PUUIDs'.");
-            bass(e.getPlayer());
-            e.setCancelled(true);
+        final Player p = e.getPlayer();
+        if (!p.isOp() && !p.hasPermission("bukkit.command.reload")) {
+            return; // The server turns them away itself; they don't need to hear about puuids.
         }
+        Msgs.sendPrefix(p, "&fThis will &c&lcorrupt&f your servers running memory, including PUUIDs'.");
+        bass(p);
+        e.setCancelled(true);
+    }
+
+    // Most reloads are typed into the console (or sent over RCON), which nothing used to cover.
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPreventConsoleBozos(ServerCommandEvent e) {
+        if (allow_unsafe_reloads || !isReloadCommand(e.getCommand())) {
+            return;
+        }
+        Msgs.sendPrefix(e.getSender(), "&fReloading will &c&lcorrupt&f your servers running memory, including PUUIDs'. "
+                + "Restart instead, or set &7Advanced.Allow-Unsafe-Reloads&f to true.");
+        e.setCancelled(true);
+    }
+
+    /*
+      /restart is no longer treated as a reload: it stops the server and starts it again, which
+      disables puuids cleanly. "/bukkit:reload" used to slip through, as only the word "bukkit"
+      was stripped and ":reload" was left behind.
+     */
+    private static boolean isReloadCommand(String raw) {
+        if (raw == null) {
+            return false;
+        }
+        String cmd = raw.trim().split(" ")[0].toLowerCase(Locale.ROOT);
+        if (cmd.startsWith("/")) {
+            cmd = cmd.substring(1);
+        }
+        if (cmd.startsWith("bukkit:")) {
+            cmd = cmd.substring("bukkit:".length());
+        }
+        return cmd.equals("reload") || cmd.equals("rl");
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -1124,7 +1258,7 @@ public class Main extends JavaPlugin implements Listener {
                     double jversion = Double.parseDouble(System.getProperty("java.specification.version"));
                     StringBuilder sb = getStringBuilder();
 
-                    String size = Integer.toString((getPlugins().size() - 1));
+                    String size = Integer.toString((plugins.size() - 1));
 
                     Msgs.send(sender, "&f");
                     if (size.equals("0")) {
@@ -1232,11 +1366,11 @@ public class Main extends JavaPlugin implements Listener {
 
                 Msgs.send(p, "&7");
                 Msgs.send(p, "#4ec483&lPUUIDs");
-                if (asyncrunning) {
+                if (frozen) {
                     Msgs.send(p, "&8&l> &a&lUnfrozen. &fNow processing saving requests...");
-                    asyncrunning = false;
+                    frozen = false;
                 } else {
-                    asyncrunning = true;
+                    frozen = true;
                     Msgs.send(p, "&8&l> &c&lFrozen. &fRequests will be Q'ed but not saved.");
                 }
                 Msgs.send(p, "&7");
@@ -1289,13 +1423,13 @@ public class Main extends JavaPlugin implements Listener {
                     Msgs.send(sender, "&7");
                     thinking(sender);
 
-                    asyncrunning = true;
+                    pauseSaving();
 
                     mpl.scheduling().asyncScheduler().run(() -> {
                         int total = 0;
                         final long start = System.currentTimeMillis();
                         final MySQLStorage db = storage;
-                        for (File AllData : Objects.requireNonNull(folder.listFiles())) {
+                        for (File AllData : listData(folder)) {
                             File f = new File(AllData.getPath());
                             if (!f.getName().endsWith(".yml")) {
                                 continue;
@@ -1324,7 +1458,7 @@ public class Main extends JavaPlugin implements Listener {
                         final String finished = Long.toString(System.currentTimeMillis() - start);
 
                         getLogger().info("Reset " + total + " players Time-Played stats on file. (Done in " + finished + "ms)");
-                        asyncrunning = false;
+                        resumeSaving();
 
                         Msgs.send(sender, "");
                         Msgs.send(sender, "#4ec483&lPUUIDs");
@@ -1373,7 +1507,7 @@ public class Main extends JavaPlugin implements Listener {
                         }
                     }
 
-                    asyncrunning = true;
+                    pauseSaving();
 
                     Cooldowns.startLargeTask();
                     Msgs.send(sender, "&7");
@@ -1386,7 +1520,7 @@ public class Main extends JavaPlugin implements Listener {
                         int total = 0;
                         final long start = System.currentTimeMillis();
                         final List<String> wiped = new ArrayList<>();
-                        for (File AllData : Objects.requireNonNull(folder.listFiles())) {
+                        for (File AllData : listData(folder)) {
                             File f = new File(AllData.getPath());
                             if (!f.getName().endsWith(".yml")) {
                                 continue;
@@ -1418,7 +1552,7 @@ public class Main extends JavaPlugin implements Listener {
                         final String finished = Long.toString(System.currentTimeMillis() - start);
 
                         getLogger().info("Reset " + total + " players files back to basics. (Done in " + finished + "ms)");
-                        asyncrunning = false;
+                        resumeSaving();
 
                         Msgs.send(sender, "");
                         Msgs.send(sender, "#4ec483&lPUUIDs");
@@ -1454,7 +1588,7 @@ public class Main extends JavaPlugin implements Listener {
             if (args[0].equalsIgnoreCase("reload")) {
                 final long start = System.currentTimeMillis();
                 reloadConfig();
-                updateConfig();
+                updateConfig(false);
                 Msgs.send(sender, "");
                 Msgs.send(sender, "#4ec483&lPUUIDs");
                 Msgs.send(sender, "&8&l> &fConfiguration has been reloaded in &6" + (System.currentTimeMillis() - start) + "ms");
@@ -1504,7 +1638,7 @@ public class Main extends JavaPlugin implements Listener {
             if (args[0].equalsIgnoreCase("info")) {
                 Msgs.send(sender, "");
                 Msgs.send(sender, "#4ec483&lPUUIDs");
-                final int active = getPlugins().size() - 1;
+                final int active = plugins.size() - 1;
                 if (active > 0) {
                     Msgs.send(sender, "&8&l> &fHooked Plugins: &e&l" + active);
                 } else {
@@ -1620,18 +1754,17 @@ public class Main extends JavaPlugin implements Listener {
         if (args[1].equalsIgnoreCase("reconnect")) {
             Msgs.sendPrefix(sender, "&7&oReconnecting to MySQL...");
             thinking(sender);
-            if (db != null) {
-                storage = null;
-                db.shutdown();
-            }
-            applyStorageConfig();
-            if (storage == null) {
-                bass(sender);
-                Msgs.sendPrefix(sender, "&c&lStill Down. &fSee the console for what MySQL said.");
-            } else {
-                pop(sender);
-                Msgs.sendPrefix(sender, "&a&lConnected. &fPlayer data is being mirrored again.");
-            }
+            // Off the main thread: this waits on the database for up to Connection-Timeout.
+            mpl.scheduling().asyncScheduler().run(() -> {
+                reconnectStorage();
+                if (storage == null) {
+                    bass(sender);
+                    Msgs.sendPrefix(sender, "&c&lStill Down. &fSee the console for what MySQL said.");
+                } else {
+                    pop(sender);
+                    Msgs.sendPrefix(sender, "&a&lConnected. &fPlayer data is being mirrored again.");
+                }
+            });
             return true;
         }
 
