@@ -68,7 +68,8 @@ abstract class Op {
             if (username == null) {
                 ps.setNull(2, Types.VARCHAR);
             } else {
-                ps.setString(2, username);
+                ps.setString(2, username.length() > Tables.MAX_USERNAME
+                        ? username.substring(0, Tables.MAX_USERNAME) : username);
             }
             if (ip == null) {
                 ps.setNull(3, Types.VARCHAR);

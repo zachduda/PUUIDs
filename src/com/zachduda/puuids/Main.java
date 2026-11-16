@@ -73,6 +73,9 @@ public class Main extends JavaPlugin implements Listener {
 
     // Lower-cased username -> UUID, so name lookups don't have to parse every file on disk.
     private final Map<String, String> nameindex = new ConcurrentHashMap<>();
+    // Set once the start-up scan has read every file. From then on the index knows every name
+    // on disk, so a miss no longer has to fall back to parsing the whole Data folder.
+    private volatile boolean nameindexready = false;
 
     // Optional MySQL mirror of the Data folder. Null whenever it is off or couldn't connect.
     private volatile MySQLStorage storage;
@@ -83,6 +86,19 @@ public class Main extends JavaPlugin implements Listener {
     private int mcMinorVersion;
     private int mcPatchVersion;
 
+    private static final Pattern MC_VERSION = Pattern.compile("^(\\d+)\\.(\\d+)(?:\\.(\\d+))?");
+
+    private Matcher parseMCVersion(String this_ver) {
+        Matcher version = MC_VERSION.matcher(this_ver);
+        if (!version.find()) {
+            return null;
+        }
+        mcMajorVersion = Integer.parseInt(version.group(1));
+        mcMinorVersion = Integer.parseInt(version.group(2));
+        mcPatchVersion = version.group(3) == null ? 0 : Integer.parseInt(version.group(3));
+        return version;
+    }
+
     public String getMCVersion(String separator) {
         String this_ver = Bukkit.getBukkitVersion()
                 .toUpperCase()
@@ -92,19 +108,9 @@ public class Main extends JavaPlugin implements Listener {
             separator = ".";
         }
 
-        Pattern versionPattern = Pattern.compile("^(\\d+)\\.(\\d+)(?:\\.(\\d+))?");
-        Matcher version = versionPattern.matcher(this_ver);
+        Matcher version = parseMCVersion(this_ver);
 
-        if (version.find()) {
-            mcMajorVersion = Integer.parseInt(version.group(1));
-            mcMinorVersion = Integer.parseInt(version.group(2));
-            try {
-                mcPatchVersion = Integer.parseInt(version.group(3));
-            } catch (final Exception e) {
-                mcPatchVersion = 0;
-            }
-
-        } else {
+        if (version == null) {
             getLogger().warning(ChatColor.RED + "Unable to read Minecraft Version: " + this_ver);
             return this_ver;
         }
@@ -118,6 +124,12 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     public boolean getMCSupportedStatus() {
+        // This runs as a field initialiser, before anything else has parsed the version. It
+        // used to read the still-zero fields, so it answered false on every server: sounds
+        // were always off and the start-up play time check never ran.
+        if (mcMajorVersion == 0) {
+            parseMCVersion(Bukkit.getBukkitVersion());
+        }
         if(mcMajorVersion == 1) {
             if(mcMinorVersion >= 13) {
                 return true;
@@ -281,6 +293,7 @@ public class Main extends JavaPlugin implements Listener {
             final File folder = new File(this.getDataFolder(), File.separator + "Data");
             final File[] cachefiles = folder.exists() ? folder.listFiles() : null;
             if (cachefiles == null) {
+                nameindexready = true; // Nothing on disk, so nothing the index could be missing.
                 return;
             }
 
@@ -335,7 +348,7 @@ public class Main extends JavaPlugin implements Listener {
                                 }
                                 if (debug) {
                                     getLogger().info("[Debug] Deleted " + playername + "'s data file because it's " + daysAgo +
-                                            "s old. (Max: " + maxDays + " Days)");
+                                            " days old. (Max: " + maxDays + " Days)");
                                 }
                             } else {
                                 /*
@@ -400,6 +413,7 @@ public class Main extends JavaPlugin implements Listener {
             }
 
             unknownfiles.clear();
+            nameindexready = true;
         } finally {
             // Saving stays frozen until this returns, however it returns.
             asyncrunning = false;
@@ -750,6 +764,10 @@ public class Main extends JavaPlugin implements Listener {
             nameindex.remove(key, cached);
         }
 
+        if (nameindexready) {
+            return "0";
+        }
+
         final File[] files = folder.exists() ? folder.listFiles() : null;
         if (files == null) {
             return "0";
@@ -757,6 +775,9 @@ public class Main extends JavaPlugin implements Listener {
 
         for (File AllData : files) {
             File f = new File(AllData.getPath());
+            if (!f.getName().endsWith(".yml")) {
+                continue;
+            }
 
             FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
@@ -887,7 +908,8 @@ public class Main extends JavaPlugin implements Listener {
         if(allow_unsafe_reloads) {
             return;
         }
-        String cmd = e.getMessage().split(" ")[0].replace("/", "").replaceAll("(?i)bukkit", "");
+        // "/bukkit:reload" used to slip through: only the word was stripped, leaving ":reload".
+        String cmd = e.getMessage().split(" ")[0].replace("/", "").replaceAll("(?i)^bukkit:", "");
         if(cmd.equalsIgnoreCase("reload") || cmd.equalsIgnoreCase("rl") || cmd.equalsIgnoreCase("restart")) {
             Msgs.sendPrefix(e.getPlayer(), "&fThis will &c&lcorrupt&f your servers running memory, including PUUIDs'.");
             bass(e.getPlayer());
@@ -1146,7 +1168,11 @@ public class Main extends JavaPlugin implements Listener {
                         });
                         Attribute att = (Attribute) list.getFirst();
                         Double value = (Double) att.getValue();
-                        long cpu = Math.round(((int) (value * 1000) / 10.0) * 39);
+                        // ProcessCpuLoad is 0.0 - 1.0 (or negative when unavailable).
+                        if (value < 0) {
+                            throw new IllegalStateException("CPU load unavailable");
+                        }
+                        long cpu = Math.round(value * 100);
                         Msgs.send(sender, "&fCPU: &e" + cpu + "%");
                     } catch (Exception err) {
                         Msgs.send(sender, "&fCPU: &7Readings Not Available");
@@ -1271,7 +1297,11 @@ public class Main extends JavaPlugin implements Listener {
                         final MySQLStorage db = storage;
                         for (File AllData : Objects.requireNonNull(folder.listFiles())) {
                             File f = new File(AllData.getPath());
+                            if (!f.getName().endsWith(".yml")) {
+                                continue;
+                            }
 
+                            synchronized (FileStore.LOCK) {
                             FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
                             debug("Reset " + setcache.getString("Username") + "'s Time-Played. (" + setcache.getLong("Time-Played") + "secs) " + " (" + f.getName() + ")");
                             setcache.set("Time-Played", 0);
@@ -1286,6 +1316,7 @@ public class Main extends JavaPlugin implements Listener {
                                 }
                             } catch (Exception err) {
                                 debug("Unable to reset " + f.getName() + ": " + err);
+                            }
                             }
                             total++;
                         }
@@ -1357,7 +1388,11 @@ public class Main extends JavaPlugin implements Listener {
                         final List<String> wiped = new ArrayList<>();
                         for (File AllData : Objects.requireNonNull(folder.listFiles())) {
                             File f = new File(AllData.getPath());
+                            if (!f.getName().endsWith(".yml")) {
+                                continue;
+                            }
 
+                            synchronized (FileStore.LOCK) {
                             FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
                             setcache.set("Plugins", null);
 
@@ -1368,6 +1403,7 @@ public class Main extends JavaPlugin implements Listener {
                                 wiped.add(setcache.getString("UUID"));
                             } catch (Exception err) {
                                 debug("Unable to reset " + f.getName() + ": " + err);
+                            }
                             }
                             total++;
                         }
@@ -1494,7 +1530,7 @@ public class Main extends JavaPlugin implements Listener {
                 Msgs.send(sender, "&8&l> &fGet Requests: &e&l" + getTimes.get());
 
                 if (status) {
-                    if (setTimeMS < 10 || qTimesMS < 650) {
+                    if (setTimeMS <= 10 && qTimesMS <= 650) {
                         Msgs.send(sender, "&8&l> &fDatabase Health: &a&lGREAT");
                         statusreason = "0";
                     } else {

@@ -72,6 +72,10 @@
                             <pattern>org.bstats</pattern>
                             <shadedPattern>com.zachduda.puuids.metrics</shadedPattern>
                         </relocation>
+                        <relocation>
+                            <pattern>space.arim.morepaperlib</pattern>
+                            <shadedPattern>com.zachduda.puuids.morepaperlib</shadedPattern>
+                        </relocation>
                     </relocations>
                     <minimizeJar>true</minimizeJar>
                 </configuration>

@@ -6,7 +6,6 @@ import com.zachduda.puuids.storage.FileStore;
 import com.zachduda.puuids.storage.MySQLStorage;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import space.arim.morepaperlib.scheduling.ScheduledTask;
 
@@ -120,9 +119,18 @@ public class Timer {
         final long startset = System.currentTimeMillis();
         final File cache = new File(plugin.getDataFolder(), File.separator + "Data");
         final File f = new File(cache, File.separator + uuid + ".yml");
-        final boolean isnewfile = !f.exists();
+        final boolean isnewfile;
+        final FileConfiguration setcache;
 
-        final FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+        synchronized (FileStore.LOCK) {
+        try {
+            setcache = FileStore.loadForUpdate(f, plugin.getLogger());
+        } catch (Exception err) {
+            // Saving now would replace a file we couldn't read with only this batch.
+            plugin.getLogger().warning("Unable to read puuids file " + f.getName() + ", its queued changes were not saved: " + err);
+            return;
+        }
+        isnewfile = !f.exists();
 
         if (!setcache.contains("UUID")) {
             setcache.set("UUID", uuid);
@@ -160,6 +168,7 @@ public class Timer {
         if (!save(setcache, f)) {
             return;
         }
+        } // FileStore.LOCK
 
         mirror(uuid, batch, setcache, isnewfile);
 
@@ -293,7 +302,9 @@ public class Timer {
         }
 
         final int thisid = taskid.getAndIncrement();
-        rawdata.add(new Quartet<>(uuid, pl.toUpperCase(), location, value, thisid));
+        // Copied so the caller changing their list afterwards can't race the writer thread.
+        final Object stored = value instanceof List<?> list ? new ArrayList<>(list) : value;
+        rawdata.add(new Quartet<>(uuid, pl.toUpperCase(), location, stored, thisid));
         rawsize.incrementAndGet();
         return thisid;
     }

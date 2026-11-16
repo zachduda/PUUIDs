@@ -94,6 +94,7 @@ public final class MySQLStorage {
                     st.executeUpdate(Tables.createPlayers(playerstable));
                     st.executeUpdate(Tables.createRegistry(registrytable));
                 }
+                widenUsernameColumn(connection);
                 return null;
             });
         } catch (SQLException err) {
@@ -120,6 +121,31 @@ public final class MySQLStorage {
 
         plugin.getLogger().info("Connected to MySQL at " + settings.describe() + ". Player data will be mirrored there.");
         return true;
+    }
+
+    /*
+      The column used to be VARCHAR(16). A longer name (Floodgate prefixes Bedrock players, so
+      theirs reach 17+) made MySQL reject the row, and with it the whole batch - which was then
+      retried forever, stalling the mirror for everyone.
+     */
+    private void widenUsernameColumn(Connection connection) {
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS"
+                        + " WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME='username'")) {
+            ps.setString(1, playerstable);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next() || rs.getLong(1) >= Tables.MAX_USERNAME) {
+                    return;
+                }
+            }
+            try (Statement st = connection.createStatement()) {
+                st.executeUpdate(Tables.widenUsername(playerstable));
+            }
+            plugin.debug("Widened the username column of " + playerstable + ".");
+        } catch (SQLException err) {
+            plugin.getLogger().warning("Unable to widen the username column of " + playerstable
+                    + " (names over 16 characters may not mirror): " + err.getMessage());
+        }
     }
 
     public void shutdown() {
@@ -772,7 +798,19 @@ public final class MySQLStorage {
     private void applyToFile(PlayerRow row, Map<String, Map<String, String>> values, boolean overwritecore) {
         final File folder = new File(plugin.getDataFolder(), File.separator + "Data");
         final File file = new File(folder, File.separator + row.uuid + ".yml");
-        final FileConfiguration data = YamlConfiguration.loadConfiguration(file);
+        synchronized (FileStore.LOCK) {
+            applyLocked(row, values, overwritecore, file);
+        }
+    }
+
+    private void applyLocked(PlayerRow row, Map<String, Map<String, String>> values, boolean overwritecore, File file) {
+        final FileConfiguration data;
+        try {
+            data = FileStore.loadForUpdate(file, plugin.getLogger());
+        } catch (Exception err) {
+            plugin.getLogger().warning("Unable to read " + file.getName() + " during a MySQL sync, it was left alone: " + err.getMessage());
+            return;
+        }
 
         final boolean newer = overwritecore || row.laston >= data.getLong("Last-On");
 

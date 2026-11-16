@@ -563,8 +563,8 @@ public class PUUIDS {
         double prevx = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".X");
         double prevy = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".Y") + 0.3D;
         double prevz = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".Z");
-        float prevpitch = setcache.getInt("Plugins." + plname.toUpperCase() + "." + location + ".Pitch");
-        float prevyaw = setcache.getInt("Plugins." + plname.toUpperCase() + "." + location + ".Yaw");
+        float prevpitch = (float) setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".Pitch");
+        float prevyaw = (float) setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".Yaw");
         Location finalloc = new Location(plugin.getServer().getWorld(world), prevx, prevy, prevz, prevyaw, prevpitch);
         wasGet();
         return finalloc;
@@ -572,7 +572,7 @@ public class PUUIDS {
 
     /**
      * Reads a location saved with {@link #setLocation}. Y is raised by 0.3 so a player teleported there
-     * doesn't clip into the floor, and pitch and yaw come back as whole degrees. Requires {@link #connect}.
+     * doesn't clip into the floor. Requires {@link #connect}.
      * <p>
      * Check {@link #contains} first: if no location is saved at that path, this throws a
      * NullPointerException instead of returning null.
@@ -602,8 +602,8 @@ public class PUUIDS {
         double prevx = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".X");
         double prevy = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".Y") + 0.3D;
         double prevz = setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".Z");
-        float prevpitch = setcache.getInt("Plugins." + plname.toUpperCase() + "." + location + ".Pitch");
-        float prevyaw = setcache.getInt("Plugins." + plname.toUpperCase() + "." + location + ".Yaw");
+        float prevpitch = (float) setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".Pitch");
+        float prevyaw = (float) setcache.getDouble("Plugins." + plname.toUpperCase() + "." + location + ".Yaw");
         String world = setcache.getString("Plugins." + plname.toUpperCase() + "." + location + ".World");
         Location finalloc = new Location(plugin.getServer().getWorld(Objects.requireNonNull(world)), prevx, prevy, prevz, prevyaw, prevpitch);
         wasGet();
