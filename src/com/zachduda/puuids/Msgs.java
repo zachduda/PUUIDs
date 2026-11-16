@@ -8,12 +8,14 @@ import java.util.regex.Pattern;
 
 public class Msgs {
 
-    static String prefix = "&8[#4ec483PUUIDs&8]";
+    static String prefix = "&8[#4ec483&lPUUIDs&8]";
+
+    private static final Pattern HEX = Pattern.compile("(?<!\\w)(?:#|&x)([A-Fa-f0-9]{6})(?!\\w)");
 
     @SuppressWarnings("ReplaceAllNonRegex")
     static String color(String msg) {
         msg = msg.replaceAll("&#", "#");
-        Pattern pattern = Pattern.compile("(?<!\\w)(?:#|&x)([A-Fa-f0-9]{6})(?!\\w)");
+        final Pattern pattern = HEX;
         Matcher matcher = pattern.matcher(msg);
         while (matcher.find()) {
             String hexCode = matcher.group(0);

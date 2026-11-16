@@ -94,6 +94,7 @@ public final class MySQLStorage {
                     st.executeUpdate(Tables.createPlayers(playerstable));
                     st.executeUpdate(Tables.createRegistry(registrytable));
                 }
+                widenUsernameColumn(connection);
                 return null;
             });
         } catch (SQLException err) {
@@ -120,6 +121,31 @@ public final class MySQLStorage {
 
         plugin.getLogger().info("Connected to MySQL at " + settings.describe() + ". Player data will be mirrored there.");
         return true;
+    }
+
+    /*
+      The column used to be VARCHAR(16). A longer name (Floodgate prefixes Bedrock players, so
+      theirs reach 17+) made MySQL reject the row, and with it the whole batch - which was then
+      retried forever, stalling the mirror for everyone.
+     */
+    private void widenUsernameColumn(Connection connection) {
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS"
+                        + " WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME='username'")) {
+            ps.setString(1, playerstable);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next() || rs.getLong(1) >= Tables.MAX_USERNAME) {
+                    return;
+                }
+            }
+            try (Statement st = connection.createStatement()) {
+                st.executeUpdate(Tables.widenUsername(playerstable));
+            }
+            plugin.debug("Widened the username column of " + playerstable + ".");
+        } catch (SQLException err) {
+            plugin.getLogger().warning("Unable to widen the username column of " + playerstable
+                    + " (names over 16 characters may not mirror): " + err.getMessage());
+        }
     }
 
     public void shutdown() {
@@ -320,12 +346,75 @@ public final class MySQLStorage {
             retryafter = 0;
             lasterror = null;
         } catch (SQLException err) {
-            for (int i = ready.size() - 1; i >= 0; i--) {
-                queue.addFirst(ready.get(i));
+            if (connectionProblem(err)) {
+                requeue(ready, 0);
+                fail("Unable to write " + ready.size() + " changes to MySQL", err);
+                return;
             }
-            retryafter = System.currentTimeMillis() + 15_000L;
-            fail("Unable to write " + ready.size() + " changes to MySQL", err);
+            // The database is there but turned the batch down, so one of the changes is the
+            // problem. Retrying the batch as it is would fail the same way forever and hold
+            // up everything queued behind it.
+            fail("MySQL rejected a batch of " + ready.size() + " changes; sending them one at a time", err);
+            isolate(ready);
         }
+    }
+
+    private void requeue(List<Op> ops, int from) {
+        for (int i = ops.size() - 1; i >= from; i--) {
+            queue.addFirst(ops.get(i));
+        }
+        retryafter = System.currentTimeMillis() + 15_000L;
+    }
+
+    /** Applies a rejected batch change by change, dropping only the ones MySQL refuses. */
+    private void isolate(List<Op> ready) {
+        final int[] done = {0};
+        try {
+            withConnection(connection -> {
+                ensureTables(connection, ready);
+                for (Op op : ready) {
+                    try {
+                        apply(connection, Collections.singletonList(op));
+                        written.incrementAndGet();
+                    } catch (SQLException bad) {
+                        if (connectionProblem(bad)) {
+                            throw bad;
+                        }
+                        final long total = dropped.incrementAndGet();
+                        if (total <= 20 || quiet()) {
+                            plugin.getLogger().warning("Dropped a change MySQL refused (table " + op.table
+                                    + ", player " + op.uuid + "): " + bad.getMessage());
+                        }
+                    }
+                    done[0]++;
+                }
+                return null;
+            });
+            retryafter = 0;
+        } catch (SQLException err) {
+            requeue(ready, done[0]);
+            fail("Unable to write " + (ready.size() - done[0]) + " changes to MySQL", err);
+        }
+    }
+
+    /** Whether a failure is about reaching the database rather than what was sent to it. */
+    private static boolean connectionProblem(SQLException err) {
+        for (Throwable cause = err; cause != null; cause = cause.getCause()) {
+            if (cause instanceof java.sql.SQLTransientConnectionException
+                    || cause instanceof java.sql.SQLNonTransientConnectionException
+                    || cause instanceof java.sql.SQLRecoverableException
+                    || cause instanceof java.sql.SQLTimeoutException
+                    || cause instanceof java.io.IOException) {
+                return true;
+            }
+            if (cause instanceof SQLException sql && sql.getSQLState() != null && sql.getSQLState().startsWith("08")) {
+                return true;
+            }
+            if (cause.getCause() == cause) {
+                break;
+            }
+        }
+        return false;
     }
 
     private void ensureTables(Connection connection, List<Op> batch) throws SQLException {
@@ -577,6 +666,10 @@ public final class MySQLStorage {
             }
 
             final String table = Tables.data(settings.prefix, pluginname);
+            // Rows for values that have since been removed from the file go too, or an export
+            // could never repair a mirror that missed a delete. Only for plugins this file
+            // actually has a section for: another server's plugins are left alone.
+            batch.add(new Op.Clear(table, pluginname, uuid));
             for (String path : section.getKeys(true)) {
                 final Object value = section.get(path);
                 if (value == null || value instanceof ConfigurationSection) {
@@ -614,11 +707,9 @@ public final class MySQLStorage {
             }
 
             final long start = System.currentTimeMillis();
-            final boolean waspaused = plugin.isSavingPaused();
-
             // Hold the file writer while the folder is rewritten underneath it. Queued changes
             // simply wait, and land on the imported files once we are done.
-            plugin.setSavingPaused(true);
+            plugin.pauseSaving();
             try {
                 final Map<String, String> tables = pluginTables();
                 int imported = 0;
@@ -647,7 +738,7 @@ public final class MySQLStorage {
                 fail("Import from MySQL failed", err);
                 progress.accept("&c&lFailed. &fMySQL rejected the import: " + err.getMessage());
             } finally {
-                plugin.setSavingPaused(waspaused);
+                plugin.resumeSaving();
                 longtask.set(false);
                 finish(then);
             }
@@ -772,7 +863,19 @@ public final class MySQLStorage {
     private void applyToFile(PlayerRow row, Map<String, Map<String, String>> values, boolean overwritecore) {
         final File folder = new File(plugin.getDataFolder(), File.separator + "Data");
         final File file = new File(folder, File.separator + row.uuid + ".yml");
-        final FileConfiguration data = YamlConfiguration.loadConfiguration(file);
+        synchronized (FileStore.LOCK) {
+            applyLocked(row, values, overwritecore, file);
+        }
+    }
+
+    private void applyLocked(PlayerRow row, Map<String, Map<String, String>> values, boolean overwritecore, File file) {
+        final FileConfiguration data;
+        try {
+            data = FileStore.loadForUpdate(file, plugin.getLogger());
+        } catch (Exception err) {
+            plugin.getLogger().warning("Unable to read " + file.getName() + " during a MySQL sync, it was left alone: " + err.getMessage());
+            return;
+        }
 
         final boolean newer = overwritecore || row.laston >= data.getLong("Last-On");
 

@@ -5,6 +5,8 @@ import java.util.Locale;
 final class Tables {
 
     private static final int MAX_IDENTIFIER = 64;
+    /** Wider than Mojang's 16: Bedrock (Floodgate) and offline-mode names can be longer. */
+    static final int MAX_USERNAME = 48;
 
     private Tables() {
     }
@@ -42,7 +44,7 @@ final class Tables {
     static String createPlayers(String table) {
         return "CREATE TABLE IF NOT EXISTS `" + table + "` ("
                 + "`uuid` CHAR(36) NOT NULL,"
-                + "`username` VARCHAR(16) DEFAULT NULL,"
+                + "`username` VARCHAR(" + MAX_USERNAME + ") DEFAULT NULL,"
                 + "`ip` VARCHAR(45) DEFAULT NULL,"
                 + "`last_on` BIGINT NOT NULL DEFAULT 0,"
                 + "`time_played` BIGINT NOT NULL DEFAULT 0,"
@@ -50,6 +52,11 @@ final class Tables {
                 + "PRIMARY KEY (`uuid`),"
                 + "KEY `idx_username` (`username`)"
                 + ") ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4";
+    }
+
+    /** Widens the username column of a table created by an older version. */
+    static String widenUsername(String table) {
+        return "ALTER TABLE `" + table + "` MODIFY `username` VARCHAR(" + MAX_USERNAME + ") DEFAULT NULL";
     }
 
     static String createRegistry(String table) {
