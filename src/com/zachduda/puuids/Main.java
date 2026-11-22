@@ -19,6 +19,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -89,6 +90,14 @@ public class Main extends JavaPlugin implements Listener {
     // Set once the start-up scan has read every file. From then on the index knows every name
     // on disk, so a miss no longer has to fall back to parsing the whole Data folder.
     private volatile boolean nameindexready = false;
+
+    /** The UUID and username inside a player file, as of when puuids last read or saved it. */
+    public record KnownFile(String uuid, String name) {
+    }
+
+    // File name (without .yml) -> what's in it. Filled by the start-up scan and kept current by
+    // every save, so listing every player's name doesn't mean parsing every file again.
+    private final Map<String, KnownFile> knownfiles = new ConcurrentHashMap<>();
 
     // Optional MySQL mirror of the Data folder. Null whenever it is off or couldn't connect.
     private volatile MySQLStorage storage;
@@ -175,6 +184,19 @@ public class Main extends JavaPlugin implements Listener {
         getConfig().options().copyDefaults(true);
         saveConfig();
         updateConfig(true);
+
+        // Before anything can save or delete a player file, so the index never misses one.
+        FileStore.setListener(new FileStore.Listener() {
+            @Override
+            public void saved(File target, FileConfiguration config) {
+                indexFile(target, config, true);
+            }
+
+            @Override
+            public void deleted(File target) {
+                knownfiles.remove(fileKey(target));
+            }
+        });
 
         /*
           When the database is the master copy - a fresh server joining a network, or one being
@@ -267,6 +289,7 @@ public class Main extends JavaPlugin implements Listener {
         // or nothing would accrue for them until they reconnected.
         for (Player online : players) {
             Timer.startSession(online.getUniqueId());
+            keepLoaded(online.getUniqueId());
         }
 
         taskresettimer = startStatResetTimer();
@@ -331,7 +354,7 @@ public class Main extends JavaPlugin implements Listener {
                         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
                         if (!setcache.contains("Last-On") || (!setcache.contains("Username")) || (!setcache.contains("UUID"))) {
-                            if(!f.delete()) {
+                            if(!FileStore.delete(f)) {
                                 debug("Error deleting file:" + f.toPath());
                             }
                             debug("Deleted file: " + f.getName() + "... It was invalid!");
@@ -343,7 +366,7 @@ public class Main extends JavaPlugin implements Listener {
                             String playername = setcache.getString("Username");
 
                             if (daysAgo >= maxDays && useclean) {
-                                if(!f.delete()) {
+                                if(!FileStore.delete(f)) {
                                     debug("Error deleting file:" + f.toPath());
                                 }
                                 final String expired = setcache.getString("UUID");
@@ -361,7 +384,7 @@ public class Main extends JavaPlugin implements Listener {
                                   https://github.com/EssentialsX/Essentials/blob/3af931740b20507837276f87f9456221653ac43d/Essentials/src/main/java/com/earth2me/essentials/commands/Commandplaytime.java
                                  */
                                 final String uuid = setcache.getString("UUID");
-                                indexName(playername, uuid);
+                                indexFile(f, setcache, false);
                                 long playtime = 0;
                                 if(isFullySupported) {
                                     try {
@@ -680,6 +703,10 @@ public class Main extends JavaPlugin implements Listener {
 
         plugins.clear();
         nameindex.clear();
+        knownfiles.clear();
+        FileStore.setListener(null);
+        FileStore.unpinAll();
+        FileStore.clearCache();
 
         setTimeMS = 0;
         setTimes.set(0);
@@ -772,6 +799,7 @@ public class Main extends JavaPlugin implements Listener {
 
         storeips = getConfig().getBoolean("Settings.Store-IPs", true);
         FileStore.setCacheSize(getConfig().getInt("Advanced.Cache-Size", 500));
+        FileStore.setRevalidateSeconds(getConfig().getInt("Advanced.Cache-Revalidate-Seconds", 5));
 
         if (startup) {
             // Start-up waits on the database once: an import has to finish before the scan.
@@ -887,6 +915,58 @@ public class Main extends JavaPlugin implements Listener {
         nameindex.put(name.toLowerCase(Locale.ROOT), uuid);
     }
 
+    private static String fileKey(File f) {
+        final String name = f.getName();
+        return name.length() > 4 ? name.substring(0, name.length() - 4) : name;
+    }
+
+    /**
+     * Records what a player file says about its player, for the name index and the listings.
+     *
+     * @param saved true when this is what was just written. Otherwise it was read, possibly just
+     *              before a save on another thread, so it never replaces what that save recorded.
+     */
+    private KnownFile indexFile(File f, FileConfiguration config, boolean saved) {
+        final KnownFile read = new KnownFile(config.getString("UUID"), config.getString("Username"));
+        final KnownFile kept;
+        if (saved) {
+            knownfiles.put(fileKey(f), read);
+            kept = read;
+        } else {
+            final KnownFile earlier = knownfiles.putIfAbsent(fileKey(f), read);
+            kept = earlier == null ? read : earlier;
+        }
+        indexName(kept.name(), kept.uuid());
+        return kept;
+    }
+
+    /**
+     * The UUID and username inside a player file, answered from memory once puuids has seen the
+     * file (at start-up, or when it last saved it), and only parsed from disk otherwise.
+     */
+    public KnownFile knownFile(File f) {
+        final KnownFile known = knownfiles.get(fileKey(f));
+        if (known != null) {
+            return known;
+        }
+        final FileConfiguration config = FileStore.peek(f);
+        if (!config.contains("UUID")) {
+            // Not a valid player file (or already gone), so nothing worth remembering.
+            return new KnownFile(config.getString("UUID"), config.getString("Username"));
+        }
+        return indexFile(f, config, false);
+    }
+
+    /**
+     * Keeps an online player's file in memory until they quit, loading it now (off the main
+     * thread) so their first read doesn't have to.
+     */
+    private void keepLoaded(UUID uuid) {
+        final String key = uuid.toString();
+        FileStore.pin(playerFile(key));
+        mpl.scheduling().asyncScheduler().run(() -> readFile(key));
+    }
+
     /*
       This used to load and parse every file in the data folder on the calling thread, which is
       the main thread for /puuids ontime <player> and for the PUUIDS.getUUID(name) API. On a
@@ -925,12 +1005,10 @@ public class Main extends JavaPlugin implements Listener {
                 continue;
             }
 
-            FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
-            String playername = setcache.getString("Username");
-            String UUID = setcache.getString("UUID");
-
-            indexName(playername, UUID);
+            // Indexes the file as a side effect, so the next lookup for this name is a map hit.
+            final KnownFile known = knownFile(f);
+            String playername = known.name();
+            String UUID = known.uuid();
 
             if (inputsearch.equalsIgnoreCase(playername)) {
                 return UUID;
@@ -1051,6 +1129,18 @@ public class Main extends JavaPlugin implements Listener {
         return cmd.equals("reload") || cmd.equals("rl");
     }
 
+    /*
+      Already off the main thread, and before the join: a good moment to parse the file that
+      the player's first scoreboard or chat format is about to read. Only for logins that will
+      go ahead; MONITOR runs after every other plugin's say on that.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPreLogin(AsyncPlayerPreLoginEvent e) {
+        if (e.getLoginResult() == AsyncPlayerPreLoginEvent.Result.ALLOWED) {
+            readFile(e.getUniqueId().toString());
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onJoin(PlayerJoinEvent e) {
         final Player joining = e.getPlayer();
@@ -1058,6 +1148,9 @@ public class Main extends JavaPlugin implements Listener {
         // Open the play time session here and unconditionally: it has to happen even when the
         // file refresh below is skipped by the cooldown, or a quick reconnect accrues nothing.
         Timer.startSession(joining.getUniqueId());
+
+        // Their file stays in memory while they're online (usually already loaded at pre-login).
+        keepLoaded(joining.getUniqueId());
 
         // On a network the player may have been on another server since we last saw them, so
         // their file is refreshed from the shared database before anything reads it.
@@ -1113,6 +1206,10 @@ public class Main extends JavaPlugin implements Listener {
         Cooldowns.justJoined(uuid);
         Cooldowns.clearConfirm(uuid);
         Cooldowns.forgetOnTime(uuid);
+
+        // Free to age out of the cache now, but counted as just used, so a quick rejoin (and the
+        // quit write above, which updates the cached copy) still finds it in memory.
+        FileStore.unpin(playerFile(uuid.toString()));
     }
 
     private String randomString() {
