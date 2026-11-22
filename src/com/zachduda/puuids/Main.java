@@ -3,6 +3,7 @@ package com.zachduda.puuids;
 import com.zachduda.puuids.api.PUUIDS.*;
 import com.zachduda.puuids.api.*;
 import com.zachduda.puuids.api.VersionManager.VersionTest;
+import com.zachduda.puuids.storage.Copies;
 import com.zachduda.puuids.storage.FileStore;
 import com.zachduda.puuids.storage.MySQLSettings;
 import com.zachduda.puuids.storage.MySQLStorage;
@@ -11,6 +12,7 @@ import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Sound;
+import org.bukkit.Statistic;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -36,13 +38,16 @@ import javax.management.AttributeList;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.io.File;
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -86,6 +91,12 @@ public class Main extends JavaPlugin implements Listener {
     private ScheduledTask taskresettimer;
     private ScheduledTask playerupdatetimer;
     private volatile int playerupdateseconds = 300;
+    // When UpdatedPlayerStats is next fired, in System.nanoTime().
+    private volatile long nextstatsevent;
+
+    /** Set once a file's play time has been synced with Minecraft's own statistic, so it only happens once. */
+    static final String PLAYTIME_SYNCED = "Playtime-Synced";
+    private static final long DAY_MS = 86_400_000L;
 
     // Lower-cased username -> UUID.
     private final Map<String, String> nameindex = new ConcurrentHashMap<>();
@@ -171,34 +182,44 @@ public class Main extends JavaPlugin implements Listener {
         statusreason = "0";
         pauseholders.set(0);
         frozen = false;
+        FileStore.setLogger(getLogger());
         pauseSaving();
 
-        // The start-up scan reads the config, so load it first.
-        getConfig().options().copyDefaults(true);
-        saveConfig();
-        updateConfig(true);
+        // The scan releases the hold above. Until it is on its way, a failure here must release it instead.
+        boolean scanning = false;
+        try {
+            // The start-up scan reads the config, so load it first.
+            getConfig().options().copyDefaults(true);
+            saveConfig();
+            updateConfig(true);
 
-        // Registered before any file is saved or deleted, so the index never misses one.
-        FileStore.setListener(new FileStore.Listener() {
-            @Override
-            public void saved(File target, FileConfiguration config) {
-                indexFile(target, config, true);
+            // Registered before any file is saved or deleted, so the index never misses one.
+            FileStore.setListener(new FileStore.Listener() {
+                @Override
+                public void saved(File target, FileConfiguration config) {
+                    indexFile(target, config, true);
+                }
+
+                @Override
+                public void deleted(File target) {
+                    knownfiles.remove(fileKey(target));
+                }
+            });
+
+            // The import has to finish before the scan reads or cleans the folder.
+            final MySQLStorage atstartup = storage;
+            if (atstartup != null && atstartup.settings().importonstartup) {
+                getLogger().info("Importing player data from MySQL before start-up checks...");
+                atstartup.importAll(line -> Msgs.sendPrefix(Bukkit.getConsoleSender(), line),
+                        () -> mpl.scheduling().asyncScheduler().run(this::startupScan));
+            } else {
+                mpl.scheduling().asyncScheduler().run(this::startupScan);
             }
-
-            @Override
-            public void deleted(File target) {
-                knownfiles.remove(fileKey(target));
+            scanning = true;
+        } finally {
+            if (!scanning) {
+                resumeSaving();
             }
-        });
-
-        // The import has to finish before the scan reads or cleans the folder.
-        final MySQLStorage atstartup = storage;
-        if (atstartup != null && atstartup.settings().importonstartup) {
-            getLogger().info("Importing player data from MySQL before start-up checks...");
-            atstartup.importAll(line -> Msgs.sendPrefix(Bukkit.getConsoleSender(), line),
-                    () -> mpl.scheduling().asyncScheduler().run(this::startupScan));
-        } else {
-            mpl.scheduling().asyncScheduler().run(this::startupScan);
         }
 
         plugins.put(this, APIVersion.V5);
@@ -257,9 +278,7 @@ public class Main extends JavaPlugin implements Listener {
             for (Player online : players) {
                 if (online.isOp() || online.hasPermission("puuids.admin")) {
                     Msgs.sendPrefix(online, "&c&lWARNING: &fPUUIDs has been improperly reloaded. This will cause data loss and possible damage to other plugins.");
-                    if (sounds) {
-                        online.playSound(online.getLocation(), Sound.ENTITY_ELDER_GUARDIAN_CURSE, 2.0F, 2.0F);
-                    }
+                    play(online, Sound.ENTITY_ELDER_GUARDIAN_CURSE, 2.0F, 2.0F);
                 }
             }
         }
@@ -272,7 +291,7 @@ public class Main extends JavaPlugin implements Listener {
 
         // Players online after an improper reload still need a play time session.
         for (Player online : players) {
-            Timer.startSession(online.getUniqueId());
+            Timer.startSession(online.getUniqueId(), true);
             keepLoaded(online.getUniqueId());
         }
 
@@ -286,15 +305,19 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     /**
-     * Walks the Data folder once at start-up: drops files that are corrupt or long abandoned,
-     * fills the username index, and reconciles play time with the server's own statistic.
+     * Walks the Data folder once at start-up: fills the username index, removes files that are empty or
+     * long abandoned, and queues the one-time play time sync for files that haven't had it.
+     * <p>
+     * It only reads. Files are parsed as plain data, so no ItemStack or Location is built before worlds
+     * and other plugins have loaded. Anything that needs changing goes through the save queue, and a file
+     * it can't make sense of is left exactly as it is.
      * <p>
      * Runs off the main thread and always releases its hold on the file writer.
      */
     private void startupScan() {
         try {
             final boolean useclean = getConfig().getBoolean("Settings.File-Cleanup.Enabled", true);
-            final boolean cleaness = getConfig().getBoolean("Settings.File-Cleanup.Clean-Essentials", true);
+            final boolean cleaness = getConfig().getBoolean("Settings.File-Cleanup.Clean-Essentials", false);
             // A missing key must not read as 0 days, which would delete everything.
             final int maxDays = Math.max(1, getConfig().getInt("Settings.File-Cleanup.Max-Days", 365));
 
@@ -302,112 +325,123 @@ public class Main extends JavaPlugin implements Listener {
             final String language = Locale.getDefault().getLanguage();
             final boolean turkic = language.equals("tr") || language.equals("az");
 
-            final File folder = new File(this.getDataFolder(), File.separator + "Data");
-            final File[] cachefiles = folder.exists() ? folder.listFiles() : null;
+            final File folder = new File(this.getDataFolder(), "Data");
+            final File[] cachefiles = folder.isDirectory() ? folder.listFiles() : null;
             if (cachefiles == null) {
                 nameindexready = true;
                 return;
             }
 
-            ArrayList<String> unknownfiles = new ArrayList<>();
+            final long now = System.currentTimeMillis();
+            final Statistic playstat = isFullySupported ? EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK") : null;
+            final List<String> unknownfiles = new ArrayList<>();
+            final List<String> unreadable = new ArrayList<>();
+            int incomplete = 0;
+            int syncing = 0;
 
-            for (File cachefile : cachefiles) {
-                String path = cachefile.getPath();
+            for (File f : cachefiles) {
+                final String name = f.getName();
 
-                final File f = new File(path);
-                if (!Files.getFileExtension(path).equalsIgnoreCase("yml")) {
-                    if (f.getName().toLowerCase().contains("ds_store")) {
+                if (!Files.getFileExtension(name).equalsIgnoreCase("yml") || f.isDirectory()) {
+                    if (name.toLowerCase(Locale.ROOT).contains("ds_store")) {
                         if (!f.delete()) {
                             debug("Error deleting file:" + f.toPath());
                         }
                         debug("Found macOS .ds_store file in folder. Deleting!");
-                    } else if (f.getName().endsWith(FileStore.TEMP_SUFFIX)) {
+                    } else if (name.endsWith(FileStore.TEMP_SUFFIX)) {
                         // Left by an interrupted save; the real file is intact.
                         if (!f.delete()) {
                             debug("Error deleting file:" + f.toPath());
                         }
-                        debug("Cleaned up a leftover temporary file: " + f.getName());
+                        debug("Cleaned up a leftover temporary file: " + name);
                     } else {
-                        unknownfiles.add(f.getName());
+                        unknownfiles.add(name);
                     }
-                } else {
+                    continue;
+                }
 
+                try {
+                    final Map<String, Object> data;
                     try {
-                        FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+                        data = FileStore.readRaw(f);
+                    } catch (IOException err) {
+                        unreadable.add(name);
+                        debug("Unable to read " + name + ", it was left alone: " + err);
+                        continue;
+                    }
+                    if (data == null) {
+                        // Not YAML at all. Reads use whatever can be recovered, and its next save keeps a copy.
+                        unreadable.add(name);
+                        continue;
+                    }
 
-                        if (!setcache.contains("Last-On") || (!setcache.contains("Username")) || (!setcache.contains("UUID"))) {
-                            if(!FileStore.delete(f)) {
-                                debug("Error deleting file:" + f.toPath());
+                    if (data.isEmpty()) {
+                        // Nothing in it to lose.
+                        if (deleteIf(f, Map::isEmpty)) {
+                            debug("Removed " + name + ", which was empty.");
+                        }
+                        continue;
+                    }
+
+                    final String key = fileKey(f);
+                    final String uuid = text(data.get("UUID"));
+                    final String playername = text(data.get("Username"));
+                    final Long laston = whole(data.get("Last-On"));
+                    indexFile(f, uuid, playername, false);
+
+                    if (uuid == null || playername == null || laston == null) {
+                        // Usually values a plugin saved for someone who hasn't joined since. Filled in when they do.
+                        incomplete++;
+                        debug("Keeping " + name + ", which has no " + (uuid == null ? "UUID" : playername == null ? "Username" : "Last-On") + " yet.");
+                        continue;
+                    }
+
+                    // Negative for a Last-On in the future, which never counts as old.
+                    final long daysAgo = (now - laston) / DAY_MS;
+                    if (useclean && daysAgo >= maxDays) {
+                        if (deleteIf(f, current -> expired(current, now, maxDays))) {
+                            if (cleaness) {
+                                // Essentials isn't enabled yet; see scheduleEssentialsCleanup().
+                                essentialscleanup.add(uuid);
                             }
-                            debug("Deleted file: " + f.getName() + "... It was invalid!");
+                            debug("Deleted " + playername + "'s data file because it's " + daysAgo
+                                    + " days old. (Max: " + maxDays + " Days)");
+                        }
+                        continue;
+                    }
+
+                    if (turkic && hasDottedI(data)) {
+                        Timer.queueFix(key, this::migratePluginKeys);
+                    }
+
+                    // Once per file: afterwards puuids' own count is kept, so a reset sticks.
+                    if (playstat != null && !Boolean.TRUE.equals(data.get(PLAYTIME_SYNCED))) {
+                        final long vanilla = vanillaSeconds(uuid, playstat);
+                        if (vanilla >= 0) {
+                            debug("Minecraft's playtime for " + playername + " is " + vanilla / 60 + " minutes");
+                            Timer.queueFix(key, file -> {
+                                if (vanilla > file.getLong("Time-Played")) {
+                                    file.set("Time-Played", vanilla);
+                                }
+                                file.set(PLAYTIME_SYNCED, true);
+                            });
+                            syncing++;
+                        }
+                    }
+
+                    if (debug) {
+                        if (useclean) {
+                            getLogger().info("[Debug] Keeping " + playername + "'s data file. (" + daysAgo + "/" + maxDays + ")");
                         } else {
-
-                            long daysAgo = Math
-                                    .abs(((setcache.getLong("Last-On")) / 86400000) - (System.currentTimeMillis() / 86400000));
-
-                            String playername = setcache.getString("Username");
-
-                            if (daysAgo >= maxDays && useclean) {
-                                if(!FileStore.delete(f)) {
-                                    debug("Error deleting file:" + f.toPath());
-                                }
-                                final String expired = setcache.getString("UUID");
-                                if (cleaness && expired != null) {
-                                    // Essentials isn't enabled yet; see scheduleEssentialsCleanup().
-                                    essentialscleanup.add(expired);
-                                }
-                                if (debug) {
-                                    getLogger().info("[Debug] Deleted " + playername + "'s data file because it's " + daysAgo +
-                                            " days old. (Max: " + maxDays + " Days)");
-                                }
-                            } else {
-                                // Adapted from EssentialsX:
-                                // https://github.com/EssentialsX/Essentials/blob/3af931740b20507837276f87f9456221653ac43d/Essentials/src/main/java/com/earth2me/essentials/commands/Commandplaytime.java
-                                final String uuid = setcache.getString("UUID");
-                                indexFile(f, setcache, false);
-                                long playtime = 0;
-                                if(isFullySupported) {
-                                    try {
-                                        // The statistic is in ticks; Time-Played is in seconds.
-                                        final long ticks = getServer().getOfflinePlayer(UUID.fromString(Objects.requireNonNull(uuid)))
-                                                .getStatistic(EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK"));
-                                        playtime = ticks / 20L;
-                                    } catch (Exception e) {
-                                        if(debug) {
-                                            debug("Unable to use getStatistic for player playtime:");
-                                            e.printStackTrace();
-                                        }
-                                    }
-                                }
-                                debug("Spigot playtime for " + playername + " is " + playtime/60 + " minutes");
-                                boolean dirty = turkic && migratePluginKeys(setcache);
-                                final long puuids_playtime = setcache.getLong("Time-Played");
-                                debug("PUUIDS playtime for " + playername + " is " + puuids_playtime/60 + " minutes");
-                                if(playtime > puuids_playtime) {
-                                    debug("Using native MC playtime for puuids data file for " + playername);
-                                    setcache.set("Time-Played", playtime);
-                                    dirty = true;
-                                }
-                                if (dirty) {
-                                    FileStore.save(setcache, f);
-                                }
-                                if (debug) {
-                                    if (useclean) {
-                                        getLogger().info("[Debug] Keeping " + playername + "'s data file. (" + daysAgo + "/" + maxDays +
-                                                ")");
-                                    } else {
-                                        getLogger().info("[Debug] Found " + playername + "'s data file. (" + daysAgo + " days)");
-                                    }
-                                }
-                            }
+                            getLogger().info("[Debug] Found " + playername + "'s data file. (" + daysAgo + " days)");
                         }
-                    } catch (Exception err) {
-                        status = false;
-                        statusreason = "Error when trying to save a player file during the clean-up start cycle.";
-                        if (debug) {
-                            debug("Error when trying to work with player file: " + f.getName() + ", see below:");
-                            err.printStackTrace();
-                        }
+                    }
+                } catch (RuntimeException err) {
+                    status = false;
+                    statusreason = "Error when trying to check a player file during the start-up scan.";
+                    getLogger().warning("Unable to check " + name + " at start-up, it was left alone: " + err);
+                    if (debug) {
+                        err.printStackTrace();
                     }
                 }
             }
@@ -422,8 +456,28 @@ public class Main extends JavaPlugin implements Listener {
                 statusreason = "Unknown file was found in your puuids Data folder, please remove the following files: " + unknownfiles;
             }
 
-            unknownfiles.clear();
+            if (!unreadable.isEmpty()) {
+                getLogger().warning(unreadable.size() + " player files couldn't be read, and were left exactly as they are: "
+                        + String.join(", ", unreadable.subList(0, Math.min(10, unreadable.size())))
+                        + (unreadable.size() > 10 ? ", ..." : ""));
+                getLogger().warning("Reads use whatever can be recovered from them, and each one's next save keeps a copy in the Corrupt folder.");
+                status = false;
+                statusreason = unreadable.size() + " player files couldn't be read at start-up. See the console.";
+            }
+
+            if (incomplete > 0) {
+                debug(incomplete + " files only hold plugin data so far, for players who haven't joined since.");
+            }
+            if (syncing > 0) {
+                getLogger().info("Syncing the play time of " + syncing + " players with Minecraft's own statistic (once per player).");
+            }
+
             nameindexready = true;
+        } catch (RuntimeException err) {
+            // The index stays incomplete, so name lookups fall back to reading the folder.
+            status = false;
+            statusreason = "The start-up scan stopped early: " + err;
+            getLogger().warning("The start-up scan stopped early: " + err);
         } finally {
             resumeSaving();
         }
@@ -435,6 +489,85 @@ public class Main extends JavaPlugin implements Listener {
             getLogger().info("Exporting the Data folder to MySQL...");
             started.exportAll(line -> Msgs.sendPrefix(Bukkit.getConsoleSender(), line), null);
         }
+    }
+
+    /** Minecraft's play time statistic in seconds, or -1 if this server can't say. */
+    private long vanillaSeconds(String uuid, Statistic stat) {
+        try {
+            // Adapted from EssentialsX:
+            // https://github.com/EssentialsX/Essentials/blob/3af931740b20507837276f87f9456221653ac43d/Essentials/src/main/java/com/earth2me/essentials/commands/Commandplaytime.java
+            // The statistic is in ticks; Time-Played is in seconds.
+            return getServer().getOfflinePlayer(UUID.fromString(uuid)).getStatistic(stat) / 20L;
+        } catch (Exception err) {
+            if (debug) {
+                debug("Unable to use getStatistic for player playtime:");
+                err.printStackTrace();
+            }
+            return -1;
+        }
+    }
+
+    // Deletes a file if it still meets the condition, checked again under the lock so a save that has
+    // just landed isn't lost.
+    private boolean deleteIf(File f, Predicate<Map<String, Object>> condition) {
+        synchronized (FileStore.LOCK) {
+            final Map<String, Object> current;
+            try {
+                current = FileStore.readRaw(f);
+            } catch (IOException err) {
+                return false;
+            }
+            if (current == null || !condition.test(current)) {
+                return false;
+            }
+            if (!FileStore.delete(f)) {
+                debug("Error deleting file:" + f.toPath());
+                return false;
+            }
+            return true;
+        }
+    }
+
+    private static boolean expired(Map<String, Object> data, long now, int maxDays) {
+        final Long laston = whole(data.get("Last-On"));
+        return laston != null && (now - laston) / DAY_MS >= maxDays;
+    }
+
+    private static boolean hasDottedI(Map<String, Object> data) {
+        if (!(data.get("Plugins") instanceof Map<?, ?> section)) {
+            return false;
+        }
+        for (Object key : section.keySet()) {
+            if (String.valueOf(key).indexOf('\u0130') >= 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // A scalar from a raw parse as text, as Bukkit's getString would give it.
+    private static String text(Object value) {
+        if (value instanceof String string) {
+            return string;
+        }
+        if (value instanceof Number || value instanceof Boolean || value instanceof Character) {
+            return value.toString();
+        }
+        return null;
+    }
+
+    private static Long whole(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String string) {
+            try {
+                return Long.parseLong(string.trim());
+            } catch (NumberFormatException notanumber) {
+                return null;
+            }
+        }
+        return null;
     }
 
     /** Moves plugin sections filed under a dotted capital I to the name every other locale uses. */
@@ -485,17 +618,32 @@ public class Main extends JavaPlugin implements Listener {
         });
     }
 
-    // Checkpoints online players so a crash only loses up to one interval of play time.
+    // Checkpoints online players so a crash only loses up to one interval of play time. Each player is due
+    // one interval after their last save, so the saves are spread out instead of all landing at once.
     private ScheduledTask startPlayerUpdateTimer() {
-        final Duration interval = Duration.ofSeconds(playerupdateseconds);
+        final long interval = TimeUnit.SECONDS.toNanos(playerupdateseconds);
+        final Duration tick = Duration.ofSeconds(Math.clamp(playerupdateseconds / 30, 1, 10));
+        nextstatsevent = System.nanoTime() + interval;
         return mpl.scheduling().asyncScheduler().runAtFixedRate(() -> {
-            debug("Updating any online players data files...");
+            final long now = System.nanoTime();
+            int due = 0;
             for (Player p : Bukkit.getOnlinePlayers()) {
-                updateFile(p, false);
+                if (Timer.checkpointDue(p.getUniqueId(), now)) {
+                    updateFile(p, false);
+                    due++;
+                }
             }
-            UpdatedPlayerStats ups = new UpdatedPlayerStats();
-            Bukkit.getPluginManager().callEvent(ups);
-        }, interval, interval);
+            if (due > 0) {
+                debug("Checkpointed " + due + " online players.");
+            }
+
+            Cooldowns.sweep();
+
+            if (now - nextstatsevent >= 0) {
+                nextstatsevent = now + interval;
+                Bukkit.getPluginManager().callEvent(new UpdatedPlayerStats());
+            }
+        }, tick, tick);
     }
 
     private ScheduledTask startStatResetTimer() {
@@ -575,15 +723,12 @@ public class Main extends JavaPlugin implements Listener {
 
     /** Reads a value that callers can modify without affecting the cache. */
     public Object readDetached(String uuid, String path) {
-        final Object value = readFile(uuid).get(path);
-        if (value == null || value instanceof String || value instanceof Number
-                || value instanceof Boolean || value instanceof Character) {
-            return value;
+        final Object copied = Copies.copy(readFile(uuid).get(path));
+        if (copied != Copies.UNCOPYABLE) {
+            return copied;
         }
-        if (value instanceof List<?> list) {
-            return new ArrayList<>(list);
-        }
-        return YamlConfiguration.loadConfiguration(playerFile(uuid)).get(path);
+        // Something with no general way to copy it: parsed fresh from disk instead.
+        return validKey(uuid) ? FileStore.readFresh(playerFile(uuid)).get(path) : null;
     }
 
     public boolean isRegistered(Plugin pl) {
@@ -718,6 +863,7 @@ public class Main extends JavaPlugin implements Listener {
         }
 
         playerupdateseconds = Math.max(5, getConfig().getInt("Advanced.Player-Update-Seconds", 300));
+        Timer.setCheckpointSeconds(playerupdateseconds);
 
         // Applies a changed Save-Rate-Ticks on reload.
         Timer.startTimer();
@@ -866,7 +1012,11 @@ public class Main extends JavaPlugin implements Listener {
      *              never replaces what a save recorded.
      */
     private KnownFile indexFile(File f, FileConfiguration config, boolean saved) {
-        final KnownFile read = new KnownFile(config.getString("UUID"), config.getString("Username"));
+        return indexFile(f, config.getString("UUID"), config.getString("Username"), saved);
+    }
+
+    private KnownFile indexFile(File f, String uuid, String name, boolean saved) {
+        final KnownFile read = new KnownFile(uuid, name);
         final KnownFile kept;
         if (saved) {
             knownfiles.put(fileKey(f), read);
@@ -946,7 +1096,8 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     public boolean hasPlayedUUID(String uuid) {
-        return validKey(uuid) && playerFile(uuid).exists();
+        // Online and recently read players are answered from memory, without touching the disk.
+        return validKey(uuid) && FileStore.exists(playerFile(uuid));
     }
 
     public boolean hasPlayedName(String name) {
@@ -1046,15 +1197,25 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     /*
-      Already off the main thread, and before the join: a good moment to parse the file that
-      the player's first scoreboard or chat format is about to read. Only for logins that will
-      go ahead; MONITOR runs after every other plugin's say on that.
+      Already off the main thread, and before the join: a good moment to sync the file from MySQL and
+      parse it for the player's first scoreboard or chat format. Only for logins that will go ahead;
+      MONITOR runs after every other plugin's say on that.
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPreLogin(AsyncPlayerPreLoginEvent e) {
-        if (e.getLoginResult() == AsyncPlayerPreLoginEvent.Result.ALLOWED) {
-            readFile(e.getUniqueId().toString());
+        if (e.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
+            return;
         }
+        final String uuid = e.getUniqueId().toString();
+
+        // They may have played on another server since. Done before the join, so nothing reads or writes
+        // the file in between. The login waits for it, bounded by Connection-Timeout-Seconds.
+        final MySQLStorage db = storage;
+        if (db != null && db.isConnected() && db.settings().synconjoin) {
+            db.pullPlayerNow(uuid);
+        }
+
+        readFile(uuid);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -1062,20 +1223,15 @@ public class Main extends JavaPlugin implements Listener {
         final Player joining = e.getPlayer();
 
         // Unconditional: the cooldown below can skip the file refresh.
-        Timer.startSession(joining.getUniqueId());
+        Timer.startSession(joining.getUniqueId(), false);
 
         keepLoaded(joining.getUniqueId());
-
-        // They may have played on another server since.
-        final MySQLStorage db = storage;
-        if (db != null && db.isConnected() && db.settings().synconjoin) {
-            db.pullPlayer(joining.getUniqueId().toString());
-        }
 
         mpl.scheduling().asyncScheduler().run(() -> {
             UUID uuid = joining.getUniqueId();
             if (Cooldowns.recentlyJoined(uuid)) {
-                debug(joining.getName() + "'s file won't be refreshed, it was updated less than 60s ago. [Join]");
+                debug(joining.getName() + "'s file won't be refreshed, it was updated less than "
+                        + Cooldowns.joinCooldownSeconds() + "s ago. [Join]");
                 return;
             }
 
@@ -1090,9 +1246,7 @@ public class Main extends JavaPlugin implements Listener {
                                     " while the latest is &f&l" + Updater.posted_version);
                             pop(joining);
                         } catch (Exception err) {
-                            sounds = false;
-                            debug("Error on update notif. on join: ");
-                            err.printStackTrace();
+                            debug("Error on update notif. on join: " + err);
                         }
                     }
                 }
@@ -1135,52 +1289,29 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     private void bass(CommandSender sender) {
-        try {
-            if (!sounds) {
-                return;
-            }
-
-            if (!(sender instanceof Player p)) {
-                return;
-            }
-
-            p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 2.0F, 1.3F);
-
-        } catch (Exception err) {
-            sounds = false;
-        }
+        play(sender, Sound.BLOCK_NOTE_BLOCK_BASS, 2.0F, 1.3F);
     }
 
     private void pop(CommandSender sender) {
-        try {
-            if (!sounds) {
-                return;
-            }
-
-            if (!(sender instanceof Player p)) {
-                return;
-            }
-
-            p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 2.0F, 2.0F);
-
-        } catch (Exception err) {
-            sounds = false;
-        }
+        play(sender, Sound.ENTITY_ITEM_PICKUP, 2.0F, 2.0F);
     }
 
     private void thinking(CommandSender sender) {
+        play(sender, Sound.ENTITY_ITEM_FRAME_PLACE, 2.0F, 2.0F);
+    }
+
+    // Safe from any thread: played at the player, so their location is never read from here.
+    private void play(CommandSender sender, Sound sound, float volume, float pitch) {
+        if (!sounds || !(sender instanceof Player p)) {
+            return;
+        }
         try {
-            if (!sounds) {
-                return;
-            }
-
-            if (!(sender instanceof Player p)) {
-                return;
-            }
-
-            p.playSound(p.getLocation(), Sound.ENTITY_ITEM_FRAME_PLACE, 2.0F, 2.0F);
-        } catch (Exception err) {
+            p.playSound(p, sound, volume, pitch);
+        } catch (LinkageError unsupported) {
+            // This server's API doesn't have it.
             sounds = false;
+        } catch (RuntimeException ignored) {
+            // For example, they have just left.
         }
     }
 
@@ -1428,62 +1559,77 @@ public class Main extends JavaPlugin implements Listener {
                     thinking(sender);
 
                     pauseSaving();
-
-                    mpl.scheduling().asyncScheduler().run(() -> {
-                        int total = 0;
-                        final long start = System.currentTimeMillis();
-                        final MySQLStorage db = storage;
-                        for (File AllData : listData(folder)) {
-                            File f = new File(AllData.getPath());
-                            if (!f.getName().endsWith(".yml")) {
-                                continue;
-                            }
-
-                            synchronized (FileStore.LOCK) {
-                                final FileConfiguration setcache;
-                                try {
-                                    // Not loadConfiguration: it returns an empty config for an unreadable file, and saving that would wipe it.
-                                    setcache = FileStore.loadForUpdate(f, getLogger());
-                                } catch (Exception err) {
-                                    debug("Unable to read " + f.getName() + ", it was left alone: " + err);
-                                    continue;
-                                }
-                                if (!f.exists()) {
-                                    // Moved to the Corrupt folder, or already gone.
-                                    debug("Skipped resetting " + f.getName() + ": it could not be parsed and was moved aside.");
-                                    continue;
-                                }
-
-                                debug("Reset " + setcache.getString("Username") + "'s Time-Played. (" + setcache.getLong("Time-Played") + "secs) " + " (" + f.getName() + ")");
-                                setcache.set("Time-Played", 0);
-
-                                try {
-                                    FileStore.save(setcache, f);
-                                    total++;
-                                    if (db != null && db.isConnected()) {
-                                        // Otherwise the next sync restores the old play time.
-                                        db.mirrorPlayer(setcache.getString("UUID"), setcache.getString("Username"),
-                                                setcache.getString("IP"), setcache.getLong("Last-On"), 0);
+                    try {
+                        mpl.scheduling().asyncScheduler().run(() -> {
+                            int total = 0;
+                            boolean complete = false;
+                            final long start = System.currentTimeMillis();
+                            final MySQLStorage db = storage;
+                            try {
+                                for (File f : listData(folder)) {
+                                    if (!f.getName().endsWith(".yml")) {
+                                        continue;
                                     }
-                                } catch (Exception err) {
-                                    debug("Unable to reset " + f.getName() + ": " + err);
+
+                                    synchronized (FileStore.LOCK) {
+                                        final FileConfiguration setcache;
+                                        try {
+                                            // Not loadConfiguration: it returns an empty config for an unreadable file, and saving that would wipe it.
+                                            setcache = FileStore.loadForUpdate(f, getLogger());
+                                        } catch (Exception err) {
+                                            debug("Unable to read " + f.getName() + ", it was left alone: " + err);
+                                            continue;
+                                        }
+                                        if (!f.exists()) {
+                                            // Deleted since the folder was listed; saving would bring it back.
+                                            continue;
+                                        }
+
+                                        debug("Reset " + setcache.getString("Username") + "'s Time-Played. (" + setcache.getLong("Time-Played") + "secs) " + " (" + f.getName() + ")");
+                                        setcache.set("Time-Played", 0);
+                                        // Or the next start would sync it straight back from Minecraft's statistic.
+                                        setcache.set(PLAYTIME_SYNCED, true);
+
+                                        try {
+                                            FileStore.save(setcache, f);
+                                            total++;
+                                            if (db != null && db.isConnected()) {
+                                                // Otherwise the next sync restores the old play time.
+                                                db.mirrorPlayer(setcache.getString("UUID"), setcache.getString("Username"),
+                                                        setcache.getString("IP"), setcache.getLong("Last-On"), 0);
+                                            }
+                                        } catch (Exception err) {
+                                            debug("Unable to reset " + f.getName() + ": " + err);
+                                        }
+                                    }
                                 }
+                                complete = true;
+                            } catch (RuntimeException err) {
+                                getLogger().warning("Resetting play time stopped early: " + err);
+                            } finally {
+                                resumeSaving();
+                                Cooldowns.endLargeTask();
                             }
-                        }
 
-                        final String finished = Long.toString(System.currentTimeMillis() - start);
+                            final String finished = Long.toString(System.currentTimeMillis() - start);
+                            getLogger().info("Reset " + total + " players Time-Played stats on file. (Done in " + finished + "ms)");
 
-                        getLogger().info("Reset " + total + " players Time-Played stats on file. (Done in " + finished + "ms)");
+                            Msgs.send(sender, "");
+                            Msgs.send(sender, "#4ec483&lPUUIDs");
+                            if (complete) {
+                                Msgs.send(sender, "&8&l> &a&lDone. &fReset everyone's Time-Played back to zero in &7&l" + finished + "ms");
+                                pop(sender);
+                            } else {
+                                Msgs.send(sender, "&8&l> &c&lStopped Early. &fReset " + total + " players before an error; see the console.");
+                                bass(sender);
+                            }
+                            Msgs.send(sender, "");
+                        });
+                    } catch (RuntimeException notscheduled) {
                         resumeSaving();
-
-                        Msgs.send(sender, "");
-                        Msgs.send(sender, "#4ec483&lPUUIDs");
-                        Msgs.send(sender, "&8&l> &a&lDone. &fReset everyone's Time-Played back to zero in &7&l" + finished + "ms");
-                        Msgs.send(sender, "");
-                        pop(sender);
-
                         Cooldowns.endLargeTask();
-                    });
+                        throw notscheduled;
+                    }
                     return true;
                 }
 
@@ -1522,8 +1668,6 @@ public class Main extends JavaPlugin implements Listener {
                         }
                     }
 
-                    pauseSaving();
-
                     Cooldowns.startLargeTask();
                     Msgs.send(sender, "&7");
                     Msgs.send(sender, "#4ec483&lPUUIDs");
@@ -1531,64 +1675,79 @@ public class Main extends JavaPlugin implements Listener {
                     Msgs.send(sender, "&7");
                     thinking(sender);
 
-                    mpl.scheduling().asyncScheduler().run(() -> {
-                        int total = 0;
-                        final long start = System.currentTimeMillis();
-                        final List<String> wiped = new ArrayList<>();
-                        for (File AllData : listData(folder)) {
-                            File f = new File(AllData.getPath());
-                            if (!f.getName().endsWith(".yml")) {
-                                continue;
+                    pauseSaving();
+                    try {
+                        mpl.scheduling().asyncScheduler().run(() -> {
+                            int total = 0;
+                            boolean complete = false;
+                            final long start = System.currentTimeMillis();
+                            final List<String> wiped = new ArrayList<>();
+                            try {
+                                for (File f : listData(folder)) {
+                                    if (!f.getName().endsWith(".yml")) {
+                                        continue;
+                                    }
+
+                                    synchronized (FileStore.LOCK) {
+                                        final FileConfiguration setcache;
+                                        try {
+                                            // Not loadConfiguration: it returns an empty config for an unreadable file, and saving that would wipe it.
+                                            setcache = FileStore.loadForUpdate(f, getLogger());
+                                        } catch (Exception err) {
+                                            debug("Unable to read " + f.getName() + ", it was left alone: " + err);
+                                            continue;
+                                        }
+                                        if (!f.exists()) {
+                                            // Deleted since the folder was listed; saving would bring it back.
+                                            continue;
+                                        }
+
+                                        setcache.set("Plugins", null);
+
+                                        debug("Reset " + setcache.getString("Username") + "'s file back to basics. (" + f.getName() + ")");
+
+                                        try {
+                                            FileStore.save(setcache, f);
+                                            total++;
+                                            wiped.add(setcache.getString("UUID"));
+                                        } catch (Exception err) {
+                                            debug("Unable to reset " + f.getName() + ": " + err);
+                                        }
+                                    }
+                                }
+
+                                final MySQLStorage db = storage;
+                                if (db != null && db.isConnected()) {
+                                    // Otherwise a later sync restores the erased data.
+                                    db.clearPluginData(wiped, line -> Msgs.sendPrefix(sender, line));
+                                }
+                                complete = true;
+                            } catch (RuntimeException err) {
+                                getLogger().warning("Resetting player files stopped early: " + err);
+                            } finally {
+                                resumeSaving();
+                                Cooldowns.endLargeTask();
                             }
 
-                            synchronized (FileStore.LOCK) {
-                                final FileConfiguration setcache;
-                                try {
-                                    // Not loadConfiguration: it returns an empty config for an unreadable file, and saving that would wipe it.
-                                    setcache = FileStore.loadForUpdate(f, getLogger());
-                                } catch (Exception err) {
-                                    debug("Unable to read " + f.getName() + ", it was left alone: " + err);
-                                    continue;
-                                }
-                                if (!f.exists()) {
-                                    // Moved to the Corrupt folder, or already gone.
-                                    debug("Skipped resetting " + f.getName() + ": it could not be parsed and was moved aside.");
-                                    continue;
-                                }
+                            final String finished = Long.toString(System.currentTimeMillis() - start);
+                            getLogger().info("Reset " + total + " players files back to basics. (Done in " + finished + "ms)");
 
-                                setcache.set("Plugins", null);
-
-                                debug("Reset " + setcache.getString("Username") + "'s file back to basics. (" + f.getName() + ")");
-
-                                try {
-                                    FileStore.save(setcache, f);
-                                    total++;
-                                    wiped.add(setcache.getString("UUID"));
-                                } catch (Exception err) {
-                                    debug("Unable to reset " + f.getName() + ": " + err);
-                                }
+                            Msgs.send(sender, "");
+                            Msgs.send(sender, "#4ec483&lPUUIDs");
+                            if (complete) {
+                                Msgs.send(sender, "&8&l> &a&lDone. &fCleared player files back to basics in &7&l" + finished + "ms");
+                                pop(sender);
+                            } else {
+                                Msgs.send(sender, "&8&l> &c&lStopped Early. &fReset " + total + " players before an error; see the console.");
+                                bass(sender);
                             }
-                        }
-
-                        final MySQLStorage db = storage;
-                        if (db != null && db.isConnected()) {
-                            // Otherwise a later sync restores the erased data.
-                            db.clearPluginData(wiped, line -> Msgs.sendPrefix(sender, line));
-                        }
-
-                        final String finished = Long.toString(System.currentTimeMillis() - start);
-
-                        getLogger().info("Reset " + total + " players files back to basics. (Done in " + finished + "ms)");
+                            Msgs.send(sender, "");
+                        });
+                    } catch (RuntimeException notscheduled) {
                         resumeSaving();
-
-                        Msgs.send(sender, "");
-                        Msgs.send(sender, "#4ec483&lPUUIDs");
-                        Msgs.send(sender, "&8&l> &a&lDone. &fCleared player files back to basics in &7&l" + finished + "ms");
-                        Msgs.send(sender, "");
-                        pop(sender);
-
                         Cooldowns.endLargeTask();
-                    });
+                        throw notscheduled;
+                    }
                     return true;
                 }
 

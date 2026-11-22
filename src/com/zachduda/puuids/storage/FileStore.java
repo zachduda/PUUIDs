@@ -7,10 +7,15 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -56,6 +61,16 @@ public final class FileStore {
     private static volatile int cachesize = 500;
     private static volatile long revalidatenanos = TimeUnit.SECONDS.toNanos(5);
     private static volatile Listener listener;
+    private static volatile Logger log = Logger.getLogger("PUUIDs");
+
+    // Files already reported as unreadable, by key, with the modified time that was reported.
+    private static final Map<String, Long> WARNED = new ConcurrentHashMap<>();
+    // The last copy kept in the Corrupt folder for each file, so a retried save doesn't keep adding more.
+    private static final Map<String, CorruptCopy> CORRUPT_COPIES = new ConcurrentHashMap<>();
+    private static final int MAX_REMEMBERED = 1000;
+
+    private record CorruptCopy(int hash, int length, File file) {
+    }
 
     private static final Map<String, Entry> CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Load> LOADING = new ConcurrentHashMap<>();
@@ -135,6 +150,12 @@ public final class FileStore {
         listener = updated;
     }
 
+    public static void setLogger(Logger updated) {
+        if (updated != null) {
+            log = updated;
+        }
+    }
+
     public static void clearCache() {
         dropAll();
     }
@@ -164,7 +185,7 @@ public final class FileStore {
     /** A player file for reading. Shared, so neither it nor anything taken from it may be modified. */
     public static FileConfiguration read(File target) {
         if (cachesize == 0) {
-            return YamlConfiguration.loadConfiguration(target);
+            return parseFile(target);
         }
 
         final String key = key(target);
@@ -221,7 +242,7 @@ public final class FileStore {
         if (progress != null) {
             progress.opened = opened;
         }
-        final YamlConfiguration loaded = YamlConfiguration.loadConfiguration(target);
+        final YamlConfiguration loaded = parseFile(target);
         offer(key, new Entry(loaded, modified, length, opened, now));
         return loaded;
     }
@@ -289,7 +310,90 @@ public final class FileStore {
                 }
             }
         }
-        return YamlConfiguration.loadConfiguration(target);
+        return parseFile(target);
+    }
+
+    /** A fresh parse from disk that is never cached, so callers may keep or change what they take from it. */
+    public static FileConfiguration readFresh(File target) {
+        return parseFile(target);
+    }
+
+    /**
+     * Whether the file is there, answered from the cache when it saw the file recently. Like reads,
+     * that can miss a hand deletion for up to Cache-Revalidate-Seconds.
+     */
+    public static boolean exists(File target) {
+        if (cachesize > 0) {
+            final Entry cached = CACHE.get(key(target));
+            final long window = revalidatenanos;
+            if (cached != null && cached.config != null && window > 0 && System.nanoTime() - cached.validated < window) {
+                return true;
+            }
+        }
+        return target.exists();
+    }
+
+    /**
+     * A player file's top-level values as plain data, without building any Bukkit objects and without
+     * the cache. For scans that only need the core fields; it is much cheaper than a full parse.
+     *
+     * @return null if the file isn't YAML at all; empty if it is empty or gone.
+     * @throws IOException if the file is there but can't be read.
+     */
+    public static Map<String, Object> readRaw(File target) throws IOException {
+        final byte[] bytes;
+        try {
+            bytes = Files.readAllBytes(target.toPath());
+        } catch (NoSuchFileException gone) {
+            return new LinkedHashMap<>();
+        }
+        return YamlSalvage.raw(new String(bytes, StandardCharsets.UTF_8));
+    }
+
+    // Never throws. A file Bukkit refuses gives whatever could be recovered from it.
+    private static YamlConfiguration parseFile(File target) {
+        final byte[] bytes;
+        try {
+            bytes = Files.readAllBytes(target.toPath());
+        } catch (NoSuchFileException missing) {
+            return new YamlConfiguration();
+        } catch (IOException | RuntimeException unreadable) {
+            warnOnce(target, "could not be read (" + unreadable + "), so it reads as empty for now.");
+            return new YamlConfiguration();
+        }
+        return parseText(target, new String(bytes, StandardCharsets.UTF_8));
+    }
+
+    private static YamlConfiguration parseText(File target, String text) {
+        final YamlConfiguration config = new YamlConfiguration();
+        try {
+            config.loadFromString(text);
+            return config;
+        } catch (InvalidConfigurationException | RuntimeException invalid) {
+            final YamlConfiguration salvaged = YamlSalvage.salvage(text);
+            warnOnce(target, "can't be read by Bukkit (" + reason(invalid) + "). "
+                    + (salvaged == null ? "Nothing in it could be recovered, so it reads as empty."
+                    : "puuids is using everything it could recover from it.")
+                    + " Its next save keeps a copy in the Corrupt folder and rewrites it in a form Bukkit can read.");
+            return salvaged == null ? new YamlConfiguration() : salvaged;
+        }
+    }
+
+    private static void warnOnce(File target, String problem) {
+        final long modified = target.lastModified();
+        if (WARNED.size() > MAX_REMEMBERED) {
+            WARNED.clear();
+        }
+        final Long earlier = WARNED.put(key(target), modified);
+        if (earlier == null || earlier != modified) {
+            log.warning(target.getName() + " " + problem);
+        }
+    }
+
+    private static String reason(Throwable err) {
+        final String message = err.getMessage() == null ? err.toString() : err.getMessage();
+        final String line = message.lines().filter(l -> !l.isBlank()).findFirst().orElse(message).trim();
+        return line.length() > 200 ? line.substring(0, 200) + "..." : line;
     }
 
     /**
@@ -297,31 +401,67 @@ public final class FileStore {
      * configuration.
      * <p>
      * Unlike {@code YamlConfiguration.loadConfiguration}, an unusable file is never treated as
-     * empty, since saving over it would wipe the player's data. An unparseable file is moved to
-     * the Corrupt folder, and an unreadable one throws so the caller leaves it be.
+     * empty, since saving over it would wipe the player's data. A file Bukkit can't parse is copied to
+     * the Corrupt folder and whatever can be recovered from it is returned, so the save that follows
+     * rewrites it in a readable form. A file that can't be read at all throws, so the caller leaves it be.
      * <p>
      * Always a fresh copy from disk, never the cached one.
      */
     public static YamlConfiguration loadForUpdate(File target, Logger log) throws IOException {
-        final YamlConfiguration config = new YamlConfiguration();
-        if (!target.exists()) {
-            return config;
+        final byte[] bytes;
+        try {
+            bytes = Files.readAllBytes(target.toPath());
+        } catch (NoSuchFileException missing) {
+            return new YamlConfiguration();
         }
 
+        final String text = new String(bytes, StandardCharsets.UTF_8);
+        final YamlConfiguration config = new YamlConfiguration();
         try {
-            config.load(target);
+            config.loadFromString(text);
             return config;
-        } catch (InvalidConfigurationException invalid) {
-            final File folder = new File(target.getParentFile().getParentFile(), "Corrupt");
-            if (!folder.exists() && !folder.mkdirs() && !folder.isDirectory()) {
-                throw new IOException("Unable to create the folder for corrupt files: " + folder);
+        } catch (InvalidConfigurationException | RuntimeException invalid) {
+            // Throws if the copy can't be made, which leaves the file alone for a later retry.
+            final File copy = keepCorruptCopy(target, bytes);
+            final YamlConfiguration salvaged = YamlSalvage.salvage(text);
+            log.warning(target.getName() + " couldn't be read by Bukkit (" + reason(invalid) + "). "
+                    + (salvaged == null
+                    ? "Nothing in it could be recovered, so a new file has been started for that player."
+                    : "Everything that could be recovered was kept, and it is being rewritten in a form Bukkit can read.")
+                    + " The original was copied to " + copy.getPath() + ".");
+            return salvaged == null ? new YamlConfiguration() : salvaged;
+        }
+    }
+
+    private static File keepCorruptCopy(File target, byte[] bytes) throws IOException {
+        final String key = key(target);
+        final int hash = Arrays.hashCode(bytes);
+        final CorruptCopy earlier = CORRUPT_COPIES.get(key);
+        if (earlier != null && earlier.hash() == hash && earlier.length() == bytes.length && earlier.file().exists()) {
+            return earlier.file();
+        }
+
+        final File folder = new File(target.getAbsoluteFile().getParentFile().getParentFile(), "Corrupt");
+        if (!folder.isDirectory() && !folder.mkdirs() && !folder.isDirectory()) {
+            throw new IOException("Unable to create the folder for corrupt files: " + folder);
+        }
+
+        final String base = target.getName() + "." + System.currentTimeMillis();
+        for (int attempt = 0; ; attempt++) {
+            final File copy = new File(folder, attempt == 0 ? base : base + "-" + attempt);
+            try {
+                Files.write(copy.toPath(), bytes, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+            } catch (FileAlreadyExistsException taken) {
+                if (attempt < 100) {
+                    continue;
+                }
+                throw taken;
             }
-            final File moved = new File(folder, target.getName() + "." + System.currentTimeMillis());
-            Files.move(target.toPath(), moved.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            invalidate(target);
-            log.warning(target.getName() + " could not be parsed and was moved to " + moved.getPath()
-                    + " (" + invalid.getMessage() + "). A new file has been started for that player.");
-            return new YamlConfiguration();
+            if (CORRUPT_COPIES.size() > MAX_REMEMBERED) {
+                CORRUPT_COPIES.clear();
+            }
+            CORRUPT_COPIES.put(key, new CorruptCopy(hash, bytes.length, copy));
+            return copy;
         }
     }
 
@@ -409,10 +549,10 @@ public final class FileStore {
 
         Entry replacement;
         try {
-            final YamlConfiguration saved = new YamlConfiguration();
-            saved.loadFromString(data);
+            // Lenient, so a value Bukkit can't read back is reported here and the rest stays readable.
+            final YamlConfiguration saved = parseText(target, data);
             replacement = new Entry(saved, target.lastModified(), target.length(), seq, System.nanoTime());
-        } catch (InvalidConfigurationException | RuntimeException unparsable) {
+        } catch (RuntimeException unparsable) {
             replacement = Entry.tombstone(seq);
         }
 
