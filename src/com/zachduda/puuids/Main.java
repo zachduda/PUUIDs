@@ -668,6 +668,19 @@ public class Main extends JavaPlugin implements Listener {
         return debug;
     }
 
+    /** Start of a timed call: the current nanoTime, or 0 when debug is off so nothing is measured. */
+    public long debugStart() {
+        return debug ? System.nanoTime() : 0L;
+    }
+
+    /** Prints how long a call took in ms, if debug was on when {@link #debugStart()} was taken. */
+    public void debugTook(String what, long start) {
+        if (start != 0L && debug) {
+            final long micros = (System.nanoTime() - start) / 1000L;
+            debug(what + " took " + (micros / 1000L) + "." + String.format("%03d", micros % 1000L) + "ms");
+        }
+    }
+
     /** The MySQL mirror, or null when it is switched off or couldn't connect. */
     public MySQLStorage getStorage() {
         return storage;
@@ -715,6 +728,13 @@ public class Main extends JavaPlugin implements Listener {
 
     /** A cached, shared player file. Must not be modified. */
     public FileConfiguration readFile(String uuid) {
+        final long start = debugStart();
+        final FileConfiguration config = readFileQuiet(uuid);
+        debugTook("GET read of " + uuid, start);
+        return config;
+    }
+
+    private FileConfiguration readFileQuiet(String uuid) {
         if (!validKey(uuid)) {
             return new YamlConfiguration();
         }
@@ -723,12 +743,17 @@ public class Main extends JavaPlugin implements Listener {
 
     /** Reads a value that callers can modify without affecting the cache. */
     public Object readDetached(String uuid, String path) {
-        final Object copied = Copies.copy(readFile(uuid).get(path));
-        if (copied != Copies.UNCOPYABLE) {
-            return copied;
+        final long start = debugStart();
+        try {
+            final Object copied = Copies.copy(readFileQuiet(uuid).get(path));
+            if (copied != Copies.UNCOPYABLE) {
+                return copied;
+            }
+            // Something with no general way to copy it: parsed fresh from disk instead.
+            return validKey(uuid) ? FileStore.readFresh(playerFile(uuid)).get(path) : null;
+        } finally {
+            debugTook("GET of " + path + " for " + uuid, start);
         }
-        // Something with no general way to copy it: parsed fresh from disk instead.
-        return validKey(uuid) ? FileStore.readFresh(playerFile(uuid)).get(path) : null;
     }
 
     public boolean isRegistered(Plugin pl) {
@@ -963,7 +988,10 @@ public class Main extends JavaPlugin implements Listener {
             return 0;
         }
 
-        return Timer.queueSet(plname, uuid, loc, obj);
+        final long start = debugStart();
+        final int id = Timer.queueSet(plname, uuid, loc, obj);
+        debugTook("SET queue of " + loc + " for " + uuid + " (task " + id + ")", start);
+        return id;
     }
 
     public int set(Plugin pl, String uuid, String loc, List<?> obj) {
@@ -973,7 +1001,10 @@ public class Main extends JavaPlugin implements Listener {
             return 0;
         }
 
-        return Timer.queueSet(plname, uuid, loc, obj);
+        final long start = debugStart();
+        final int id = Timer.queueSet(plname, uuid, loc, obj);
+        debugTook("SET queue of " + loc + " for " + uuid + " (task " + id + ")", start);
+        return id;
     }
 
 
@@ -989,7 +1020,10 @@ public class Main extends JavaPlugin implements Listener {
             return 0;
         }
 
-        return Timer.queueSet(plname, uuid, "PUUIDS_SET_AS_ALL_NULL", null);
+        final long start = debugStart();
+        final int id = Timer.queueSet(plname, uuid, "PUUIDS_SET_AS_ALL_NULL", null);
+        debugTook("SET queue of all " + plname + " data for " + uuid + " (task " + id + ")", start);
+        return id;
     }
 
     /** Remembers a username so the next lookup for it doesn't have to scan the data folder. */
@@ -1052,6 +1086,15 @@ public class Main extends JavaPlugin implements Listener {
 
     // Answers from the index when it can; otherwise scans the Data folder.
     public String nametoUUID(String inputsearch) {
+        final long start = debugStart();
+        try {
+            return lookupUUID(inputsearch);
+        } finally {
+            debugTook("GET UUID lookup of " + inputsearch, start);
+        }
+    }
+
+    private String lookupUUID(String inputsearch) {
         if (inputsearch == null) {
             return "0";
         }

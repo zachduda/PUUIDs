@@ -874,6 +874,7 @@ public final class MySQLStorage {
         }
 
         final int timeout = settings.connecttimeout;
+        final long timed = plugin.debugStart();
         try {
             final PlayerRow row = playerRow(uuid, timeout);
             if (row == null) {
@@ -893,6 +894,8 @@ public final class MySQLStorage {
                 retryafter = System.currentTimeMillis() + BACKOFF_MS;
             }
             fail("Unable to read " + uuid + " from MySQL, so the local file was used", err);
+        } finally {
+            plugin.debugTook("GET MySQL pull of " + uuid, timed);
         }
     }
 

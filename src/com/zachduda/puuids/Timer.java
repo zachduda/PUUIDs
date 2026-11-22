@@ -228,8 +228,11 @@ public class Timer {
     }
 
     private static void save(String uuid, Batch batch, boolean events) {
+        final long timed = plugin.debugStart();
         try {
-            if (writeBatch(uuid, batch, events)) {
+            final boolean saved = writeBatch(uuid, batch, events);
+            plugin.debugTook("SET save of " + batch.changes() + " queued changes to " + uuid + ".yml", timed);
+            if (saved) {
                 if (batch.failing) {
                     plugin.getLogger().info("Saved puuids file " + uuid + ".yml after " + batch.attempts
                             + " failed attempts. Nothing was lost.");
