@@ -19,6 +19,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -84,6 +85,13 @@ public class Main extends JavaPlugin implements Listener {
     private final Map<String, String> nameindex = new ConcurrentHashMap<>();
     // Once set, an index miss means the name isn't on disk.
     private volatile boolean nameindexready = false;
+
+    /** The UUID and username in a player file, as last read or saved. */
+    public record KnownFile(String uuid, String name) {
+    }
+
+    // File name (without .yml) -> contents. Kept current by the scan and every save.
+    private final Map<String, KnownFile> knownfiles = new ConcurrentHashMap<>();
 
     // Null when MySQL is off or couldn't connect.
     private volatile MySQLStorage storage;
@@ -163,6 +171,19 @@ public class Main extends JavaPlugin implements Listener {
         getConfig().options().copyDefaults(true);
         saveConfig();
         updateConfig(true);
+
+        // Registered before any file is saved or deleted, so the index never misses one.
+        FileStore.setListener(new FileStore.Listener() {
+            @Override
+            public void saved(File target, FileConfiguration config) {
+                indexFile(target, config, true);
+            }
+
+            @Override
+            public void deleted(File target) {
+                knownfiles.remove(fileKey(target));
+            }
+        });
 
         // The import has to finish before the scan reads or cleans the folder.
         final MySQLStorage atstartup = storage;
@@ -246,6 +267,7 @@ public class Main extends JavaPlugin implements Listener {
         // Players online after an improper reload still need a play time session.
         for (Player online : players) {
             Timer.startSession(online.getUniqueId());
+            keepLoaded(online.getUniqueId());
         }
 
         taskresettimer = startStatResetTimer();
@@ -308,7 +330,7 @@ public class Main extends JavaPlugin implements Listener {
                         FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
 
                         if (!setcache.contains("Last-On") || (!setcache.contains("Username")) || (!setcache.contains("UUID"))) {
-                            if(!f.delete()) {
+                            if(!FileStore.delete(f)) {
                                 debug("Error deleting file:" + f.toPath());
                             }
                             debug("Deleted file: " + f.getName() + "... It was invalid!");
@@ -320,7 +342,7 @@ public class Main extends JavaPlugin implements Listener {
                             String playername = setcache.getString("Username");
 
                             if (daysAgo >= maxDays && useclean) {
-                                if(!f.delete()) {
+                                if(!FileStore.delete(f)) {
                                     debug("Error deleting file:" + f.toPath());
                                 }
                                 final String expired = setcache.getString("UUID");
@@ -336,7 +358,7 @@ public class Main extends JavaPlugin implements Listener {
                                 // Adapted from EssentialsX:
                                 // https://github.com/EssentialsX/Essentials/blob/3af931740b20507837276f87f9456221653ac43d/Essentials/src/main/java/com/earth2me/essentials/commands/Commandplaytime.java
                                 final String uuid = setcache.getString("UUID");
-                                indexName(playername, uuid);
+                                indexFile(f, setcache, false);
                                 long playtime = 0;
                                 if(isFullySupported) {
                                     try {
@@ -626,6 +648,10 @@ public class Main extends JavaPlugin implements Listener {
 
         plugins.clear();
         nameindex.clear();
+        knownfiles.clear();
+        FileStore.setListener(null);
+        FileStore.unpinAll();
+        FileStore.clearCache();
 
         setTimeMS = 0;
         setTimes.set(0);
@@ -710,6 +736,7 @@ public class Main extends JavaPlugin implements Listener {
 
         storeips = getConfig().getBoolean("Settings.Store-IPs", true);
         FileStore.setCacheSize(getConfig().getInt("Advanced.Cache-Size", 500));
+        FileStore.setRevalidateSeconds(getConfig().getInt("Advanced.Cache-Revalidate-Seconds", 5));
 
         if (startup) {
             // Start-up waits so an import can finish before the scan.
@@ -821,6 +848,52 @@ public class Main extends JavaPlugin implements Listener {
         nameindex.put(name.toLowerCase(Locale.ROOT), uuid);
     }
 
+    private static String fileKey(File f) {
+        final String name = f.getName();
+        return name.length() > 4 ? name.substring(0, name.length() - 4) : name;
+    }
+
+    /**
+     * Records a player file's UUID and username.
+     *
+     * @param saved true if this was just written. A read may predate a concurrent save, so it
+     *              never replaces what a save recorded.
+     */
+    private KnownFile indexFile(File f, FileConfiguration config, boolean saved) {
+        final KnownFile read = new KnownFile(config.getString("UUID"), config.getString("Username"));
+        final KnownFile kept;
+        if (saved) {
+            knownfiles.put(fileKey(f), read);
+            kept = read;
+        } else {
+            final KnownFile earlier = knownfiles.putIfAbsent(fileKey(f), read);
+            kept = earlier == null ? read : earlier;
+        }
+        indexName(kept.name(), kept.uuid());
+        return kept;
+    }
+
+    /** From memory once puuids has seen the file; otherwise parsed from disk. */
+    public KnownFile knownFile(File f) {
+        final KnownFile known = knownfiles.get(fileKey(f));
+        if (known != null) {
+            return known;
+        }
+        final FileConfiguration config = FileStore.peek(f);
+        if (!config.contains("UUID")) {
+            // Not a valid player file.
+            return new KnownFile(config.getString("UUID"), config.getString("Username"));
+        }
+        return indexFile(f, config, false);
+    }
+
+    /** Pins an online player's file in memory until they quit, loading it off the main thread. */
+    private void keepLoaded(UUID uuid) {
+        final String key = uuid.toString();
+        FileStore.pin(playerFile(key));
+        mpl.scheduling().asyncScheduler().run(() -> readFile(key));
+    }
+
     // Answers from the index when it can; otherwise scans the Data folder.
     public String nametoUUID(String inputsearch) {
         if (inputsearch == null) {
@@ -854,12 +927,9 @@ public class Main extends JavaPlugin implements Listener {
                 continue;
             }
 
-            FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-
-            String playername = setcache.getString("Username");
-            String UUID = setcache.getString("UUID");
-
-            indexName(playername, UUID);
+            final KnownFile known = knownFile(f);
+            String playername = known.name();
+            String UUID = known.uuid();
 
             if (inputsearch.equalsIgnoreCase(playername)) {
                 return UUID;
@@ -969,12 +1039,26 @@ public class Main extends JavaPlugin implements Listener {
         return cmd.equals("reload") || cmd.equals("rl");
     }
 
+    /*
+      Already off the main thread, and before the join: a good moment to parse the file that
+      the player's first scoreboard or chat format is about to read. Only for logins that will
+      go ahead; MONITOR runs after every other plugin's say on that.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPreLogin(AsyncPlayerPreLoginEvent e) {
+        if (e.getLoginResult() == AsyncPlayerPreLoginEvent.Result.ALLOWED) {
+            readFile(e.getUniqueId().toString());
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onJoin(PlayerJoinEvent e) {
         final Player joining = e.getPlayer();
 
         // Unconditional: the cooldown below can skip the file refresh.
         Timer.startSession(joining.getUniqueId());
+
+        keepLoaded(joining.getUniqueId());
 
         // They may have played on another server since.
         final MySQLStorage db = storage;
@@ -1025,6 +1109,9 @@ public class Main extends JavaPlugin implements Listener {
         Cooldowns.justJoined(uuid);
         Cooldowns.clearConfirm(uuid);
         Cooldowns.forgetOnTime(uuid);
+
+        // Unpinned, but counted as just used so a quick rejoin finds it in memory.
+        FileStore.unpin(playerFile(uuid.toString()));
     }
 
     private String randomString() {
@@ -1347,22 +1434,35 @@ public class Main extends JavaPlugin implements Listener {
                             }
 
                             synchronized (FileStore.LOCK) {
-                            FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-                            debug("Reset " + setcache.getString("Username") + "'s Time-Played. (" + setcache.getLong("Time-Played") + "secs) " + " (" + f.getName() + ")");
-                            setcache.set("Time-Played", 0);
-
-                            try {
-                                FileStore.save(setcache, f);
-                                if (db != null && db.isConnected()) {
-                                    // Otherwise the next sync restores the old play time.
-                                    db.mirrorPlayer(setcache.getString("UUID"), setcache.getString("Username"),
-                                            setcache.getString("IP"), setcache.getLong("Last-On"), 0);
+                                final FileConfiguration setcache;
+                                try {
+                                    // Not loadConfiguration: it returns an empty config for an unreadable file, and saving that would wipe it.
+                                    setcache = FileStore.loadForUpdate(f, getLogger());
+                                } catch (Exception err) {
+                                    debug("Unable to read " + f.getName() + ", it was left alone: " + err);
+                                    continue;
                                 }
-                            } catch (Exception err) {
-                                debug("Unable to reset " + f.getName() + ": " + err);
+                                if (!f.exists()) {
+                                    // Moved to the Corrupt folder, or already gone.
+                                    debug("Skipped resetting " + f.getName() + ": it could not be parsed and was moved aside.");
+                                    continue;
+                                }
+
+                                debug("Reset " + setcache.getString("Username") + "'s Time-Played. (" + setcache.getLong("Time-Played") + "secs) " + " (" + f.getName() + ")");
+                                setcache.set("Time-Played", 0);
+
+                                try {
+                                    FileStore.save(setcache, f);
+                                    total++;
+                                    if (db != null && db.isConnected()) {
+                                        // Otherwise the next sync restores the old play time.
+                                        db.mirrorPlayer(setcache.getString("UUID"), setcache.getString("Username"),
+                                                setcache.getString("IP"), setcache.getLong("Last-On"), 0);
+                                    }
+                                } catch (Exception err) {
+                                    debug("Unable to reset " + f.getName() + ": " + err);
+                                }
                             }
-                            }
-                            total++;
                         }
 
                         final String finished = Long.toString(System.currentTimeMillis() - start);
@@ -1436,19 +1536,32 @@ public class Main extends JavaPlugin implements Listener {
                             }
 
                             synchronized (FileStore.LOCK) {
-                            FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-                            setcache.set("Plugins", null);
+                                final FileConfiguration setcache;
+                                try {
+                                    // Not loadConfiguration: it returns an empty config for an unreadable file, and saving that would wipe it.
+                                    setcache = FileStore.loadForUpdate(f, getLogger());
+                                } catch (Exception err) {
+                                    debug("Unable to read " + f.getName() + ", it was left alone: " + err);
+                                    continue;
+                                }
+                                if (!f.exists()) {
+                                    // Moved to the Corrupt folder, or already gone.
+                                    debug("Skipped resetting " + f.getName() + ": it could not be parsed and was moved aside.");
+                                    continue;
+                                }
 
-                            debug("Reset" + setcache.getString("Username") + "'s file back to basics. (" + f.getName() + ")");
+                                setcache.set("Plugins", null);
 
-                            try {
-                                FileStore.save(setcache, f);
-                                wiped.add(setcache.getString("UUID"));
-                            } catch (Exception err) {
-                                debug("Unable to reset " + f.getName() + ": " + err);
+                                debug("Reset " + setcache.getString("Username") + "'s file back to basics. (" + f.getName() + ")");
+
+                                try {
+                                    FileStore.save(setcache, f);
+                                    total++;
+                                    wiped.add(setcache.getString("UUID"));
+                                } catch (Exception err) {
+                                    debug("Unable to reset " + f.getName() + ": " + err);
+                                }
                             }
-                            }
-                            total++;
                         }
 
                         final MySQLStorage db = storage;

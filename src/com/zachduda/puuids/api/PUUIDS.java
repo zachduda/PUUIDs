@@ -2,9 +2,9 @@ package com.zachduda.puuids.api;
 
 import com.google.common.io.Files;
 import com.zachduda.puuids.Main;
+import com.zachduda.puuids.storage.FileStore;
 import org.bukkit.Location;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
@@ -23,8 +23,8 @@ import java.util.Objects;
  * their own section of the player's file, under the plugin's name in upper case.
  * <p>
  * Writes are queued and saved off the main thread shortly afterwards, while reads come from the
- * player's file (kept parsed in memory while it is unchanged on disk). A read straight after a write
- * can therefore still return the old value.
+ * player's file as last saved, usually from memory. A read straight after a write can still return the
+ * old value until the save queue reaches it.
  *
  * @see <a href="https://github.com/zachduda/PUUIDs/tree/master/docs">PUUIDs documentation</a>
  */
@@ -171,8 +171,8 @@ public class PUUIDS {
     }
 
     /**
-     * Reads a String your plugin saved for this player. Like every getter, this loads the player's file
-     * from disk, so a value that is still waiting in the save queue isn't visible yet.
+     * Reads a String your plugin saved for this player. Like every getter, it doesn't see values still
+     * waiting in the save queue.
      *
      * @param pl       Your plugin (usually "this").
      * @param uuid     The UUID of the player as a String.
@@ -222,7 +222,8 @@ public class PUUIDS {
 
         for (String playeruuid : getAllPlayerUUIDs(pl, quickmode)) {
             File f = new File(cache, File.separator + playeruuid + ".yml");
-            FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+            // Uncached files are parsed without being cached, so a scan doesn't evict files in use.
+            FileConfiguration setcache = FileStore.peek(f);
 
             if (setcache.getBoolean("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location)) {
                 allplayers.add(setcache.getString("Username"));
@@ -250,7 +251,8 @@ public class PUUIDS {
 
         for (String playeruuid : getAllPlayerUUIDs(pl, quickmode)) {
             File f = new File(cache, File.separator + playeruuid + ".yml");
-            FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+            // Uncached files are parsed without being cached, so a scan doesn't evict files in use.
+            FileConfiguration setcache = FileStore.peek(f);
 
             if (!setcache.getBoolean("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location)) {
                 allplayers.add(setcache.getString("Username"));
@@ -384,8 +386,8 @@ public class PUUIDS {
     }
 
     /**
-     * Lists the username of every player with a puuids file. This reads every player file, so call it off
-     * the main thread. Requires {@link #connect}.
+     * Lists the username of every player with a puuids file. Names come from memory, so this only costs a
+     * listing of the Data folder. Requires {@link #connect}.
      *
      * @param pl Your plugin (usually "this").
      * @return The usernames. Empty if your plugin isn't connected.
@@ -403,9 +405,7 @@ public class PUUIDS {
             String path = cachefile.getPath();
 
             if (Files.getFileExtension(path).equalsIgnoreCase("yml")) {
-                File f = new File(path);
-                FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-                allplayers.add(setcache.getString("Username"));
+                allplayers.add(plugin.knownFile(new File(path)).name());
             }
         }
         wasGet();
@@ -416,7 +416,7 @@ public class PUUIDS {
      * Lists the UUID of every player with a puuids file. Requires {@link #connect}.
      *
      * @param pl        Your plugin (usually "this").
-     * @param quickmode true to take UUIDs from the file names, which is faster than reading every file.
+     * @param quickmode true to take UUIDs from the file names instead of the files' contents.
      * @return The UUIDs as Strings. Empty if your plugin isn't connected.
      */
     public static ArrayList<String> getAllPlayerUUIDs(Plugin pl, boolean quickmode) {
@@ -436,8 +436,7 @@ public class PUUIDS {
                 if (quickmode) {
                     allplayers.add(f.getName().replace(".yml", ""));
                 } else {
-                    FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-                    allplayers.add(setcache.getString("UUID"));
+                    allplayers.add(plugin.knownFile(f).uuid());
                 }
             }
         }
@@ -790,7 +789,7 @@ public class PUUIDS {
         for (String playeruuid : getAllPlayerUUIDs(pl, false)) {
             try {
                 File f = new File(cache, File.separator + playeruuid + ".yml");
-                FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
+                FileConfiguration setcache = FileStore.peek(f);
                 final String path = "Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location;
                 if (!setcache.contains(path) || setcache.get(path) == null) {
                     plugin.set(pl, playeruuid, location, input);

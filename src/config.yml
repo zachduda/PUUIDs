@@ -49,8 +49,10 @@ Advanced:
   Save-Rate-Ticks: 10
   # Player files written per save run.
   Max-Processes-Per-Queue: 25
-  # Player files kept parsed in memory. 0 turns this off.
+  # Player files kept parsed in memory, on top of online players' files. 0 turns this off.
   Cache-Size: 500
+  # Seconds before a cached file is re-checked against disk. Only affects hand edits. 0 checks every read.
+  Cache-Revalidate-Seconds: 5
   # Seconds between checkpoints of online players. Limits play time lost in a crash.
   Player-Update-Seconds: 300
   Allow-Post-Startup-Connections: false
