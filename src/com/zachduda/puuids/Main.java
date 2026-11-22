@@ -1197,25 +1197,35 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     /*
-      Already off the main thread, and before the join: a good moment to sync the file from MySQL and
-      parse it for the player's first scoreboard or chat format. Only for logins that will go ahead;
-      MONITOR runs after every other plugin's say on that.
+      Sync-On-Join: they may have played on another server since. Pulled at LOWEST, before any other
+      plugin's pre-login listener, since plugins commonly load their data here at NORMAL or HIGH; at
+      MONITOR they would already have read this server's older copy, and their next save would write
+      it back over the network's. A login another plugin turns away later still costs this pull, but
+      the file only ever takes on the network's newer copy. The login waits for it, bounded by
+      Connection-Timeout-Seconds.
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPreLoginSync(AsyncPlayerPreLoginEvent e) {
+        if (e.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
+            return;
+        }
+        final MySQLStorage db = storage;
+        if (db != null && db.isConnected() && db.settings().synconjoin) {
+            db.pullPlayerNow(e.getUniqueId().toString());
+        }
+    }
+
+    /*
+      Already off the main thread, and before the join: a good moment to parse the file for the
+      player's first scoreboard or chat format. Only for logins that will go ahead; MONITOR runs after
+      every other plugin's say on that.
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPreLogin(AsyncPlayerPreLoginEvent e) {
         if (e.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
             return;
         }
-        final String uuid = e.getUniqueId().toString();
-
-        // They may have played on another server since. Done before the join, so nothing reads or writes
-        // the file in between. The login waits for it, bounded by Connection-Timeout-Seconds.
-        final MySQLStorage db = storage;
-        if (db != null && db.isConnected() && db.settings().synconjoin) {
-            db.pullPlayerNow(uuid);
-        }
-
-        readFile(uuid);
+        readFile(e.getUniqueId().toString());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
