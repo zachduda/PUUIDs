@@ -28,6 +28,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.regex.Pattern;
 
 public final class MySQLStorage {
 
@@ -40,6 +42,10 @@ public final class MySQLStorage {
     private static final int EXPORT_BATCH = 200;
     /** How long a repeated failure stays quiet in the console. */
     private static final long LOG_MUTE_MS = 60_000L;
+    /** How long to leave the database alone after it couldn't be reached. */
+    private static final long BACKOFF_MS = 15_000L;
+    /** Table names read back from the database, before they go into SQL. */
+    private static final Pattern TABLE_NAME = Pattern.compile("[A-Za-z0-9_]{1,64}");
 
     private final Main plugin;
     private final MySQLSettings settings;
@@ -49,6 +55,9 @@ public final class MySQLStorage {
     private final LinkedBlockingDeque<Op> queue = new LinkedBlockingDeque<>();
     private final Set<String> ensured = ConcurrentHashMap.newKeySet();
     private final Set<String> longpathwarned = ConcurrentHashMap.newKeySet();
+    private final Set<String> badrowwarned = ConcurrentHashMap.newKeySet();
+    // Plugin name -> its data table, as registered in the database. Keeps every plugin on its own table.
+    private final Map<String, String> tablenames = new ConcurrentHashMap<>();
 
     private final AtomicLong written = new AtomicLong();
     private final AtomicLong dropped = new AtomicLong();
@@ -94,9 +103,10 @@ public final class MySQLStorage {
                     st.executeUpdate(Tables.createRegistry(registrytable));
                 }
                 widenUsernameColumn(connection);
+                tablenames.putAll(readRegistry(connection, 0));
                 return null;
             });
-        } catch (SQLException err) {
+        } catch (SQLException | RuntimeException err) {
             plugin.getLogger().severe("Unable to connect to MySQL at " + settings.describe() + ": " + err.getMessage());
             plugin.getLogger().severe("puuids will keep saving to file only. Fix the connection and run /puuids mysql reconnect.");
             lasterror = err.getMessage();
@@ -222,7 +232,12 @@ public final class MySQLStorage {
         enqueue(new Op.Player(playerstable, uuid, username, ip, laston, timeplayed));
     }
 
-    public void mirrorSet(String pluginname, String uuid, String path, Object current) {
+    /**
+     * Mirrors one plugin write, after the file it belongs to has been saved.
+     *
+     * @param saved looks up a path under the plugin's section of the saved file.
+     */
+    public void mirrorSet(String pluginname, String uuid, String path, Function<String, Object> saved) {
         if (uuid == null || pluginname == null || path == null) {
             return;
         }
@@ -231,7 +246,11 @@ public final class MySQLStorage {
             return;
         }
 
-        final String table = Tables.data(settings.prefix, pluginname);
+        final String table = tableFor(pluginname);
+        final Object current = saved.apply(path);
+
+        // A write can turn a parent that held a value into a section, even one that then ends up empty.
+        dropParents(table, pluginname, uuid, path, saved);
 
         if (current == null) {
             // Matches a null in the file: drops the value and everything under it.
@@ -239,27 +258,75 @@ public final class MySQLStorage {
             return;
         }
 
-        enqueue(new Op.Remove(table, pluginname, uuid, path, false));
-
-        if (current instanceof ConfigurationSection section) {
-            for (String key : section.getKeys(true)) {
-                final Object leaf = section.get(key);
-                if (leaf == null || leaf instanceof ConfigurationSection) {
-                    continue;
-                }
-                queueValue(table, pluginname, uuid, path + "." + key, leaf);
-            }
+        if (isSection(current)) {
+            // Replaces whatever was at the path, a value saved there before included.
+            enqueue(new Op.Remove(table, pluginname, uuid, path, true));
+            queueLeaves(table, pluginname, uuid, path, current);
             return;
         }
 
+        enqueue(new Op.Remove(table, pluginname, uuid, path, false));
         queueValue(table, pluginname, uuid, path, current);
+    }
+
+    // The row at each parent goes unless the saved file still has a value (not a section) there.
+    private void dropParents(String table, String pluginname, String uuid, String path, Function<String, Object> saved) {
+        for (int dot = path.indexOf('.'); dot > 0; dot = path.indexOf('.', dot + 1)) {
+            final String parent = path.substring(0, dot);
+            final Object there = saved.apply(parent);
+            if (there == null || isSection(there)) {
+                enqueue(Op.Remove.exact(table, pluginname, uuid, parent));
+            }
+        }
+    }
+
+    // A section, or a plain map, which the file loads back as one. A serialized object is a single value.
+    private static boolean isSection(Object value) {
+        return value instanceof ConfigurationSection
+                || (value instanceof Map<?, ?> map && !map.containsKey("=="));
+    }
+
+    // One row per value, as an export writes them.
+    private void queueLeaves(String table, String pluginname, String uuid, String path, Object value) {
+        if (value instanceof ConfigurationSection section) {
+            for (String key : section.getKeys(false)) {
+                queueLeaves(table, pluginname, uuid, path + "." + key, section.get(key));
+            }
+        } else if (isSection(value)) {
+            for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+                queueLeaves(table, pluginname, uuid, path + "." + entry.getKey(), entry.getValue());
+            }
+        } else if (value != null) {
+            queueValue(table, pluginname, uuid, path, value);
+        }
     }
 
     public void mirrorClear(String pluginname, String uuid) {
         if (uuid == null || pluginname == null) {
             return;
         }
-        enqueue(new Op.Clear(Tables.data(settings.prefix, pluginname), pluginname, uuid));
+        enqueue(new Op.Clear(tableFor(pluginname), pluginname, uuid));
+    }
+
+    /** The table a plugin's values live in: the registered one, or a new name no other plugin uses. */
+    private String tableFor(String pluginname) {
+        final String known = tablenames.get(pluginname);
+        if (known != null) {
+            return known;
+        }
+        synchronized (tablenames) {
+            final String again = tablenames.get(pluginname);
+            if (again != null) {
+                return again;
+            }
+            String table = Tables.data(settings.prefix, pluginname);
+            if (tablenames.containsValue(table)) {
+                // Another plugin's name cleans up to the same table name.
+                table = Tables.dataUnique(settings.prefix, pluginname);
+            }
+            tablenames.put(pluginname, table);
+            return table;
+        }
     }
 
     private void queueValue(String table, String pluginname, String uuid, String path, Object value) {
@@ -355,7 +422,7 @@ public final class MySQLStorage {
         for (int i = ops.size() - 1; i >= from; i--) {
             queue.addFirst(ops.get(i));
         }
-        retryafter = System.currentTimeMillis() + 15_000L;
+        retryafter = System.currentTimeMillis() + BACKOFF_MS;
     }
 
     /** Applies a rejected batch change by change, dropping only the ones MySQL refuses. */
@@ -363,10 +430,12 @@ public final class MySQLStorage {
         final int[] done = {0};
         try {
             withConnection(connection -> {
-                ensureTables(connection, ready);
                 for (Op op : ready) {
                     try {
-                        apply(connection, Collections.singletonList(op));
+                        // Per change, so a table that can't be created only costs its own changes.
+                        final List<Op> one = Collections.singletonList(op);
+                        ensureTables(connection, one);
+                        apply(connection, one);
                         written.incrementAndGet();
                     } catch (SQLException bad) {
                         if (connectionProblem(bad)) {
@@ -422,19 +491,68 @@ public final class MySQLStorage {
         }
 
         for (Map.Entry<String, String> entry : missing.entrySet()) {
+            final String table = entry.getKey();
+            final String pluginname = entry.getValue();
             try (Statement st = connection.createStatement()) {
-                st.executeUpdate(Tables.createData(entry.getKey()));
+                st.executeUpdate(Tables.createData(table));
             }
+            binaryPaths(connection, table);
+            // Never repoints an existing entry: another server may have registered this plugin first.
             try (PreparedStatement ps = connection.prepareStatement("INSERT INTO `" + registrytable
                     + "` (`plugin`,`table_name`,`updated`) VALUES (?,?,?)"
-                    + " ON DUPLICATE KEY UPDATE `table_name`=VALUES(`table_name`),`updated`=VALUES(`updated`)")) {
-                ps.setString(1, entry.getValue());
-                ps.setString(2, entry.getKey());
+                    + " ON DUPLICATE KEY UPDATE `updated`=VALUES(`updated`)")) {
+                ps.setString(1, pluginname);
+                ps.setString(2, table);
                 ps.setLong(3, System.currentTimeMillis());
                 ps.executeUpdate();
             }
-            ensured.add(entry.getKey());
-            plugin.debug("MySQL table " + entry.getKey() + " is ready for " + entry.getValue() + ".");
+            final String registered = registeredTable(connection, pluginname);
+            if (registered != null && !registered.equals(table)) {
+                // Use the registered table from now on, so imports find everything.
+                tablenames.put(pluginname, registered);
+                plugin.getLogger().warning(pluginname + "'s MySQL data is registered under " + registered
+                        + ", not " + table + "; new changes will go there.");
+            }
+            ensured.add(table);
+            plugin.debug("MySQL table " + table + " is ready for " + pluginname + ".");
+        }
+    }
+
+    private String registeredTable(Connection connection, String pluginname) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT `table_name` FROM `" + registrytable + "` WHERE `plugin`=?")) {
+            ps.setString(1, pluginname);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+                final String table = rs.getString(1);
+                return table != null && TABLE_NAME.matcher(table).matches() ? table : null;
+            }
+        }
+    }
+
+    // Tables made by 5.0.0 compared paths ignoring case, so "Home" and "home" were the same row. One-time fix.
+    private void binaryPaths(Connection connection, String table) {
+        try {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "SELECT COLLATION_NAME FROM information_schema.COLUMNS"
+                            + " WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME='path'")) {
+                ps.setString(1, table);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next() || Tables.PATH_COLLATION.equalsIgnoreCase(rs.getString(1))) {
+                        return;
+                    }
+                }
+            }
+            plugin.getLogger().info("Making paths in MySQL table " + table + " case-sensitive (one time only)...");
+            try (Statement st = connection.createStatement()) {
+                st.executeUpdate(Tables.binaryPaths(table));
+            }
+            plugin.getLogger().info("Paths in " + table + " are now case-sensitive.");
+        } catch (SQLException err) {
+            plugin.getLogger().warning("Unable to make paths in " + table
+                    + " case-sensitive (paths that differ only in case may overwrite each other): " + err.getMessage());
         }
     }
 
@@ -449,7 +567,7 @@ public final class MySQLStorage {
                 continue;
             }
 
-            final Pending forplayer = pending.computeIfAbsent(op.table + ' ' + op.uuid, key -> {
+            final Pending forplayer = pending.computeIfAbsent(op.table + '\0' + op.uuid, key -> {
                 final Pending created = new Pending();
                 bytable.computeIfAbsent(op.table, k -> new ArrayList<>()).add(created);
                 return created;
@@ -466,19 +584,15 @@ public final class MySQLStorage {
                     out.add(entry.clear);
                 }
             }
+            // Removals don't depend on each other's order, so like ones are grouped into one statement.
+            final Map<String, List<Op.Remove>> removals = new LinkedHashMap<>();
             for (Pending entry : table) {
                 for (Op.Remove remove : entry.removes.values()) {
-                    if (remove.includeself) {
-                        out.add(remove);
-                    }
+                    removals.computeIfAbsent(remove.batchKey(), k -> new ArrayList<>()).add(remove);
                 }
             }
-            for (Pending entry : table) {
-                for (Op.Remove remove : entry.removes.values()) {
-                    if (!remove.includeself) {
-                        out.add(remove);
-                    }
-                }
+            for (List<Op.Remove> alike : removals.values()) {
+                out.addAll(alike);
             }
             for (Pending entry : table) {
                 out.addAll(entry.sets.values());
@@ -509,8 +623,12 @@ public final class MySQLStorage {
                     return;
                 }
 
-                removes.keySet().removeIf(path -> path.startsWith(remove.path + "."));
-                removes.put(remove.path, remove);
+                if (remove.children) {
+                    removes.keySet().removeIf(path -> path.startsWith(remove.path + "."));
+                }
+                final Op.Remove earlier = removes.get(remove.path);
+                // Whatever an earlier removal at the same path deleted still has to go.
+                removes.put(remove.path, earlier == null ? remove : remove.and(earlier));
                 return;
             }
 
@@ -577,6 +695,9 @@ public final class MySQLStorage {
 
                 for (File file : files) {
                     final String uuid = file.getName().substring(0, file.getName().length() - 4);
+                    if (!Main.validKey(uuid)) {
+                        continue;
+                    }
                     // Read-only, so a cached copy is fine; the rest are parsed without being cached.
                     final FileConfiguration data = FileStore.peek(file);
                     collect(uuid, data, batch);
@@ -619,7 +740,7 @@ public final class MySQLStorage {
             try {
                 flush();
 
-                final Map<String, String> tables = pluginTables();
+                final Map<String, String> tables = pluginTables(0);
                 for (Map.Entry<String, String> entry : tables.entrySet()) {
                     final String table = entry.getValue();
                     for (int from = 0; from < targets.size(); from += IMPORT_PAGE) {
@@ -656,7 +777,7 @@ public final class MySQLStorage {
                 continue;
             }
 
-            final String table = Tables.data(settings.prefix, pluginname);
+            final String table = tableFor(pluginname);
             // Also removes rows deleted from the file, but only for plugins this file has a
             // section for; other servers' plugins are left alone.
             batch.add(new Op.Clear(table, pluginname, uuid));
@@ -700,7 +821,7 @@ public final class MySQLStorage {
             // Queued changes wait and land on the imported files afterwards.
             plugin.pauseSaving();
             try {
-                final Map<String, String> tables = pluginTables();
+                final Map<String, String> tables = pluginTables(0);
                 int imported = 0;
                 String cursor = "";
 
@@ -710,7 +831,7 @@ public final class MySQLStorage {
                         break;
                     }
 
-                    final Map<String, Map<String, Map<String, String>>> values = valuesFor(tables, page);
+                    final Map<String, Map<String, Map<String, String>>> values = valuesFor(tables, page, 0);
 
                     for (PlayerRow row : page) {
                         applyToFile(row, values.get(row.uuid), true);
@@ -738,37 +859,76 @@ public final class MySQLStorage {
         }
     }
 
-    public void pullPlayer(String uuid) {
-        submit(() -> {
-            try {
-                final Map<String, String> tables = pluginTables();
-                final PlayerRow row = playerRow(uuid);
-                if (row == null) {
-                    plugin.debug("No MySQL record for " + uuid + " yet.");
-                    return;
-                }
-                final Map<String, Map<String, Map<String, String>>> values =
-                        valuesFor(tables, Collections.singletonList(row));
-                applyToFile(row, values.get(uuid), false);
-                plugin.debug("Refreshed " + uuid + "'s file from MySQL.");
-            } catch (SQLException err) {
-                fail("Unable to read " + uuid + " from MySQL", err);
+    /**
+     * Refreshes one player's file from MySQL on the calling thread, for a login that is about to go
+     * ahead. Each query waits at most Connection-Timeout-Seconds, and while the database is unreachable
+     * this returns straight away, so logins never queue behind a dead connection.
+     */
+    public void pullPlayerNow(String uuid) {
+        if (!connected || !Main.validKey(uuid)) {
+            return;
+        }
+        if (System.currentTimeMillis() < retryafter) {
+            plugin.debug("MySQL was unreachable moments ago; using the local file for " + uuid + ".");
+            return;
+        }
+
+        final int timeout = settings.connecttimeout;
+        try {
+            final PlayerRow row = playerRow(uuid, timeout);
+            if (row == null) {
+                plugin.debug("No MySQL record for " + uuid + " yet.");
+                return;
             }
-        });
+            final Map<String, String> tables = pluginTables(timeout);
+            final Map<String, Map<String, Map<String, String>>> values =
+                    valuesFor(tables, Collections.singletonList(row), timeout);
+            if (applyToFile(row, values.get(uuid), false)) {
+                plugin.debug("Refreshed " + uuid + "'s file from MySQL.");
+            } else {
+                plugin.debug("Kept " + uuid + "'s local file, which is at least as recent as MySQL's copy.");
+            }
+        } catch (SQLException err) {
+            if (connectionProblem(err)) {
+                retryafter = System.currentTimeMillis() + BACKOFF_MS;
+            }
+            fail("Unable to read " + uuid + " from MySQL, so the local file was used", err);
+        }
     }
 
-    private Map<String, String> pluginTables() throws SQLException {
-        return withConnection(connection -> {
-            final Map<String, String> tables = new LinkedHashMap<>();
-            try (PreparedStatement ps = connection.prepareStatement(
-                    "SELECT `plugin`,`table_name` FROM `" + registrytable + "`");
-                 ResultSet rs = ps.executeQuery()) {
+    private Map<String, String> pluginTables(int timeout) throws SQLException {
+        final Map<String, String> tables = withConnection(connection -> readRegistry(connection, timeout));
+        for (Map.Entry<String, String> entry : tables.entrySet()) {
+            tablenames.putIfAbsent(entry.getKey(), entry.getValue());
+        }
+        return tables;
+    }
+
+    // Plugin name -> table. Rows that don't hold a usable plugin and table name are skipped.
+    private Map<String, String> readRegistry(Connection connection, int timeout) throws SQLException {
+        final Map<String, String> tables = new LinkedHashMap<>();
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT `plugin`,`table_name` FROM `" + registrytable + "`")) {
+            ps.setQueryTimeout(timeout);
+            try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    tables.put(rs.getString(1), rs.getString(2));
+                    final String pluginname = rs.getString(1);
+                    final String table = rs.getString(2);
+                    if (pluginname == null || pluginname.isEmpty() || table == null || !TABLE_NAME.matcher(table).matches()) {
+                        warnBadRow("registry entry " + pluginname + " -> " + table);
+                        continue;
+                    }
+                    tables.put(pluginname, table);
                 }
             }
-            return tables;
-        });
+        }
+        return tables;
+    }
+
+    private void warnBadRow(String what) {
+        if (badrowwarned.size() < 100 && badrowwarned.add(what)) {
+            plugin.getLogger().warning("Ignoring an unusable MySQL " + what + ".");
+        }
     }
 
     private List<PlayerRow> playerPage(String after) throws SQLException {
@@ -789,10 +949,11 @@ public final class MySQLStorage {
         });
     }
 
-    private PlayerRow playerRow(String uuid) throws SQLException {
+    private PlayerRow playerRow(String uuid, int timeout) throws SQLException {
         return withConnection(connection -> {
             try (PreparedStatement ps = connection.prepareStatement(
                     "SELECT `uuid`,`username`,`ip`,`last_on`,`time_played` FROM `" + playerstable + "` WHERE `uuid`=?")) {
+                ps.setQueryTimeout(timeout);
                 ps.setString(1, uuid);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next()) {
@@ -805,8 +966,8 @@ public final class MySQLStorage {
         });
     }
 
-    private Map<String, Map<String, Map<String, String>>> valuesFor(Map<String, String> tables, List<PlayerRow> page)
-            throws SQLException {
+    private Map<String, Map<String, Map<String, String>>> valuesFor(Map<String, String> tables, List<PlayerRow> page,
+                                                                    int timeout) throws SQLException {
         final Map<String, Map<String, Map<String, String>>> out = new LinkedHashMap<>();
         if (tables.isEmpty() || page.isEmpty()) {
             return out;
@@ -827,6 +988,7 @@ public final class MySQLStorage {
                     try (PreparedStatement ps = connection.prepareStatement(
                             "SELECT `uuid`,`path`,`value` FROM `" + table + "` WHERE `uuid` IN (" + placeholders
                                     + ") ORDER BY `uuid`,`path`")) {
+                        ps.setQueryTimeout(timeout);
                         for (int i = 0; i < page.size(); i++) {
                             ps.setString(i + 1, page.get(i).uuid);
                         }
@@ -849,24 +1011,34 @@ public final class MySQLStorage {
         return out;
     }
 
-    private void applyToFile(PlayerRow row, Map<String, Map<String, String>> values, boolean overwritecore) {
-        final File folder = new File(plugin.getDataFolder(), File.separator + "Data");
-        final File file = new File(folder, File.separator + row.uuid + ".yml");
+    /** @return whether the file was changed. */
+    private boolean applyToFile(PlayerRow row, Map<String, Map<String, String>> values, boolean overwritecore) {
+        // The uuid becomes a file name, and it comes from the database, so it must not leave the Data folder.
+        if (!Main.validKey(row.uuid)) {
+            warnBadRow("player row with uuid '" + row.uuid + "'");
+            return false;
+        }
+        final File file = new File(new File(plugin.getDataFolder(), "Data"), row.uuid + ".yml");
         synchronized (FileStore.LOCK) {
-            applyLocked(row, values, overwritecore, file);
+            return applyLocked(row, values, overwritecore, file);
         }
     }
 
-    private void applyLocked(PlayerRow row, Map<String, Map<String, String>> values, boolean overwritecore, File file) {
+    private boolean applyLocked(PlayerRow row, Map<String, Map<String, String>> values, boolean overwritecore, File file) {
         final FileConfiguration data;
         try {
             data = FileStore.loadForUpdate(file, plugin.getLogger());
         } catch (Exception err) {
             plugin.getLogger().warning("Unable to read " + file.getName() + " during a MySQL sync, it was left alone: " + err.getMessage());
-            return;
+            return false;
         }
 
+        // Whichever copy was saved last wins, plugin values included. An import always overwrites.
         final boolean newer = overwritecore || row.laston >= data.getLong("Last-On");
+        final long localtime = data.getLong("Time-Played");
+        if (!newer && row.timeplayed <= localtime) {
+            return false;
+        }
 
         data.set("UUID", row.uuid);
         if (newer) {
@@ -878,9 +1050,9 @@ public final class MySQLStorage {
             }
             data.set("Last-On", row.laston);
         }
-        data.set("Time-Played", overwritecore ? row.timeplayed : Math.max(row.timeplayed, data.getLong("Time-Played")));
+        data.set("Time-Played", overwritecore ? row.timeplayed : Math.max(row.timeplayed, localtime));
 
-        if (values != null) {
+        if (values != null && newer) {
             for (Map.Entry<String, Map<String, String>> byplugin : values.entrySet()) {
                 for (Map.Entry<String, String> value : byplugin.getValue().entrySet()) {
                     try {
@@ -897,8 +1069,10 @@ public final class MySQLStorage {
         try {
             FileStore.save(data, file);
             plugin.indexName(row.username, row.uuid);
+            return true;
         } catch (Exception err) {
             plugin.getLogger().warning("Unable to write " + file.getName() + " during a MySQL import: " + err.getMessage());
+            return false;
         }
     }
 

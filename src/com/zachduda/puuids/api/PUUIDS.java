@@ -225,8 +225,10 @@ public class PUUIDS {
             // Uncached files are parsed without being cached, so a scan doesn't evict files in use.
             FileConfiguration setcache = FileStore.peek(f);
 
-            if (setcache.getBoolean("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location)) {
-                allplayers.add(setcache.getString("Username"));
+            final String name = setcache.getString("Username");
+            // A file with no name yet only holds plugin data, for someone who hasn't joined since.
+            if (name != null && setcache.getBoolean("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location)) {
+                allplayers.add(name);
             }
         }
 
@@ -254,8 +256,10 @@ public class PUUIDS {
             // Uncached files are parsed without being cached, so a scan doesn't evict files in use.
             FileConfiguration setcache = FileStore.peek(f);
 
-            if (!setcache.getBoolean("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location)) {
-                allplayers.add(setcache.getString("Username"));
+            final String name = setcache.getString("Username");
+            // A file with no name yet only holds plugin data, for someone who hasn't joined since.
+            if (name != null && !setcache.getBoolean("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location)) {
+                allplayers.add(name);
             }
         }
 
@@ -320,17 +324,15 @@ public class PUUIDS {
      * @param pl       Your plugin (usually "this").
      * @param uuid     The UUID of the player as a String.
      * @param location The path the list was saved under.
-     * @return The list, or null if nothing is saved there.
+     * @return A copy of the list, including any lists or maps inside it, or null if no list is saved there.
      */
     public static List<?> getNCList(Plugin pl, String uuid, String location) {
         String plname = pl.getName();
 
-        FileConfiguration setcache = plugin.readFile(uuid);
-
         wasGet();
-        // Copied because the file may be cached.
-        final List<?> list = setcache.getList("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location);
-        return list == null ? null : new ArrayList<>(list);
+        // Copied all the way down, because the file may be cached and shared.
+        final Object value = plugin.readDetached(uuid, "Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location);
+        return value instanceof List<?> list ? list : null;
     }
 
     /**
@@ -405,7 +407,11 @@ public class PUUIDS {
             String path = cachefile.getPath();
 
             if (Files.getFileExtension(path).equalsIgnoreCase("yml")) {
-                allplayers.add(plugin.knownFile(new File(path)).name());
+                final String name = plugin.knownFile(new File(path)).name();
+                // A file with no name yet only holds plugin data, for someone who hasn't joined since.
+                if (name != null) {
+                    allplayers.add(name);
+                }
             }
         }
         wasGet();
@@ -433,11 +439,9 @@ public class PUUIDS {
 
             if (Files.getFileExtension(path).equalsIgnoreCase("yml")) {
                 File f = new File(path);
-                if (quickmode) {
-                    allplayers.add(f.getName().replace(".yml", ""));
-                } else {
-                    allplayers.add(plugin.knownFile(f).uuid());
-                }
+                final String uuid = quickmode ? null : plugin.knownFile(f).uuid();
+                // The file is named after the UUID, so that is the answer when it doesn't say.
+                allplayers.add(uuid != null ? uuid : f.getName().substring(0, f.getName().length() - 4));
             }
         }
         wasGet();
@@ -457,10 +461,18 @@ public class PUUIDS {
      * @param uuid     The UUID of the player as a String.
      * @param location Where under the player file to save as? (Similar to Configuration save paths)
      * @param input    The location to save. It must have a world.
-     * @return The task id of the last of those writes, or 0 if the call was rejected.
+     * @return The task id of the last of those writes, or 0 if the call was rejected, in which case
+     *         nothing was saved.
      */
     public static int setLocation(Plugin pl, String uuid, String location, Location input) {
-        if (pl == null || uuid == null || location == null) {
+        if (pl == null || uuid == null || location == null || input == null) {
+            return 0;
+        }
+
+        final boolean withworld = APIVersion.savesWorld(plugin.getAPIVersion(pl));
+        // Checked up front, so a location without a world is rejected whole instead of half saved.
+        if (withworld && input.getWorld() == null) {
+            plugin.debug(pl.getName() + " tried to save a location without a world at '" + location + "'. Nothing was saved.");
             return 0;
         }
 
@@ -468,8 +480,8 @@ public class PUUIDS {
         plugin.set(pl, uuid, location + ".Y", input.getY());
         plugin.set(pl, uuid, location + ".Z", input.getZ());
         plugin.set(pl, uuid, location + ".Pitch", input.getPitch());
-        if(APIVersion.savesWorld(plugin.getAPIVersion(pl))) {
-            plugin.set(pl, uuid, location + ".World", Objects.requireNonNull(input.getWorld()).getName());
+        if (withworld) {
+            plugin.set(pl, uuid, location + ".World", input.getWorld().getName());
         }
 
         return plugin.set(pl, uuid, location + ".Yaw", input.getYaw());
@@ -738,10 +750,11 @@ public class PUUIDS {
      * @param pl       Your plugin (usually "this"). Must be authenticated via PUUIDS.connect(this);
      * @param uuid     The UUID of the player as a String.
      * @param location Where under the player file to save as? (Similar to Configuration save paths)
-     * @param input    Accepts a boolean/int/long or other value to set: anything a YamlConfiguration can
-     *                 save, including lists and ItemStacks. Null removes the value.
+     * @param input    The value to save: a String, number, boolean, list, map, or ConfigurationSerializable such
+     *                 as an ItemStack. UUIDs and enums are saved as their String form. Anything else is
+     *                 rejected with a console warning, since Bukkit can't read it back. Null removes the value.
      * @return The task id of the queued write, or 0 if it was rejected (for example, because your plugin
-     *         isn't connected).
+     *         isn't connected, or the value can't be saved).
      */
     public static int set(Plugin pl, String uuid, String location, Object input) {
         if (pl == null || uuid == null || location == null) {
@@ -754,8 +767,8 @@ public class PUUIDS {
     /**
      * Sets default values for already existing files without said value. Can only be executed while connections are being accepted.
      * <p>
-     * This reads every player file on the calling thread, then queues one write per player that needs the
-     * default.
+     * This checks every player file on the calling thread (files already in memory aren't read again), then
+     * queues one write per player that needs the default. On a large server, call it off the main thread.
      *
      * @param pl       Your plugin (usually "this"). Must be authenticated via PUUIDS.connect(this);
      * @param location Where do you want the value to be set?
@@ -767,8 +780,6 @@ public class PUUIDS {
         if (pl == null || location == null || input == null) {
             return false;
         }
-
-        // Runs synchronously, not through the save queue.
 
         String plname = pl.getName();
 
@@ -782,21 +793,28 @@ public class PUUIDS {
             return false;
         }
 
-        File cache = new File(plugin.getDataFolder(), File.separator + "Data");
+        final File cache = new File(plugin.getDataFolder(), "Data");
+        final String path = "Plugins." + Main.pluginKey(pl) + "." + location;
 
         int total = 0;
 
-        for (String playeruuid : getAllPlayerUUIDs(pl, false)) {
+        for (File f : listData(cache)) {
+            final String name = f.getName();
+            if (!name.toLowerCase(Locale.ROOT).endsWith(".yml")) {
+                continue;
+            }
+            // Writes go to the file by its name, so that is the UUID to use.
+            final String playeruuid = name.substring(0, name.length() - 4);
+            if (!Main.validKey(playeruuid)) {
+                continue;
+            }
             try {
-                File f = new File(cache, File.separator + playeruuid + ".yml");
-                FileConfiguration setcache = FileStore.peek(f);
-                final String path = "Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location;
-                if (!setcache.contains(path) || setcache.get(path) == null) {
-                    plugin.set(pl, playeruuid, location, input);
+                // One parse per file at most.
+                if (FileStore.peek(f).get(path) == null && plugin.set(pl, playeruuid, location, input) != 0) {
                     total++;
                 }
             } catch (Exception err) {
-                return false;
+                plugin.debug("Unable to check " + name + " for " + plname + "'s default: " + err);
             }
         }
 

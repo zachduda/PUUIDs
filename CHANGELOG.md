@@ -1,5 +1,46 @@
 # Changelog
 
+## 5.0.1 (unreleased)
+
+A stability and performance release. Nothing to configure; existing `Data` folders, `config.yml` files and MySQL tables carry over.
+
+### Fixes that protect player data
+- **One bad value can no longer make a player's file unreadable.** In 5.0.0, saving a `UUID`, an enum or any plain Java object with `set()` wrote a value Bukkit refuses to read back, so the whole file looked empty. Its next save then started the player over. Values are now checked when they're queued: UUIDs and enums are saved as their String form, and anything that can't be read back is refused with a console warning (the call returns `0`).
+- **Files that are already broken are repaired, not reset.** Reads recover everything they can from a file Bukkit can't parse, and its next save rewrites it in a readable form. A copy of the original still goes to the `Corrupt` folder.
+- **The start-up scan no longer deletes files.** It used to delete any file it couldn't parse, and any file without a `Username` or `Last-On` (for example, data a plugin saved for a player who hasn't joined since). Both are now kept. Only empty files and files past `File-Cleanup.Max-Days` are removed, and a `Last-On` in the future no longer counts as old.
+- **`/puuids reset ontime` sticks.** The start-up scan raised everyone's play time to Minecraft's own statistic on every start, undoing the reset. That sync now happens once per player and is marked in the file (`Playtime-Synced: true`).
+- **No more play time for players who have left.** A checkpoint that ran just after a quit could restart the session, so `getPlayTime` kept growing for an offline player until they rejoined.
+- **Failed saves are kept, not dropped after 60 seconds.** A full disk or locked file is retried with a growing gap (up to 30s) for as long as the server runs, with a console update every 5 minutes. A value that can't be written is dropped on its own, so the rest of that player's changes (play time included) still save.
+- **Shutdown waits for a save in progress** (up to 30s instead of 1s), so changes always land in order.
+- The reset commands always release their pause on saving, even if they fail part-way.
+- `setLocation` with no world saves nothing, instead of four of the six values.
+
+### MySQL
+- **Sync-On-Join now runs before the join** (during pre-login), so plugins never read or write the stale file. Whichever copy was saved last wins, plugin values included. Before, only the core fields followed that rule. Logins wait for it, up to `Connection-Timeout-Seconds` per query, and skip it while the database is unreachable.
+- **Paths are case-sensitive.** `Homes.base` and `homes.base` were the same row, and removing `homes` also removed `Homes`. Existing data tables are converted once, the first time each is written to.
+- **The mirror matches the file exactly.** Setting a section where a value used to be, or writing under a former value, could leave stale rows that an import would bring back.
+- A table that can't be created no longer stops all mirroring, and plugin names that clean up to the same table name (`MY-PLUGIN`, `MY_PLUGIN`) now get separate tables.
+- An import ignores player rows whose `uuid` isn't a valid file name, and registry entries with an invalid table name.
+- Connections are only checked when they have been idle for 30s, instead of a round trip before every use.
+
+### Performance
+- **Faster start-up.** The scan reads files as plain data (no ItemStacks or Locations are built) and only looks up Minecraft's statistic once per player, instead of re-saving most files on every start.
+- **Higher save throughput.** While there is a backlog, a save run keeps writing batches of `Advanced.Max-Processes-Per-Queue` files for up to half of `Save-Rate-Ticks`. Before, it stopped after one batch.
+- **Checkpoints are spread out.** Each online player is checkpointed `Player-Update-Seconds` after their last save, instead of every player at once.
+- Repeated writes to the same path within one save are merged.
+- `get()` copies values from memory instead of re-reading the file. `hasFile` and `getName` answer online players without touching the disk. `addToAllWithout` reads each file once instead of twice.
+
+### Behaviour changes
+| What | 5.0.0 | 5.0.1 |
+|---|---|---|
+| `set()` with a UUID or enum | saved, then the file couldn't be read | saved as its String form |
+| `set()` with any other object Bukkit can't read back | saved, then the file couldn't be read | refused with a warning, returns `0` |
+| `get()`, `getNCList` | lists copied one level deep | copied all the way down |
+| `getAllPlayerNames`, `getAllWith*Boolean` | could include `null` | skip files with no name yet |
+| `UpdatedPlayerStats` | after checkpointing every online player | still every interval; each player is checkpointed within it |
+| `Settings.File-Cleanup.Clean-Essentials` default | `true` | `false` for new installs (existing `config.yml` files keep their value) |
+| Play time sessions | measured with the system clock | measured with a monotonic clock, so clock changes can't skew them |
+
 ## 5.0.0
 
 ### Before you upgrade
