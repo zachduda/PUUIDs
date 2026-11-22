@@ -1533,23 +1533,38 @@ public class Main extends JavaPlugin implements Listener {
                             }
 
                             synchronized (FileStore.LOCK) {
-                            FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-                            debug("Reset " + setcache.getString("Username") + "'s Time-Played. (" + setcache.getLong("Time-Played") + "secs) " + " (" + f.getName() + ")");
-                            setcache.set("Time-Played", 0);
-
-                            try {
-                                FileStore.save(setcache, f);
-                                if (db != null && db.isConnected()) {
-                                    // Or the database would hand the old play time straight back
-                                    // on the next sync.
-                                    db.mirrorPlayer(setcache.getString("UUID"), setcache.getString("Username"),
-                                            setcache.getString("IP"), setcache.getLong("Last-On"), 0);
+                                final FileConfiguration setcache;
+                                try {
+                                    // Not YamlConfiguration.loadConfiguration: it answers an unreadable
+                                    // file with an empty one, and saving that would wipe the player's file.
+                                    setcache = FileStore.loadForUpdate(f, getLogger());
+                                } catch (Exception err) {
+                                    debug("Unable to read " + f.getName() + ", it was left alone: " + err);
+                                    continue;
                                 }
-                            } catch (Exception err) {
-                                debug("Unable to reset " + f.getName() + ": " + err);
+                                if (!f.exists()) {
+                                    // Unparseable and moved to the Corrupt folder (or gone already),
+                                    // so there's nothing left here to reset.
+                                    debug("Skipped resetting " + f.getName() + ": it could not be parsed and was moved aside.");
+                                    continue;
+                                }
+
+                                debug("Reset " + setcache.getString("Username") + "'s Time-Played. (" + setcache.getLong("Time-Played") + "secs) " + " (" + f.getName() + ")");
+                                setcache.set("Time-Played", 0);
+
+                                try {
+                                    FileStore.save(setcache, f);
+                                    total++;
+                                    if (db != null && db.isConnected()) {
+                                        // Or the database would hand the old play time straight back
+                                        // on the next sync.
+                                        db.mirrorPlayer(setcache.getString("UUID"), setcache.getString("Username"),
+                                                setcache.getString("IP"), setcache.getLong("Last-On"), 0);
+                                    }
+                                } catch (Exception err) {
+                                    debug("Unable to reset " + f.getName() + ": " + err);
+                                }
                             }
-                            }
-                            total++;
                         }
 
                         final String finished = Long.toString(System.currentTimeMillis() - start);
@@ -1624,19 +1639,34 @@ public class Main extends JavaPlugin implements Listener {
                             }
 
                             synchronized (FileStore.LOCK) {
-                            FileConfiguration setcache = YamlConfiguration.loadConfiguration(f);
-                            setcache.set("Plugins", null);
+                                final FileConfiguration setcache;
+                                try {
+                                    // Not YamlConfiguration.loadConfiguration: it answers an unreadable
+                                    // file with an empty one, and saving that would wipe the player's file.
+                                    setcache = FileStore.loadForUpdate(f, getLogger());
+                                } catch (Exception err) {
+                                    debug("Unable to read " + f.getName() + ", it was left alone: " + err);
+                                    continue;
+                                }
+                                if (!f.exists()) {
+                                    // Unparseable and moved to the Corrupt folder (or gone already),
+                                    // so there's nothing left here to reset.
+                                    debug("Skipped resetting " + f.getName() + ": it could not be parsed and was moved aside.");
+                                    continue;
+                                }
 
-                            debug("Reset" + setcache.getString("Username") + "'s file back to basics. (" + f.getName() + ")");
+                                setcache.set("Plugins", null);
 
-                            try {
-                                FileStore.save(setcache, f);
-                                wiped.add(setcache.getString("UUID"));
-                            } catch (Exception err) {
-                                debug("Unable to reset " + f.getName() + ": " + err);
+                                debug("Reset " + setcache.getString("Username") + "'s file back to basics. (" + f.getName() + ")");
+
+                                try {
+                                    FileStore.save(setcache, f);
+                                    total++;
+                                    wiped.add(setcache.getString("UUID"));
+                                } catch (Exception err) {
+                                    debug("Unable to reset " + f.getName() + ": " + err);
+                                }
                             }
-                            }
-                            total++;
                         }
 
                         final MySQLStorage db = storage;
