@@ -26,7 +26,7 @@ import java.util.Objects;
  * player's file as last saved, usually from memory. A read straight after a write can still return the
  * old value until the save queue reaches it.
  *
- * @see <a href="https://github.com/zachduda/PUUIDs/tree/master/docs">PUUIDs documentation</a>
+ * @see <a href="https://github.com/zachduda/PUUIDs/wiki">PUUIDs documentation</a>
  */
 @SuppressWarnings("unused")
 public class PUUIDS {
@@ -40,7 +40,7 @@ public class PUUIDS {
      * up, unless the server owner turns on {@code Advanced.Allow-Post-Startup-Connections}.
      *
      * @param pl   Your plugin, most of the time, you can just put "this"
-     * @param vers The API version your plugin was written for. Use {@link APIVersion#V4}.
+     * @param vers The API version your plugin was written for. Use {@link APIVersion#V5}.
      * @return true if your plugin is now connected; false if startup has finished, the version is
      *         outdated, or this plugin had already connected.
      */
@@ -468,7 +468,7 @@ public class PUUIDS {
         plugin.set(pl, uuid, location + ".Y", input.getY());
         plugin.set(pl, uuid, location + ".Z", input.getZ());
         plugin.set(pl, uuid, location + ".Pitch", input.getPitch());
-        if(plugin.getAPIVersion(pl) == APIVersion.V4) {
+        if(APIVersion.savesWorld(plugin.getAPIVersion(pl))) {
             plugin.set(pl, uuid, location + ".World", Objects.requireNonNull(input.getWorld()).getName());
         }
 
@@ -499,7 +499,7 @@ public class PUUIDS {
             return null;
         }
 
-        if(plugin.getAPIVersion(pl) == APIVersion.V4) {
+        if(APIVersion.savesWorld(plugin.getAPIVersion(pl))) {
             plugin.getLogger().severe(plname + " should use getLocation() without world string!");
         }
 
@@ -821,8 +821,8 @@ public class PUUIDS {
     }
 
     /**
-     * API versions for {@link #connect(Plugin, APIVersion)}. Always pass the newest one: this release
-     * only accepts {@link #V4}.
+     * API versions for {@link #connect(Plugin, APIVersion)}. Always pass the newest one, {@link #V5}.
+     * This release also still accepts {@link #V4}; V1 to V3 are rejected.
      */
     @SuppressWarnings("DeprecatedIsStillUsed")
     public enum APIVersion {
@@ -830,6 +830,18 @@ public class PUUIDS {
         @Deprecated V2,
         @Deprecated V3,
         V4,
-        V5
+        V5;
+
+        /**
+         * @return true if this version is {@code other} or newer.
+         */
+        public boolean isAtLeast(APIVersion other) {
+            return other != null && this.ordinal() >= other.ordinal();
+        }
+
+        /** Locations have been saved with their world since V4. */
+        static boolean savesWorld(APIVersion version) {
+            return version != null && version.isAtLeast(V4);
+        }
     }
 }
