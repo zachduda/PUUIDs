@@ -19,12 +19,16 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -57,6 +61,8 @@ public final class MySQLStorage {
 
     private volatile ConnectionPool pool;
     private volatile ScheduledExecutorService worker;
+    /** Reads for logins (Sync-On-Join), kept off the worker so a long export can't hold logins up. */
+    private volatile ExecutorService logins;
     private volatile boolean connected;
     private volatile String lasterror;
     private volatile long quietuntil;
@@ -117,6 +123,13 @@ public final class MySQLStorage {
         final ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor(factory);
         service.scheduleWithFixedDelay(this::flushQuietly, settings.flushms, settings.flushms, TimeUnit.MILLISECONDS);
         worker = service;
+        if (settings.synconjoin) {
+            logins = Executors.newCachedThreadPool(task -> {
+                final Thread thread = new Thread(task, "PUUIDs-MySQL-Login");
+                thread.setDaemon(true);
+                return thread;
+            });
+        }
 
         plugin.getLogger().info("Connected to MySQL at " + settings.describe() + ". Player data will be mirrored there.");
         return true;
@@ -143,6 +156,12 @@ public final class MySQLStorage {
     }
 
     public void shutdown() {
+        final ExecutorService loginreads = logins;
+        logins = null;
+        if (loginreads != null) {
+            loginreads.shutdownNow();
+        }
+
         final ScheduledExecutorService service = worker;
         worker = null;
 
@@ -738,23 +757,73 @@ public final class MySQLStorage {
         }
     }
 
-    public void pullPlayer(String uuid) {
-        submit(() -> {
-            try {
-                final Map<String, String> tables = pluginTables();
-                final PlayerRow row = playerRow(uuid);
-                if (row == null) {
-                    plugin.debug("No MySQL record for " + uuid + " yet.");
-                    return;
-                }
-                final Map<String, Map<String, Map<String, String>>> values =
-                        valuesFor(tables, Collections.singletonList(row));
-                applyToFile(row, values.get(uuid), false);
-                plugin.debug("Refreshed " + uuid + "'s file from MySQL.");
-            } catch (SQLException err) {
-                fail("Unable to read " + uuid + " from MySQL", err);
+    /**
+     * Refreshes a player's file from MySQL as they log in (Sync-On-Join), so every plugin that
+     * reads it from then on, at login or later, sees what other servers on the network saved
+     * rather than this server's older copy. Call it from AsyncPlayerPreLoginEvent, before the
+     * plugins that depend on PUUIDs read the file.
+     * <p>
+     * Blocks for at most Connection-Timeout-Seconds. If MySQL takes longer or can't be reached,
+     * the login goes ahead with this server's copy, and what MySQL sends later is thrown away
+     * rather than written under plugins that have already read the file.
+     *
+     * @return true if the file is now up to date with MySQL (or MySQL has nothing for them yet).
+     */
+    public boolean pullForLogin(String uuid) {
+        final ExecutorService service = logins;
+        if (!connected || service == null || pool == null) {
+            return false;
+        }
+
+        final Future<Pulled> read;
+        try {
+            read = service.submit(() -> fetchPlayer(uuid));
+        } catch (RejectedExecutionException shuttingdown) {
+            return false;
+        }
+
+        final Pulled pulled;
+        try {
+            pulled = read.get(settings.connecttimeout, TimeUnit.SECONDS);
+        } catch (TimeoutException slow) {
+            read.cancel(true);
+            lasterror = "Timed out reading a player at login";
+            if (quiet()) {
+                plugin.getLogger().warning("MySQL took over " + settings.connecttimeout + "s to send " + uuid
+                        + "'s data, so they logged in with this server's copy of their file.");
             }
-        });
+            return false;
+        } catch (InterruptedException interrupted) {
+            read.cancel(true);
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (ExecutionException err) {
+            fail("Unable to read " + uuid + " from MySQL, so they logged in with this server's copy of their file",
+                    err.getCause() == null ? err : err.getCause());
+            return false;
+        }
+
+        if (pulled == null) {
+            plugin.debug("No MySQL record for " + uuid + " yet.");
+            return true;
+        }
+        applyToFile(pulled.row(), pulled.values(), false);
+        plugin.debug("Refreshed " + uuid + "'s file from MySQL.");
+        return true;
+    }
+
+    /** Everything MySQL has for one player, or null if it has no record of them. */
+    private Pulled fetchPlayer(String uuid) throws SQLException {
+        final PlayerRow row = playerRow(uuid);
+        if (row == null) {
+            return null;
+        }
+        final Map<String, String> tables = pluginTables();
+        return new Pulled(row, valuesFor(tables, Collections.singletonList(row)).get(uuid));
+    }
+
+    /** One player's row and their plugins' values (plugin, then path, then encoded value). */
+    private record Pulled(PlayerRow row, Map<String, Map<String, String>> values) {
     }
 
     private Map<String, String> pluginTables() throws SQLException {
@@ -866,6 +935,10 @@ public final class MySQLStorage {
             return;
         }
 
+        // Last-On moves on every join, checkpoint and quit, wherever they play. If this file's is
+        // later than MySQL's, this server has written to it since MySQL last heard about the
+        // player (changes still queued, or dropped while it was down): the file is newer, and
+        // copying MySQL's values over it would roll the player back.
         final boolean newer = overwritecore || row.laston >= data.getLong("Last-On");
 
         data.set("UUID", row.uuid);
@@ -880,7 +953,7 @@ public final class MySQLStorage {
         }
         data.set("Time-Played", overwritecore ? row.timeplayed : Math.max(row.timeplayed, data.getLong("Time-Played")));
 
-        if (values != null) {
+        if (values != null && newer) {
             for (Map.Entry<String, Map<String, String>> byplugin : values.entrySet()) {
                 for (Map.Entry<String, String> value : byplugin.getValue().entrySet()) {
                     try {

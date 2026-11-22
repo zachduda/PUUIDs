@@ -47,7 +47,7 @@ No public API method was removed or changed signature, but these behave differen
 Events are unchanged, but their Javadoc now says which thread they fire on. Note that `ConnectionOpen` and `ConnectionClose` usually fire before your plugin's listeners are registered or after it has been disabled. Connect from `onEnable()` and save from your own `onDisable()` instead of relying on them.
 
 ### New
-- **Optional MySQL mirror** (`MySQL:` section). The `.yml` files stay the source of truth, and writes are copied to MySQL/MariaDB in the background. Includes import/export on start-up, `/puuids mysql export`, and an opt-in refresh on join for networks.
+- **Optional MySQL mirror** (`MySQL:` section). The `.yml` files stay the source of truth, and writes are copied to MySQL/MariaDB in the background. Includes import/export on start-up, `/puuids mysql export`, and an opt-in refresh for networks (`Sync-On-Join`): a player's file is pulled from MySQL as they log in, in `AsyncPlayerPreLoginEvent` before any other plugin's listener, so plugins loading data there or later see what other servers saved. A local file written more recently than MySQL's copy is kept, and a login waits at most `Connection-Timeout-Seconds` for it.
 - **In-memory player file cache.** Online players' files are kept loaded, and recently used ones are cached, so most reads never touch the disk.
 - Paper and Folia scheduling through morepaperlib 0.5.3, which is now relocated inside the jar.
 

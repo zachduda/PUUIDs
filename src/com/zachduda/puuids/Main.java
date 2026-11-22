@@ -1046,6 +1046,24 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     /*
+      Networks (Sync-On-Join): they may have played on another server since, so their file is
+      refreshed from MySQL before any other plugin's pre-login listener runs (PUUIDs registers
+      first, as they depend on it), and so before anything reads it at login or later. Pulling it
+      on join instead would land after plugins that load their data here, and their next save
+      would write this server's older copy back over the network's.
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPreLoginSync(AsyncPlayerPreLoginEvent e) {
+        if (e.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
+            return;
+        }
+        final MySQLStorage db = storage;
+        if (db != null && db.isConnected() && db.settings().synconjoin) {
+            db.pullForLogin(e.getUniqueId().toString());
+        }
+    }
+
+    /*
       Already off the main thread, and before the join: a good moment to parse the file that
       the player's first scoreboard or chat format is about to read. Only for logins that will
       go ahead; MONITOR runs after every other plugin's say on that.
@@ -1065,12 +1083,6 @@ public class Main extends JavaPlugin implements Listener {
         Timer.startSession(joining.getUniqueId());
 
         keepLoaded(joining.getUniqueId());
-
-        // They may have played on another server since.
-        final MySQLStorage db = storage;
-        if (db != null && db.isConnected() && db.settings().synconjoin) {
-            db.pullPlayer(joining.getUniqueId().toString());
-        }
 
         mpl.scheduling().asyncScheduler().run(() -> {
             UUID uuid = joining.getUniqueId();
