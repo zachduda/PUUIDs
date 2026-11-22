@@ -96,7 +96,6 @@ final class ConnectionPool {
         try {
             connection.close();
         } catch (SQLException ignored) {
-            // Something went wrong while something went wrong, who cares.
         }
     }
 }

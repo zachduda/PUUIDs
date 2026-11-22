@@ -7,18 +7,15 @@ import org.bukkit.Bukkit;
 import java.util.Queue;
 import java.util.UUID;
 
-/**
- * Everything that touches Essentials' own classes, kept out of Main so a server without
- * Essentials never has to load them.
- */
+/** Kept out of Main so servers without Essentials never load its classes. */
 final class EssentialsHook {
 
     private EssentialsHook() {
     }
 
     /**
-     * Resets the Essentials data of each queued player, as File-Cleanup.Clean-Essentials asks.
-     * Banned players are skipped: their data file is what keeps them banned.
+     * Resets the Essentials data of each queued player. Banned players are skipped because
+     * their data file is what keeps them banned.
      *
      * @return how many players were reset.
      */

@@ -22,13 +22,12 @@ public class Updater {
 
     private static final String RELEASES_API = "https://api.github.com/repos/zachduda/PUUIDs/releases";
 
-    private static final long FIRST_CHECK_DELAY = 100; // In ticks. (~5s after startup)
-    private static final long CHECK_INTERVAL = 1_728_000; // In ticks. (~24h)
+    private static final long FIRST_CHECK_DELAY = 100; // ticks (~5s)
+    private static final long CHECK_INTERVAL = 1_728_000; // ticks (~24h)
 
     private static final int CONNECT_TIMEOUT_MS = 5_000;
     private static final int READ_TIMEOUT_MS = 5_000;
 
-    // Written from the async check thread, read from the main thread.
     static volatile String posted_version = "???";
     static volatile boolean outdated = false;
 
@@ -54,7 +53,6 @@ public class Updater {
                     task.cancel();
                     return;
                 }
-                // Run network I/O off the main thread
                 morePaperLib.scheduling().asyncScheduler().run(() -> runCheck(task));
             }, FIRST_CHECK_DELAY, CHECK_INTERVAL);
         } catch (Exception err) {
@@ -71,7 +69,6 @@ public class Updater {
         try {
             latest = fetchLatestStableVersion();
         } catch (final IOException | ParseException err) {
-            // A blip shouldn't kill the checker for the rest of the runtime -- just try again later.
             javaPlugin.getLogger().warning("Unable to check for updates: " + err.getMessage());
             return;
         }
@@ -94,15 +91,12 @@ public class Updater {
         });
     }
 
-    /**
-     * @return the newest non-prerelease version on GitHub, or null if there isn't one.
-     */
+    /** @return the newest non-prerelease version on GitHub, or null. */
     private String fetchLatestStableVersion() throws IOException, ParseException {
         final URL url = URI.create(RELEASES_API).toURL();
         final HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         try {
             conn.setRequestMethod("GET");
-            // Without timeouts a stalled connection parks this thread forever.
             conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
             conn.setReadTimeout(READ_TIMEOUT_MS);
             conn.setRequestProperty("Accept", "application/vnd.github+json");
@@ -121,7 +115,7 @@ public class Updater {
                 throw new IOException("Unexpected response from GitHub.");
             }
 
-            // Releases come back newest first, so the first stable one is the latest.
+            // Newest first.
             for (final Object element : releases) {
                 if (!(element instanceof JSONObject release)) {
                     continue;

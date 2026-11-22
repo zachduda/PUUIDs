@@ -23,9 +23,8 @@ import java.util.Objects;
  * their own section of the player's file, under the plugin's name in upper case.
  * <p>
  * Writes are queued and saved off the main thread shortly afterwards, while reads come from the
- * player's file as last saved. Files are kept parsed in memory (always for online players), so reads
- * normally don't touch the disk at all. A read straight after a write can still return the old value,
- * until the save queue reaches it.
+ * player's file as last saved, usually from memory. A read straight after a write can still return the
+ * old value until the save queue reaches it.
  *
  * @see <a href="https://github.com/zachduda/PUUIDs/tree/master/docs">PUUIDs documentation</a>
  */
@@ -172,8 +171,8 @@ public class PUUIDS {
     }
 
     /**
-     * Reads a String your plugin saved for this player. Like every getter, this reads the player's file as
-     * last saved (from memory when it's cached), so a value still waiting in the save queue isn't visible yet.
+     * Reads a String your plugin saved for this player. Like every getter, it doesn't see values still
+     * waiting in the save queue.
      *
      * @param pl       Your plugin (usually "this").
      * @param uuid     The UUID of the player as a String.
@@ -188,12 +187,6 @@ public class PUUIDS {
         wasGet();
         return setcache.getString("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location);
     }
-
-    // GETTING & SETTING PLUGIN DATA ------------------------------------------
-
-    // Strings -------------
-
-    // Booleans --------------
 
     /**
      * Reads a boolean your plugin saved for this player.
@@ -212,13 +205,6 @@ public class PUUIDS {
         return setcache.getBoolean("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location);
     }
 
-    // End of Strings ------------
-
-    // Config Keys
-
-
-    // End of Config Keys
-
     /**
      * Finds every player whose boolean at {@code location} is true. This reads every player file, so call
      * it off the main thread. Requires {@link #connect}.
@@ -236,8 +222,7 @@ public class PUUIDS {
 
         for (String playeruuid : getAllPlayerUUIDs(pl, quickmode)) {
             File f = new File(cache, File.separator + playeruuid + ".yml");
-            // Cached copies are used where there are any, but the rest aren't added: one scan
-            // would otherwise push out every file plugins are actually reading.
+            // Uncached files are parsed without being cached, so a scan doesn't evict files in use.
             FileConfiguration setcache = FileStore.peek(f);
 
             if (setcache.getBoolean("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location)) {
@@ -266,8 +251,7 @@ public class PUUIDS {
 
         for (String playeruuid : getAllPlayerUUIDs(pl, quickmode)) {
             File f = new File(cache, File.separator + playeruuid + ".yml");
-            // Cached copies are used where there are any, but the rest aren't added: one scan
-            // would otherwise push out every file plugins are actually reading.
+            // Uncached files are parsed without being cached, so a scan doesn't evict files in use.
             FileConfiguration setcache = FileStore.peek(f);
 
             if (!setcache.getBoolean("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location)) {
@@ -296,12 +280,6 @@ public class PUUIDS {
         return setcache.getInt("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location);
     }
 
-    // End of Booleans -------
-
-    // Start of Int --------------
-
-    // Start of Double --------------
-
     /**
      * Reads a double your plugin saved for this player.
      *
@@ -318,7 +296,6 @@ public class PUUIDS {
         wasGet();
         return setcache.getDouble("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location);
     }
-    // End of Int -------
 
     /**
      * Reads a long your plugin saved for this player.
@@ -337,10 +314,6 @@ public class PUUIDS {
         return setcache.getLong("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location);
     }
 
-    // End of Double -------
-
-    // Start of Long --------------
-
     /**
      * Reads a list your plugin saved for this player, exactly as stored and without casting its elements.
      *
@@ -355,14 +328,10 @@ public class PUUIDS {
         FileConfiguration setcache = plugin.readFile(uuid);
 
         wasGet();
-        // Copied: the file may be cached, and the caller is free to change what it gets back.
+        // Copied because the file may be cached.
         final List<?> list = setcache.getList("Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location);
         return list == null ? null : new ArrayList<>(list);
     }
-    // End of Long -------
-
-
-    // Start of List --------------
 
     /**
      * Reads a list of ints your plugin saved for this player.
@@ -417,9 +386,8 @@ public class PUUIDS {
     }
 
     /**
-     * Lists the username of every player with a puuids file. Names come from memory for every file puuids
-     * has read or saved since start-up (normally all of them), so this costs a listing of the Data folder;
-     * only a file added by hand since then is parsed. Requires {@link #connect}.
+     * Lists the username of every player with a puuids file. Names come from memory, so this only costs a
+     * listing of the Data folder. Requires {@link #connect}.
      *
      * @param pl Your plugin (usually "this").
      * @return The usernames. Empty if your plugin isn't connected.
@@ -431,15 +399,12 @@ public class PUUIDS {
             return allplayers;
         }
 
-        // Gets the player names of all we have record of.
-
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 
         for (File cachefile : listData(cache)) {
             String path = cachefile.getPath();
 
             if (Files.getFileExtension(path).equalsIgnoreCase("yml")) {
-                // From memory for every file puuids has already seen, which after start-up is all of them.
                 allplayers.add(plugin.knownFile(new File(path)).name());
             }
         }
@@ -451,20 +416,15 @@ public class PUUIDS {
      * Lists the UUID of every player with a puuids file. Requires {@link #connect}.
      *
      * @param pl        Your plugin (usually "this").
-     * @param quickmode true to take UUIDs from the file names. false reads the UUID stored inside each file,
-     *                  from memory for every file puuids has already seen.
+     * @param quickmode true to take UUIDs from the file names instead of the files' contents.
      * @return The UUIDs as Strings. Empty if your plugin isn't connected.
      */
     public static ArrayList<String> getAllPlayerUUIDs(Plugin pl, boolean quickmode) {
         ArrayList<String> allplayers = new ArrayList<>();
 
-        // Returns an empty list rather than null: callers were passing this straight into a
-        // for-each wrapped in requireNonNull, so an unregistered plugin threw instead of no-oping.
         if (!plugin.isRegistered(pl)) {
             return allplayers;
         }
-
-        // Gets a list of all the uuids we have a record of.
 
         File cache = new File(plugin.getDataFolder(), File.separator + "Data");
 
@@ -484,7 +444,7 @@ public class PUUIDS {
         return allplayers;
     }
 
-    /** listFiles() returns null for a folder that doesn't exist yet, which is not an error here. */
+    /** listFiles() returns null if the folder doesn't exist yet. */
     private static File[] listData(File cache) {
         final File[] files = cache.isDirectory() ? cache.listFiles() : null;
         return files == null ? new File[0] : files;
@@ -514,10 +474,6 @@ public class PUUIDS {
 
         return plugin.set(pl, uuid, location + ".Yaw", input.getYaw());
     }
-    // End of List -------
-
-
-    // Start of Location ----
 
     /**
      * Reads a location, ignoring the saved world and using {@code world} instead.
@@ -530,7 +486,7 @@ public class PUUIDS {
      * @deprecated Since API V4, locations are saved with their world. Use
      *             {@link #getLocation(Plugin, String, String)}.
      */
-    @Deprecated // in v4, the manual input String for worlds are no longer required.
+    @Deprecated
     public static Location getLocation(Plugin pl, String uuid, String location, String world) {
         if (pl == null || uuid == null || location == null) {
             return null;
@@ -597,8 +553,6 @@ public class PUUIDS {
         return finalloc;
     }
 
-    // Contains
-
     /**
      * Checks whether your plugin has a value, or a section, saved at {@code location} for this player.
      * Requires {@link #connect}.
@@ -630,10 +584,6 @@ public class PUUIDS {
         return false;
     }
 
-    // End of Location
-
-    // GET (v1.4 and +)
-
     /**
      * Reads the raw value at {@code location} exactly as loaded from the file: a String, Integer,
      * Boolean, List, ItemStack, ConfigurationSection and so on. Requires {@link #connect}.
@@ -659,7 +609,6 @@ public class PUUIDS {
         wasGet();
         return plugin.readDetached(uuid, "Plugins." + plname.toUpperCase(Locale.ROOT) + "." + location);
     }
-    // End of Contains.
 
     /**
      * Sets a value as null, removing it (and anything nested under it) from the player's file.
@@ -676,9 +625,6 @@ public class PUUIDS {
 
         return plugin.set(pl, uuid, location, null);
     }
-    // END GET
-
-    // NULL SET v1.4.3+
 
     /**
      * Removes ALL set values for your plugin from this player's file.
@@ -717,9 +663,6 @@ public class PUUIDS {
         input.add(add);
         return plugin.set(pl, uuid, location, input);
     }
-    // End of NULL set
-
-    // v1.4.5 and + add to list
 
     /**
      * Add a int to an existing int list.
@@ -741,9 +684,6 @@ public class PUUIDS {
         input.add(add);
         return plugin.set(pl, uuid, location, input);
     }
-    // End of List Add
-
-    // v1.4.5 and + add to int list
 
     /**
      * Remove a string from an existing list. Only the first matching entry is removed.
@@ -765,10 +705,6 @@ public class PUUIDS {
         input.remove(add);
         return plugin.set(pl, uuid, location, input);
     }
-    // End of List Add
-
-
-    // v1.4.5 and + remove to list
 
     /**
      * Remove an int from an existing int list. Only the first matching entry is removed.
@@ -788,13 +724,9 @@ public class PUUIDS {
         }
 
         List<Integer> input = getIntList(pl, uuid, location);
-        // Was input.add(add): this method appended instead of removing.
         input.remove(Integer.valueOf(add));
         return plugin.set(pl, uuid, location, input);
     }
-    // End of List Add
-
-    // v1.4.5 and + remove to int list
 
     /**
      * Set plugin data for your plugin in a player's data file.
@@ -818,10 +750,6 @@ public class PUUIDS {
 
         return plugin.set(pl, uuid, location, input);
     }
-    // End of List Remove
-
-
-    // SET (v1.3 and +)
 
     /**
      * Sets default values for already existing files without said value. Can only be executed while connections are being accepted.
@@ -840,7 +768,7 @@ public class PUUIDS {
             return false;
         }
 
-        // DOES NOT USE ASYNC TIMER. RUNS SYNC
+        // Runs synchronously, not through the save queue.
 
         String plname = pl.getName();
 
@@ -877,8 +805,6 @@ public class PUUIDS {
         }
         return true;
     }
-    // End of SET
-
 
     /**
      *  Returns the UUID that was randomly generated on the first run of PUUIDs for this server
@@ -890,14 +816,9 @@ public class PUUIDS {
         return plugin.getServerId();
     }
 
-    // Internal counter
     private static void wasGet() {
         plugin.getTimes.incrementAndGet();
     }
-
-
-
-    // General
 
     /**
      * API versions for {@link #connect(Plugin, APIVersion)}. Always pass the newest one: this release
@@ -910,5 +831,4 @@ public class PUUIDS {
         @Deprecated V3,
         V4
     }
-    // End of General
 }

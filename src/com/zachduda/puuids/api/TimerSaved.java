@@ -13,7 +13,6 @@ import org.jspecify.annotations.NonNull;
 public class TimerSaved extends Event {
 
     private static final HandlerList HANDLERS = new HandlerList();
-    // Event that is fired when a task is actually saved to file. You can get your Task ID from set and track it here!
     private final String plname;
     private final String uuid;
     private final int taskid;

@@ -26,14 +26,10 @@ public final class FileStore {
 
     public static final String TEMP_SUFFIX = ".tmp";
 
-    /**
-     * Held for every load-modify-save of a player file. The save queue, a MySQL join sync and the
-     * reset commands all run on different threads, and without this two of them could load the
-     * same file and the slower one would silently undo the other's changes.
-     */
+    /** Held for every load-modify-save of a player file, since several threads write them. */
     public static final Object LOCK = new Object();
 
-    /** Told about every player file this class writes or deletes, so indexes can follow along. */
+    /** Told about every player file written or deleted, so indexes can follow. */
     public interface Listener {
         void saved(File target, FileConfiguration config);
 
@@ -41,27 +37,21 @@ public final class FileStore {
     }
 
     /*
-      Parsed player files, shared by every thread that reads them. What's cached must never be
-      modified: read() and peek() are for reading only.
+      Parsed player files shared by all threads; cached values must never be modified.
 
-      - A save puts the file it just wrote straight back in (if anyone was reading it), instead
-        of dropping it and making the next reader parse the whole file again.
-      - Files of online players are pinned: never evicted, however full the cache is.
-      - An entry is checked against the file's size and modified time at most once per
-        Advanced.Cache-Revalidate-Seconds, so a hit costs no disk access at all. Changes made
-        through this class are seen at once; a hand edit within that many seconds.
-      - Plain concurrent map rather than a locked LinkedHashMap, so readers on different threads
-        (Folia's region threads in particular) don't queue on one lock, and two threads missing
-        the same file parse it once between them.
+      - Saves put the written file back in the cache if anyone was reading it.
+      - Online players' files are pinned and never evicted.
+      - Size and modified time are re-checked at most once per Cache-Revalidate-Seconds, so
+        hand edits can take that long to show up. Changes through this class are seen at once.
+      - A concurrent map, so readers on different threads (e.g. Folia regions) don't share a
+        lock and concurrent misses on one file parse it once.
 
-      Once a save has returned, no read may hand out anything older. Every entry carries a
-      number from SEQ: a save takes one after its file is in place, a reader takes one just
-      before it opens the file. A higher number therefore never holds older content, and an
-      entry is only ever replaced by a higher one. Entries that leave the cache without a
-      tombstone (evicted, or the cache cleared), and saves to files nobody has cached, raise the
-      floor for their key to their number, so a slow reader that opened the file before then
-      can't put an older copy in afterwards. Floors are shared by stripes of keys, which only
-      ever costs an extra parse.
+      Ordering: once a save returns, no read may return older content. Entries carry a number
+      from SEQ: a save takes one after its file is in place, a reader just before opening it,
+      and an entry is only replaced by a higher number. Entries leaving the cache without a
+      tombstone, and saves to uncached files, raise a per-key floor so a slow reader can't
+      store an older copy afterwards. Floors are shared by key stripes, which at worst costs
+      an extra parse.
      */
     private static volatile int cachesize = 500;
     private static volatile long revalidatenanos = TimeUnit.SECONDS.toNanos(5);
@@ -104,7 +94,7 @@ public final class FileStore {
         }
 
         static Entry tombstone(long seq) {
-            // Oldest possible access time, so eviction always drops these first.
+            // Evicted first.
             return new Entry(null, 0L, 0L, seq, Long.MIN_VALUE);
         }
 
@@ -126,12 +116,7 @@ public final class FileStore {
         return target.getAbsolutePath();
     }
 
-    // Settings ----------------------------------------------------------------------------
-
-    /**
-     * How many parsed files are kept (Advanced.Cache-Size), not counting online players' files,
-     * which are always kept. 0 switches the cache off entirely.
-     */
+    /** Parsed files kept, not counting pinned ones. 0 switches the cache off. */
     public static void setCacheSize(int size) {
         cachesize = Math.max(0, size);
         if (cachesize == 0) {
@@ -141,10 +126,7 @@ public final class FileStore {
         }
     }
 
-    /**
-     * How long a cached file is trusted before its size and modified time are checked again
-     * (Advanced.Cache-Revalidate-Seconds). 0 checks on every read.
-     */
+    /** How long a cached file is trusted before being re-checked. 0 checks on every read. */
     public static void setRevalidateSeconds(int seconds) {
         revalidatenanos = TimeUnit.SECONDS.toNanos(Math.max(0, seconds));
     }
@@ -157,17 +139,12 @@ public final class FileStore {
         dropAll();
     }
 
-    // Pinning -----------------------------------------------------------------------------
-
     /** Keeps this file cached however full the cache gets, until {@link #unpin}. */
     public static void pin(File target) {
         PINNED.add(key(target));
     }
 
-    /**
-     * Lets this file age out like any other. It counts as just used, so a player who rejoins
-     * shortly after leaving still finds it in memory.
-     */
+    /** Lets the file age out like any other, counted as just used. */
     public static void unpin(File target) {
         final String key = key(target);
         if (PINNED.remove(key)) {
@@ -184,12 +161,7 @@ public final class FileStore {
         evictIfFull();
     }
 
-    // Reading -----------------------------------------------------------------------------
-
-    /**
-     * A player file for reading. The result may be shared with other threads, so it must not be
-     * modified, and neither may any list, section or item taken out of it.
-     */
+    /** A player file for reading. Shared, so neither it nor anything taken from it may be modified. */
     public static FileConfiguration read(File target) {
         if (cachesize == 0) {
             return YamlConfiguration.loadConfiguration(target);
@@ -210,7 +182,6 @@ public final class FileStore {
         final long length = target.length();
 
         if (modified == 0L && length == 0L) {
-            // Doesn't exist (or is empty), which reads as an empty file either way.
             if (cached != null) {
                 CACHE.computeIfPresent(key, (k, current) -> current.seq < checked ? Entry.tombstone(checked) : current);
             }
@@ -227,7 +198,7 @@ public final class FileStore {
         final Load theirs = LOADING.putIfAbsent(key, mine);
         if (theirs != null) {
             if (canShare(key, theirs)) {
-                // Another thread is already parsing this file; use its copy rather than parse it twice.
+                // Reuse the other thread's parse.
                 return theirs.result.join();
             }
             return load(key, target, modified, length, now, null);
@@ -255,15 +226,11 @@ public final class FileStore {
         return loaded;
     }
 
-    /*
-      Whether waiting for another thread's parse is as good as parsing now: true unless a save
-      finished (or the entry left the cache) after that thread opened the file, in which case
-      its copy may be older than what this read has to return.
-     */
+    // False if a save finished after the other thread opened the file, so its copy may be stale.
     private static boolean canShare(String key, Load theirs) {
         final long opened = theirs.opened;
         if (opened == Long.MAX_VALUE) {
-            return true; // Hasn't opened the file yet, so it will see everything saved so far.
+            return true;
         }
         if (opened <= floor(key)) {
             return false;
@@ -279,7 +246,7 @@ public final class FileStore {
                 return current;
             }
             if (entry.seq <= floor(k)) {
-                // Too old to keep, but newer than what's there, so that has to go too.
+                // Too old to keep, but newer than the current entry, which must go.
                 return null;
             }
             return entry;
@@ -296,7 +263,7 @@ public final class FileStore {
         return FLOORS.get(stripe(key));
     }
 
-    /** Drops an entry without leaving a tombstone, raising its floor first to cover for it. */
+    /** Drops an entry without a tombstone, raising its floor instead. */
     private static void drop(String key, Entry entry) {
         FLOORS.accumulateAndGet(stripe(key), entry.seq, Math::max);
         CACHE.remove(key, entry);
@@ -310,11 +277,7 @@ public final class FileStore {
         CACHE.clear();
     }
 
-    /**
-     * Like {@link #read}, but a file that isn't cached is parsed without being added. For scans
-     * over every player file, which would otherwise push every file anyone is actually using
-     * out of the cache. The same rule applies: the result must not be modified.
-     */
+    /** Like {@link #read}, but uncached files aren't added, so scans don't evict files in use. */
     public static FileConfiguration peek(File target) {
         if (cachesize > 0) {
             final Entry cached = CACHE.get(key(target));
@@ -330,15 +293,14 @@ public final class FileStore {
     }
 
     /**
-     * Loads a player file that is about to be modified and saved again. A missing file gives an
-     * empty configuration, exactly like {@code YamlConfiguration.loadConfiguration}.
+     * Loads a player file that is about to be modified and saved. A missing file gives an empty
+     * configuration.
      * <p>
-     * Unlike that method, a file that exists but can't be used is never quietly treated as
-     * empty - saving on top of that would wipe every plugin's data for the player. A file that
-     * can't be parsed is moved into the Corrupt folder first so it can be recovered by hand,
-     * and one that can't be read at all (a passing I/O error) throws so the caller leaves it be.
+     * Unlike {@code YamlConfiguration.loadConfiguration}, an unusable file is never treated as
+     * empty, since saving over it would wipe the player's data. An unparseable file is moved to
+     * the Corrupt folder, and an unreadable one throws so the caller leaves it be.
      * <p>
-     * Always a fresh copy from disk, never the cached one, since the caller is about to change it.
+     * Always a fresh copy from disk, never the cached one.
      */
     public static YamlConfiguration loadForUpdate(File target, Logger log) throws IOException {
         final YamlConfiguration config = new YamlConfiguration();
@@ -363,8 +325,6 @@ public final class FileStore {
         }
     }
 
-    // Writing -----------------------------------------------------------------------------
-
     public static void save(FileConfiguration config, File target) throws IOException {
         final File parent = target.getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs() && !parent.isDirectory()) {
@@ -374,7 +334,6 @@ public final class FileStore {
         final String data = config.saveToString();
         final File temp = new File(parent, target.getName() + TEMP_SUFFIX);
         try {
-            // What FileConfiguration#save does, minus the parent-folder handling done above.
             Files.writeString(temp.toPath(), data, StandardCharsets.UTF_8);
             try {
                 Files.move(temp.toPath(), target.toPath(),
@@ -397,7 +356,7 @@ public final class FileStore {
     }
 
     /**
-     * Deletes a player file, making sure nothing keeps reading the old copy from memory.
+     * Deletes a player file and its cached copy.
      *
      * @return whether the file is gone.
      */
@@ -421,12 +380,8 @@ public final class FileStore {
         }
     }
 
-    /*
-      Whether anyone is reading this file: cached, pinned, or being parsed. If not, the floor is
-      raised instead - a reader could have opened the old file just before it changed - which
-      saves leaving a tombstone behind for every file written. Inside compute(), so no reader's
-      offer() for the key can land between the look and the floor going up.
-     */
+    // Whether anyone is reading this file (cached, pinned or loading). If not, the floor is raised
+    // instead of leaving a tombstone. Inside compute() so no offer() lands between check and raise.
     private static boolean wanted(String key, long seq) {
         final boolean[] wanted = {false};
         CACHE.compute(key, (k, current) -> {
@@ -440,13 +395,8 @@ public final class FileStore {
         return wanted[0];
     }
 
-    /*
-      Puts the file that was just written back in the cache, parsed from exactly the text that
-      went to disk: a reader sees the same types it would get from the file (an Integer where
-      a Long was set, say), and nothing the calling plugin still holds - a list it passed in and
-      keeps changing - is shared with readers. Only for files someone is reading; parsing every
-      file written during a bulk job just to cache it would be wasted work.
-     */
+    // Caches the written file, parsed from the text that went to disk so readers get the same types
+    // as a file read and share nothing with the calling plugin. Only for files someone is reading.
     private static void cacheSaved(File target, String data) {
         final String key = key(target);
         final long seq = SEQ.incrementAndGet();
@@ -463,20 +413,13 @@ public final class FileStore {
             saved.loadFromString(data);
             replacement = new Entry(saved, target.lastModified(), target.length(), seq, System.nanoTime());
         } catch (InvalidConfigurationException | RuntimeException unparsable) {
-            // Readers will load it from disk and see the same problem there.
             replacement = Entry.tombstone(seq);
         }
 
         offer(key, replacement);
     }
 
-    // Eviction ----------------------------------------------------------------------------
-
-    /*
-      Approximate LRU. Nothing happens until the cache is a little over its size, then one thread
-      drops tombstones and the least recently used unpinned files in one pass - so the cost is
-      a sort every few dozen inserts rather than a lock on every read.
-     */
+    // Approximate LRU: once slightly over size, one thread drops tombstones and the oldest unpinned files in a pass.
     private static void evictIfFull() {
         final int limit = cachesize;
         if (limit == 0) {
@@ -508,7 +451,7 @@ public final class FileStore {
                 return;
             }
 
-            // Snapshotted above: sorting on the live, still-changing times could break the sort.
+            // Snapshotted so concurrent updates can't break the sort.
             candidates.sort(Comparator.comparingLong(Candidate::accessed));
             for (int i = 0; i < excess; i++) {
                 final Candidate oldest = candidates.get(i);

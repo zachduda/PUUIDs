@@ -11,24 +11,14 @@ Settings:
     Clean-Essentials: true
     Max-Days: 365
   Metrics: true
-  # Keep each player's last IP address in their file (and in MySQL, if that is on). Turn this
-  # off if you don't need it: saved addresses are then removed as each player is next seen, and
-  # plugins asking puuids for an IP are told there isn't one.
+  # Saves each player's last IP. When off, saved IPs are removed as players are next seen.
   Store-IPs: true
   Debug: false
 Messages:
   No-Permission: '&c&lSorry! &fYou are not able to do that.'
-# Optionally mirror everything in the Data folder into MySQL.
-#
-# The .yml files stay in charge: every read still comes off disk, so this can never slow a
-# plugin down or fail because the database is busy. Each write is copied up in the background
-# instead, giving you one place to back up, query, or share between the servers on a network.
-#
-# One table is created per plugin (puuids_data_<plugin>), alongside puuids_players for
-# usernames / IPs / play time and puuids_plugins listing which table belongs to which plugin.
-#
-# Your server needs a MySQL or MariaDB JDBC driver on its classpath. Most Spigot and Paper
-# builds ship one; if yours doesn't, puuids says so in the console and keeps saving to file.
+# Optionally mirror the Data folder into MySQL. The .yml files stay in charge: reads come from
+# disk, and writes are copied to the database in the background.
+# Needs a MySQL or MariaDB JDBC driver, which most Spigot and Paper builds ship.
 MySQL:
   Enabled: false
   Host: localhost
@@ -36,48 +26,36 @@ MySQL:
   Database: minecraft
   Username: root
   Password: ''
-  # Every table puuids creates starts with this. Letters, numbers and underscores only.
+  # Letters, numbers and underscores only.
   Table-Prefix: 'puuids_'
   Use-SSL: false
-  # Passed straight to the driver, e.g. 'allowPublicKeyRetrieval=true&serverTimezone=UTC'.
-  # MySQL 8 with caching_sha2_password over an unencrypted link needs the first of those.
+  # Passed to the driver, e.g. 'allowPublicKeyRetrieval=true&serverTimezone=UTC'.
   Extra-Properties: ''
-  # How long to wait on the database before giving up. The server start-up waits on this once.
+  # Start-up waits on this once.
   Connection-Timeout-Seconds: 10
   Pool-Size: 3
-  # How often queued changes are sent, in milliseconds.
   Flush-Rate-Ms: 1000
-  # If the database goes away, changes wait in memory up to this many before the oldest are
-  # dropped. Nothing is lost from your files - run /puuids mysql export to rebuild afterwards.
+  # Changes queued while the database is down; the oldest are dropped past this.
+  # Files are unaffected: run /puuids mysql export to catch up.
   Max-Queued-Writes: 100000
-  # Rebuild the Data folder from MySQL at start-up. For a server whose data lives in the
-  # database (a fresh network member, or one being restored) - it overwrites local files.
+  # Rebuild the Data folder from MySQL at start-up. Overwrites local files.
   Import-On-Startup: false
-  # Push the whole Data folder up at start-up. Handy the first time you switch MySQL on;
-  # /puuids mysql export does the same thing on demand. For each plugin a player's file has
-  # data for, an export replaces that player's rows with exactly what the file holds.
+  # Push the whole Data folder to MySQL at start-up (same as /puuids mysql export).
   Export-On-Startup: false
-  # Refresh a player's file from MySQL as they join, for networks where their data follows them
-  # between servers. Their local file wins wherever it has seen them more recently.
+  # Refresh a player's file from MySQL on join, for networks. A more recent local file wins.
   Sync-On-Join: false
 Advanced:
   # Only mess with the following if you are sure as to what you're doing.
   Save-Rate-Ticks: 10
-  # How many player files plugin data is written to per save run. Every change queued for the
-  # same file is saved together and counts once.
+  # Player files written per save run.
   Max-Processes-Per-Queue: 25
-  # How many recently read player files are kept parsed in memory, so plugins reading values
-  # don't re-open the file each time. Online players' files are always kept, on top of this.
-  # 0 turns the cache off entirely.
+  # Player files kept parsed in memory, on top of online players' files. 0 turns this off.
   Cache-Size: 500
-  # How often a cached file is checked against the one on disk, in seconds. Changes puuids makes
-  # itself are seen immediately; this is only how long a hand edit can take to show up.
-  # 0 checks on every read.
+  # Seconds before a cached file is re-checked against disk. Only affects hand edits. 0 checks every read.
   Cache-Revalidate-Seconds: 5
-  # How often every online player's file is checkpointed, in seconds. A normal quit always
-  # saves play time exactly; this only limits how much of a session is lost in a hard crash.
+  # Seconds between checkpoints of online players. Limits play time lost in a crash.
   Player-Update-Seconds: 300
   Allow-Post-Startup-Connections: false
-  # /reload and /rl are blocked (for players and the console) unless this is true.
+  # /reload and /rl are blocked unless this is true.
   Allow-Unsafe-Reloads: false
   UUID: "0"
