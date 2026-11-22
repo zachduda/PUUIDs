@@ -123,11 +123,6 @@ public final class MySQLStorage {
         return true;
     }
 
-    /*
-      The column used to be VARCHAR(16). A longer name (Floodgate prefixes Bedrock players, so
-      theirs reach 17+) made MySQL reject the row, and with it the whole batch - which was then
-      retried forever, stalling the mirror for everyone.
-     */
     private void widenUsernameColumn(Connection connection) {
         try (PreparedStatement ps = connection.prepareStatement(
                 "SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS"
@@ -169,12 +164,12 @@ public final class MySQLStorage {
             plugin.getLogger().info("Sending " + leftover + " leftover changes to MySQL...");
         }
 
-        retryafter = 0; // A backoff from earlier must not skip the last flush.
+        retryafter = 0; // Don't let an earlier backoff skip the last flush.
         for (int attempt = 0; attempt < 200 && !queue.isEmpty(); attempt++) {
             final int before = queue.size();
             flushQuietly();
             if (queue.size() >= before) {
-                // Nothing happening, something went wrong.
+                // No progress.
                 break;
             }
         }
@@ -240,7 +235,7 @@ public final class MySQLStorage {
         final String table = Tables.data(settings.prefix, pluginname);
 
         if (current == null) {
-            // Setting null on file drops the value and everything under it; so does this.
+            // Matches a null in the file: drops the value and everything under it.
             enqueue(new Op.Remove(table, pluginname, uuid, path, true));
             return;
         }
@@ -321,7 +316,7 @@ public final class MySQLStorage {
         }
 
         if (System.currentTimeMillis() < retryafter) {
-            return; // Backing off after a failure.
+            return;
         }
 
         final List<Op> batch = new ArrayList<>(Math.min(queue.size(), 5000));
@@ -351,9 +346,7 @@ public final class MySQLStorage {
                 fail("Unable to write " + ready.size() + " changes to MySQL", err);
                 return;
             }
-            // The database is there but turned the batch down, so one of the changes is the
-            // problem. Retrying the batch as it is would fail the same way forever and hold
-            // up everything queued behind it.
+            // The database rejected the batch, so retrying it unchanged would fail forever.
             fail("MySQL rejected a batch of " + ready.size() + " changes; sending them one at a time", err);
             isolate(ready);
         }
@@ -503,7 +496,7 @@ public final class MySQLStorage {
 
         private void add(Op op) {
             if (op instanceof Op.Clear) {
-                // Wipes the slate: nothing queued before it can still matter.
+                // Nothing queued before this matters.
                 clear = (Op.Clear) op;
                 removes.clear();
                 sets.clear();
@@ -514,7 +507,7 @@ public final class MySQLStorage {
                 sets.keySet().removeIf(remove::covers);
 
                 if (clear != null) {
-                    return; // The clear already takes these rows out.
+                    return;
                 }
 
                 removes.keySet().removeIf(path -> path.startsWith(remove.path + "."));
@@ -550,14 +543,12 @@ public final class MySQLStorage {
             try {
                 connection.rollback();
             } catch (SQLException ignored) {
-                // The connection is discarded by the caller either way.
             }
             throw err;
         } finally {
             try {
                 connection.setAutoCommit(autocommit);
             } catch (SQLException ignored) {
-                // Same: this connection is on its way out if we got here through an error.
             }
         }
     }
@@ -611,7 +602,7 @@ public final class MySQLStorage {
         });
 
         if (!queued) {
-            // Nothing will ever run, so whoever is waiting on us has to be released here.
+            // Release whoever is waiting.
             finish(then);
         }
     }
@@ -666,9 +657,8 @@ public final class MySQLStorage {
             }
 
             final String table = Tables.data(settings.prefix, pluginname);
-            // Rows for values that have since been removed from the file go too, or an export
-            // could never repair a mirror that missed a delete. Only for plugins this file
-            // actually has a section for: another server's plugins are left alone.
+            // Also removes rows deleted from the file, but only for plugins this file has a
+            // section for; other servers' plugins are left alone.
             batch.add(new Op.Clear(table, pluginname, uuid));
             for (String path : section.getKeys(true)) {
                 final Object value = section.get(path);
@@ -707,8 +697,7 @@ public final class MySQLStorage {
             }
 
             final long start = System.currentTimeMillis();
-            // Hold the file writer while the folder is rewritten underneath it. Queued changes
-            // simply wait, and land on the imported files once we are done.
+            // Queued changes wait and land on the imported files afterwards.
             plugin.pauseSaving();
             try {
                 final Map<String, String> tables = pluginTables();
@@ -834,7 +823,7 @@ public final class MySQLStorage {
 
             try {
                 withConnection(connection -> {
-                    // Ordered by path so a parent is always applied before its children.
+                    // By path, so parents apply before children.
                     try (PreparedStatement ps = connection.prepareStatement(
                             "SELECT `uuid`,`path`,`value` FROM `" + table + "` WHERE `uuid` IN (" + placeholders
                                     + ") ORDER BY `uuid`,`path`")) {
@@ -852,7 +841,7 @@ public final class MySQLStorage {
                     return null;
                 });
             } catch (SQLException err) {
-                // A registered plugin whose table was dropped by hand shouldn't stop the import.
+                // A hand-dropped table shouldn't stop the import.
                 plugin.getLogger().warning("Skipping MySQL table " + table + " for " + pluginname + ": " + err.getMessage());
             }
         }
@@ -1012,7 +1001,7 @@ public final class MySQLStorage {
     }
 
     private String url(String driver) {
-        // MariaDB's own connector dropped the jdbc:mysql: scheme in 3.x.
+        // MariaDB's connector dropped the jdbc:mysql: scheme in 3.x.
         final String scheme = MARIADB_DRIVER.equals(driver) ? "jdbc:mariadb://" : "jdbc:mysql://";
         return scheme + settings.host + ":" + settings.port + "/" + settings.database;
     }
@@ -1024,7 +1013,7 @@ public final class MySQLStorage {
         props.setProperty("useSSL", Boolean.toString(settings.usessl));
         props.setProperty("useUnicode", "true");
         props.setProperty("characterEncoding", "utf8");
-        // Turns each JDBC batch into a single multi-row statement instead of one per row.
+        // Rewrites JDBC batches as multi-row statements.
         props.setProperty("rewriteBatchedStatements", "true");
         props.setProperty("connectTimeout", Long.toString(settings.connecttimeout * 1000L));
         props.setProperty("socketTimeout", Long.toString(Math.max(30, settings.connecttimeout * 3L) * 1000L));

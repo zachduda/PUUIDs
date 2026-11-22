@@ -5,8 +5,6 @@ import java.lang.reflect.Field;
 
 public final class EnumUtil {
 
-    // This class is used in the onEnable compare to see the native minecraft server play time vs puuids playtime statistic.
-
     private EnumUtil() {
     }
 

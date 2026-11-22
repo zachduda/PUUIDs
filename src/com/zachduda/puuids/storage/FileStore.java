@@ -17,23 +17,11 @@ public final class FileStore {
 
     public static final String TEMP_SUFFIX = ".tmp";
 
-    /**
-     * Held for every load-modify-save of a player file. The save queue, a MySQL join sync and the
-     * reset commands all run on different threads, and without this two of them could load the
-     * same file and the slower one would silently undo the other's changes.
-     */
+    /** Held for every load-modify-save of a player file, since several threads write them. */
     public static final Object LOCK = new Object();
 
-    /*
-      Recently read player files, parsed. Every getter in the API used to open and parse the
-      player's whole .yml on the calling thread - usually the main one - so a plugin reading
-      five values for a scoreboard parsed the same file five times a tick.
-
-      An entry is only trusted while the file's size and modified time still match, so an edit
-      made by hand (or by anything else) is picked up, and every save through this class drops
-      the entry outright. What's cached is shared between threads and must never be modified:
-      read() is for reading only.
-     */
+    // Parsed player files. An entry is trusted only while the file's size and modified time
+    // still match, and saves drop it. Shared between threads, so never modify cached values.
     private static volatile int cachesize = 500;
     private static final Map<String, Cached> CACHE = Collections.synchronizedMap(
             new LinkedHashMap<>(64, 0.75f, true) {
@@ -50,7 +38,7 @@ public final class FileStore {
         return target.getAbsolutePath();
     }
 
-    /** How many parsed files are kept (Advanced.Cache-Size). 0 switches the cache off. */
+    /** How many parsed files are kept. 0 switches the cache off. */
     public static void setCacheSize(int size) {
         cachesize = Math.max(0, size);
         if (cachesize == 0) {
@@ -62,17 +50,13 @@ public final class FileStore {
         CACHE.clear();
     }
 
-    /**
-     * A player file for reading. The result may be shared with other threads, so it must not be
-     * modified, and neither may any list, section or item taken out of it.
-     */
+    /** A player file for reading. Shared, so neither it nor anything taken from it may be modified. */
     public static FileConfiguration read(File target) {
         final String key = key(target);
         final long modified = target.lastModified();
         final long length = target.length();
 
         if (modified == 0L && length == 0L) {
-            // Doesn't exist (or is empty), which reads as an empty file either way.
             CACHE.remove(key);
             return new YamlConfiguration();
         }
@@ -93,13 +77,12 @@ public final class FileStore {
     }
 
     /**
-     * Loads a player file that is about to be modified and saved again. A missing file gives an
-     * empty configuration, exactly like {@code YamlConfiguration.loadConfiguration}.
+     * Loads a player file that is about to be modified and saved. A missing file gives an empty
+     * configuration.
      * <p>
-     * Unlike that method, a file that exists but can't be used is never quietly treated as
-     * empty - saving on top of that would wipe every plugin's data for the player. A file that
-     * can't be parsed is moved into the Corrupt folder first so it can be recovered by hand,
-     * and one that can't be read at all (a passing I/O error) throws so the caller leaves it be.
+     * Unlike {@code YamlConfiguration.loadConfiguration}, an unusable file is never treated as
+     * empty, since saving over it would wipe the player's data. An unparseable file is moved to
+     * the Corrupt folder, and an unreadable one throws so the caller leaves it be.
      */
     public static YamlConfiguration loadForUpdate(File target, Logger log) throws IOException {
         final YamlConfiguration config = new YamlConfiguration();
@@ -140,7 +123,7 @@ public final class FileStore {
             } catch (IOException | UnsupportedOperationException atomicUnsupported) {
                 Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
-            // Again now the new file is in place, in case a reader cached the old one meanwhile.
+            // A reader may have cached the old file meanwhile.
             CACHE.remove(key(target));
         } catch (IOException | RuntimeException err) {
             //noinspection ResultOfMethodCallIgnored

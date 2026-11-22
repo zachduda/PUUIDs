@@ -32,7 +32,6 @@ public class Cooldowns {
         return true;
     }
 
-    /** Forgets one player. Only their own entries, never everybody else's. */
     static void clearAll(UUID p) {
         joined.remove(p);
         ontime.remove(p);
@@ -51,10 +50,6 @@ public class Cooldowns {
         return active(ontime, p);
     }
 
-    /**
-     * Drops a leaving player's /ontime cooldown. Without this the map keeps an entry for every
-     * player who ever ran the command and never came back.
-     */
     static void forgetOnTime(UUID p) {
         ontime.remove(p);
     }
@@ -84,7 +79,7 @@ public class Cooldowns {
         largeTaskReadyAt = System.currentTimeMillis() + LARGE_TASK_COOLDOWN_MS;
     }
 
-    /** The pending confirmation key for a player, or null once it has expired. */
+    /** The pending confirmation key, or null once expired. */
     static String confirmKey(UUID p) {
         if (!active(confirmexpiry, p)) {
             confirmall.remove(p);

@@ -27,26 +27,25 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Timer {
-    // How often the queue is drained, in server ticks (Advanced.Save-Rate-Ticks).
+    // Ticks between queue runs.
     static long processrate = 10;
-    // Most queued plugin writes handled in a single run (Advanced.Max-Processes-Per-Queue).
+    // Max files touched per run.
     static int sizelimit = 25;
 
     private static final Main plugin = Main.getPlugin(Main.class);
     private static final AtomicBoolean busy = new AtomicBoolean(false);
     private static final AtomicInteger taskid = new AtomicInteger(1);
 
-    // puuids' own player file updates (username / ip / last-on / play time).
     private static final ConcurrentLinkedQueue<PlayerUpdate> updateSystem = new ConcurrentLinkedQueue<>();
 
-    //                                                UUID    PLUGIN   PATH    DATA     ID
+    // UUID, plugin, path, data, id
     private static final ConcurrentLinkedQueue<Quartet<String, String, String, Object, Integer>> rawdata = new ConcurrentLinkedQueue<>();
-    // ConcurrentLinkedQueue#size() walks the whole queue, so the depth is tracked separately.
+    // size() is O(n), so the depth is tracked separately.
     private static final AtomicInteger rawsize = new AtomicInteger();
 
     private static final ConcurrentHashMap<UUID, Long> sessions = new ConcurrentHashMap<>();
 
-    // Batches whose file couldn't be read or saved, waiting for another go. Keyed by UUID.
+    // Failed batches awaiting retry, by UUID.
     private static final ConcurrentHashMap<String, Batch> retries = new ConcurrentHashMap<>();
     private static final long RETRY_WINDOW_MS = 60_000L;
 
@@ -54,7 +53,7 @@ public class Timer {
     private static volatile long scheduledrate = -1;
 
     static synchronized void startTimer() {
-        final long rate = Math.max(1L, processrate) * 50L; // ticks -> ms
+        final long rate = Math.max(1L, processrate) * 50L;
 
         if (timer != null) {
             if (rate == scheduledrate) {
@@ -68,18 +67,11 @@ public class Timer {
                 Timer::process, Duration.ofMillis(rate), Duration.ofMillis(rate));
     }
 
-    /*
-      Gathers the next run's work, grouped per player file so each file is loaded and saved once
-      however many values changed in it.
-
-      filelimit caps how many files plugin writes may touch in one run. It used to cap individual
-      values instead, which threw the batching away: one setLocation is six values, so the
-      default of 25 could mean as few as four files per run.
-     */
+    // Groups the next run's work per player file, so each file is loaded and saved once.
     private static Map<String, Batch> collect(int filelimit) {
         final Map<String, Batch> work = new LinkedHashMap<>();
 
-        // Batches that failed last time go first, so anything queued since lands on top of them.
+        // Retries go first so newer changes land on top.
         for (Iterator<Map.Entry<String, Batch>> it = retries.entrySet().iterator(); it.hasNext(); ) {
             final Map.Entry<String, Batch> failed = it.next();
             work.put(failed.getKey(), failed.getValue());
@@ -92,7 +84,7 @@ public class Timer {
         }
 
         final boolean unlimited = filelimit == Integer.MAX_VALUE;
-        // Stops one player with an enormous backlog from holding a run open indefinitely.
+        // Keeps one player's backlog from holding a run open.
         final long oplimit = unlimited ? Long.MAX_VALUE : filelimit * 200L;
         final Set<String> setfiles = new HashSet<>();
 
@@ -103,7 +95,7 @@ public class Timer {
                 break;
             }
             if (!unlimited && setfiles.size() >= filelimit && !setfiles.contains(next.getUUID())) {
-                break; // A new file, and this run is full. Order per file is untouched.
+                break;
             }
 
             final Quartet<String, String, String, Object, Integer> data = rawdata.poll();
@@ -170,10 +162,7 @@ public class Timer {
         }
     }
 
-    /*
-      A file that couldn't be read or saved (disk full, a passing I/O error) keeps its changes
-      and tries again on the following runs, instead of losing them on the first failure.
-     */
+    // Keeps a failed file's changes for later runs instead of losing them.
     private static void retryLater(String uuid, Batch batch) {
         final long now = System.currentTimeMillis();
         final int changes = batch.updates.size() + batch.sets.size();
@@ -202,8 +191,7 @@ public class Timer {
 
         synchronized (FileStore.LOCK) {
             try {
-                // Never YamlConfiguration.loadConfiguration here: it answers an unreadable file
-                // with an empty one, and saving that would wipe the player's whole file.
+                // Not loadConfiguration: it returns an empty config for an unreadable file, and saving that would wipe it.
                 setcache = FileStore.loadForUpdate(f, plugin.getLogger());
             } catch (Exception err) {
                 batch.error = "unreadable: " + err;
@@ -348,13 +336,11 @@ public class Timer {
 
         sessions.compute(id, (key, anchor) -> {
             if (anchor == null) {
-                // Not accruing yet (server just started, or we never saw them join).
                 return quit ? null : now;
             }
             final long secs = Math.max(0L, (now - anchor) / 1000L);
             credited[0] = secs;
-            // Advance by whole seconds only, so the sub-second remainder isn't dropped
-            // every single checkpoint.
+            // Whole seconds only, so the remainder carries over.
             return quit ? null : anchor + (secs * 1000L);
         });
 
@@ -379,14 +365,13 @@ public class Timer {
     }
 
     static int queueSet(String pl, String uuid, String location, Object value) {
-        // The UUID becomes a file name, so anything that could step outside the Data folder
-        // (or isn't a plain name at all) is refused here rather than written somewhere odd.
+        // The UUID becomes a file name, so reject anything that could escape the Data folder.
         if (!Main.validKey(uuid) || location == null) {
             return 0;
         }
 
         final int thisid = taskid.getAndIncrement();
-        // Copied so the caller changing their list afterwards can't race the writer thread.
+        // Copied so later changes by the caller can't race the writer.
         final Object stored = value instanceof List<?> list ? new ArrayList<>(list) : value;
         rawdata.add(new Quartet<>(uuid, pl.toUpperCase(Locale.ROOT), location, stored, thisid));
         rawsize.incrementAndGet();
@@ -401,7 +386,7 @@ public class Timer {
             scheduledrate = -1;
         }
 
-        // Wait briefly for an in-flight run so the same file isn't written from two threads.
+        // Wait for an in-flight run so no file is written from two threads.
         for (int i = 0; i < 100 && busy.get(); i++) {
             try {
                 Thread.sleep(10L);
@@ -419,7 +404,7 @@ public class Timer {
         for (Map.Entry<String, Batch> entry : collect(Integer.MAX_VALUE).entrySet()) {
             final Batch batch = entry.getValue();
             try {
-                // No events: the plugin manager is on its way down with us.
+                // No events during shutdown.
                 if (!writeBatch(entry.getKey(), batch, false)) {
                     plugin.getLogger().severe("Unable to save leftover puuids data for " + entry.getKey() + " ("
                             + batch.error + "). " + (batch.updates.size() + batch.sets.size()) + " changes were lost.");
@@ -435,7 +420,7 @@ public class Timer {
     private static final class Batch {
         private final List<PlayerUpdate> updates = new ArrayList<>(1);
         private final List<Quartet<String, String, String, Object, Integer>> sets = new ArrayList<>(1);
-        // When this batch first failed to save (0 if it never has), and why.
+        // 0 if it has never failed.
         private long failedsince;
         private String error;
     }
