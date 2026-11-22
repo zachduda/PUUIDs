@@ -3,13 +3,9 @@
 Async per player file saving: Made Easy!
 
 # Documentation
-Everything is in the [docs](docs/README.md) folder:
+Everything is in the [wiki](https://github.com/zachduda/PUUIDs/wiki): getting started, storing and reading data, how saving works, the full API reference, and config, commands and permissions for server owners.
 
-* [Getting Started](docs/Getting-Started.md): add PUUIDs to your project and connect your plugin.
-* [Storing Data](docs/Storing-Data.md) and [Reading Data](docs/Reading-Data.md): the core API.
-* [How Saving Works](docs/How-Saving-Works.md): read this before building anything that updates values often.
-* [API Reference](docs/API-Reference.md): every method on one page.
-* [Server Owners](docs/Server-Owners.md): config, commands and permissions.
+Upgrading from v4? Read the [5.0.0 changelog](CHANGELOG.md#500) first.
 
 # Quick Start
 Add the repository and dependency. Use `provided` scope, since PUUIDs is already installed on the server:
@@ -24,12 +20,12 @@ Add the repository and dependency. Use `provided` scope, since PUUIDs is already
 <dependency>
     <groupId>com.zachduda</groupId>
     <artifactId>puuids</artifactId>
-    <version>4.0.1</version>
+    <version>5.0.0</version>
     <scope>provided</scope>
 </dependency>
 ```
 
-Gradle users can add `maven("https://maven.zachduda.com/releases")` and `compileOnly("com.zachduda:puuids:4.0.1")`.
+Gradle users can add `maven("https://maven.zachduda.com/releases")` and `compileOnly("com.zachduda:puuids:5.0.0")`.
 
 Declare PUUIDs in your `plugin.yml`, using `depend` if your plugin needs it or `softdepend` if it's optional:
 ```yaml
@@ -40,7 +36,7 @@ Then connect in `onEnable`, and start saving:
 ```java
 @Override
 public void onEnable() {
-    PUUIDS.connect(this, PUUIDS.APIVersion.V4);
+    PUUIDS.connect(this, PUUIDS.APIVersion.V5);
 }
 
 public void saveTitle(Player player, String title) {

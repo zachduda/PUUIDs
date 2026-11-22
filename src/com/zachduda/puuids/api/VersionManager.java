@@ -21,7 +21,13 @@ public class VersionManager {
         }
 
         if (version == APIVersion.V4) {
-            // Changed Location save / get calls to use the world properly
+            // Changed Location save / get calls to use the world properly.
+            // No calls changed signature in V5, so V4 plugins still get full support.
+            return VersionTest.PASS;
+        }
+
+        if (version == APIVersion.V5) {
+            // Java 21, getAll* return empty lists instead of null, cached reads, copies from getters.
             return VersionTest.PASS;
         }
 

@@ -46,6 +46,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * The puuids plugin itself. <b>This class is internal and not part of the API.</b>
+ * <p>
+ * Its public members exist for puuids' own packages and can change in any release, including patch
+ * releases. Other plugins should only use {@link com.zachduda.puuids.api.PUUIDS} and the events in {@code com.zachduda.puuids.api}.
+ */
 public class Main extends JavaPlugin implements Listener {
 
     static volatile boolean hasess = false;
@@ -195,7 +201,7 @@ public class Main extends JavaPlugin implements Listener {
             mpl.scheduling().asyncScheduler().run(this::startupScan);
         }
 
-        plugins.put(this, APIVersion.V4);
+        plugins.put(this, APIVersion.V5);
         allowconnections = true;
 
         Bukkit.getServer().getPluginManager().registerEvents(this, this);
