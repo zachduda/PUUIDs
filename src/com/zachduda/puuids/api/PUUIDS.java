@@ -829,6 +829,7 @@ public class PUUIDS {
         @Deprecated V1,
         @Deprecated V2,
         @Deprecated V3,
-        V4
+        V4,
+        V5
     }
 }
