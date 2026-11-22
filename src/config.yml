@@ -67,8 +67,13 @@ Advanced:
   # same file is saved together and counts once.
   Max-Processes-Per-Queue: 25
   # How many recently read player files are kept parsed in memory, so plugins reading values
-  # don't re-open the file each time. 0 turns this off.
+  # don't re-open the file each time. Online players' files are always kept, on top of this.
+  # 0 turns the cache off entirely.
   Cache-Size: 500
+  # How often a cached file is checked against the one on disk, in seconds. Changes puuids makes
+  # itself are seen immediately; this is only how long a hand edit can take to show up.
+  # 0 checks on every read.
+  Cache-Revalidate-Seconds: 5
   # How often every online player's file is checkpointed, in seconds. A normal quit always
   # saves play time exactly; this only limits how much of a session is lost in a hard crash.
   Player-Update-Seconds: 300

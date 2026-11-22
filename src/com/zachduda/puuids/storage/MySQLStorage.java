@@ -3,7 +3,6 @@ package com.zachduda.puuids.storage;
 import com.zachduda.puuids.Main;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.sql.Connection;
@@ -587,7 +586,8 @@ public final class MySQLStorage {
 
                 for (File file : files) {
                     final String uuid = file.getName().substring(0, file.getName().length() - 4);
-                    final FileConfiguration data = YamlConfiguration.loadConfiguration(file);
+                    // Read-only, so a cached copy is fine; the rest are parsed without being cached.
+                    final FileConfiguration data = FileStore.peek(file);
                     collect(uuid, data, batch);
                     exported++;
 
