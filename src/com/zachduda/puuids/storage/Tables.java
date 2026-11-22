@@ -7,6 +7,8 @@ final class Tables {
     private static final int MAX_IDENTIFIER = 64;
     /** Wider than Mojang's 16: Bedrock (Floodgate) and offline-mode names can be longer. */
     static final int MAX_USERNAME = 48;
+    /** Paths are compared exactly, as YAML keys are: "Home" and "home" are different rows. */
+    static final String PATH_COLLATION = "utf8mb4_bin";
 
     private Tables() {
     }
@@ -23,6 +25,16 @@ final class Tables {
     static String data(String prefix, String plugin) {
         final String base = prefix + "data_";
         return base + sanitize(plugin, MAX_IDENTIFIER - base.length());
+    }
+
+    /**
+     * Like {@link #data}, with a hash of the exact plugin name added. Used when another plugin's name
+     * already cleans up to the same table, as "MY-PLUGIN" and "MY_PLUGIN" do.
+     */
+    static String dataUnique(String prefix, String plugin) {
+        final String base = prefix + "data_";
+        final String hash = String.format("%08x", (plugin == null ? "" : plugin).hashCode());
+        return base + sanitize(plugin, MAX_IDENTIFIER - base.length() - hash.length() - 1) + "_" + hash;
     }
 
     private static String sanitize(String plugin, int room) {
@@ -71,10 +83,16 @@ final class Tables {
     static String createData(String table) {
         return "CREATE TABLE IF NOT EXISTS `" + table + "` ("
                 + "`uuid` CHAR(36) NOT NULL,"
-                + "`path` VARCHAR(" + Op.MAX_PATH + ") NOT NULL,"
+                + "`path` VARCHAR(" + Op.MAX_PATH + ") CHARACTER SET utf8mb4 COLLATE " + PATH_COLLATION + " NOT NULL,"
                 + "`value` MEDIUMTEXT,"
                 + "`updated` BIGINT NOT NULL DEFAULT 0,"
                 + "PRIMARY KEY (`uuid`,`path`)"
                 + ") ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4";
+    }
+
+    /** Makes the paths of a table created by an older version case-sensitive. */
+    static String binaryPaths(String table) {
+        return "ALTER TABLE `" + table + "` MODIFY `path` VARCHAR(" + Op.MAX_PATH + ") CHARACTER SET utf8mb4 COLLATE "
+                + PATH_COLLATION + " NOT NULL";
     }
 }

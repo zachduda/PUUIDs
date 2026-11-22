@@ -113,38 +113,65 @@ abstract class Op {
 
     static final class Remove extends Op {
         final String path;
-        final boolean includeself;
+        // The row at the path itself.
+        final boolean self;
+        // Every row under the path.
+        final boolean children;
 
+        /** Removes everything under the path, and the path itself if {@code includeself}. */
         Remove(String table, String plugin, String uuid, String path, boolean includeself) {
+            this(table, plugin, uuid, path, includeself, true);
+        }
+
+        Remove(String table, String plugin, String uuid, String path, boolean self, boolean children) {
             super(table, plugin, uuid);
             this.path = path;
-            this.includeself = includeself;
+            this.self = self;
+            this.children = children;
+        }
+
+        /** Only the row at the path, for a parent that has just become a section. */
+        static Remove exact(String table, String plugin, String uuid, String path) {
+            return new Remove(table, plugin, uuid, path, true, false);
         }
 
         String batchKey() {
-            return (includeself ? "removetree:" : "removechildren:") + table;
+            return (self ? (children ? "removetree:" : "removeexact:") : "removechildren:") + table;
         }
 
         String sql() {
-            if (includeself) {
+            if (self && children) {
                 return "DELETE FROM `" + table + "` WHERE `uuid`=? AND (`path`=? OR `path` LIKE ? ESCAPE '!')";
+            }
+            if (self) {
+                return "DELETE FROM `" + table + "` WHERE `uuid`=? AND `path`=?";
             }
             return "DELETE FROM `" + table + "` WHERE `uuid`=? AND `path` LIKE ? ESCAPE '!'";
         }
 
         void bind(PreparedStatement ps) throws SQLException {
             ps.setString(1, uuid);
-            if (includeself) {
+            if (self && children) {
                 ps.setString(2, path);
                 ps.setString(3, childPattern(path));
+            } else if (self) {
+                ps.setString(2, path);
             } else {
                 ps.setString(2, childPattern(path));
             }
         }
 
+        /** Both removals at once. Removals don't depend on each other's order, so this is the same. */
+        Remove and(Remove other) {
+            if ((self || !other.self) && (children || !other.children)) {
+                return this;
+            }
+            return new Remove(table, plugin, uuid, path, self || other.self, children || other.children);
+        }
+
         /** Whether executing this would also delete the row at {@code other}. */
         boolean covers(String other) {
-            return (includeself && other.equals(path)) || other.startsWith(path + ".");
+            return (self && other.equals(path)) || (children && other.startsWith(path + "."));
         }
     }
 
