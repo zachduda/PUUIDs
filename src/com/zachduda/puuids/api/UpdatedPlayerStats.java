@@ -5,9 +5,11 @@ import org.bukkit.event.HandlerList;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Fired asynchronously every {@code Advanced.Player-Update-Seconds} (300 by default), right after puuids
- * has queued a checkpoint of every online player's details and play time. The checkpoint is queued at
- * this point, not necessarily saved yet.
+ * Fired asynchronously every {@code Advanced.Player-Update-Seconds} (300 by default). By then, every
+ * online player's details and play time have been checkpointed within the last interval.
+ * <p>
+ * Checkpoints are spread out: each player is checkpointed one interval after their last save, rather
+ * than everyone at the moment this fires. A checkpoint is queued, not necessarily saved yet.
  */
 public class UpdatedPlayerStats extends Event {
 

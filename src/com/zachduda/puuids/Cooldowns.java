@@ -32,6 +32,24 @@ public class Cooldowns {
         return true;
     }
 
+    /** Drops expired entries. Run regularly, since players who quit and never return would otherwise stay. */
+    static void sweep() {
+        final long now = System.currentTimeMillis();
+        joined.values().removeIf(until -> until <= now);
+        ontime.values().removeIf(until -> until <= now);
+        confirmexpiry.entrySet().removeIf(entry -> {
+            if (entry.getValue() > now) {
+                return false;
+            }
+            confirmall.remove(entry.getKey());
+            return true;
+        });
+    }
+
+    static long joinCooldownSeconds() {
+        return JOIN_COOLDOWN_MS / 1000L;
+    }
+
     static void clearAll(UUID p) {
         joined.remove(p);
         ontime.remove(p);

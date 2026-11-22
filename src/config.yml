@@ -8,7 +8,8 @@ Settings:
       Seconds: 5
   File-Cleanup:
     Enabled: true
-    Clean-Essentials: true
+    # Also reset the Essentials data (balance, homes, mail) of players whose file is removed. Off by default.
+    Clean-Essentials: false
     Max-Days: 365
   Metrics: true
   # Saves each player's last IP. When off, saved IPs are removed as players are next seen.
@@ -33,6 +34,7 @@ MySQL:
   Extra-Properties: ''
   # Start-up waits on this once.
   Connection-Timeout-Seconds: 10
+  # Used by the background writer, and by Sync-On-Join as players log in.
   Pool-Size: 3
   Flush-Rate-Ms: 1000
   # Changes queued while the database is down; the oldest are dropped past this.
@@ -42,18 +44,21 @@ MySQL:
   Import-On-Startup: false
   # Push the whole Data folder to MySQL at start-up (same as /puuids mysql export).
   Export-On-Startup: false
-  # Refresh a player's file from MySQL on join, for networks. A more recent local file wins.
+  # Refresh a player's file from MySQL as they log in, for networks. Whichever copy was saved
+  # last wins. Logins wait for it, up to Connection-Timeout-Seconds per query.
   Sync-On-Join: false
 Advanced:
   # Only mess with the following if you are sure as to what you're doing.
   Save-Rate-Ticks: 10
-  # Player files written per save run.
+  # Player files written per batch. While there is a backlog, a save run keeps writing batches
+  # for up to half of Save-Rate-Ticks.
   Max-Processes-Per-Queue: 25
   # Player files kept parsed in memory, on top of online players' files. 0 turns this off.
   Cache-Size: 500
   # Seconds before a cached file is re-checked against disk. Only affects hand edits. 0 checks every read.
   Cache-Revalidate-Seconds: 5
-  # Seconds between checkpoints of online players. Limits play time lost in a crash.
+  # Seconds between checkpoints of each online player. Limits play time lost in a crash. Spread
+  # out by join time, so they don't all save at once.
   Player-Update-Seconds: 300
   Allow-Post-Startup-Connections: false
   # /reload and /rl are blocked unless this is true.

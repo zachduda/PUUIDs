@@ -4,7 +4,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -15,8 +15,15 @@ final class ConnectionPool {
     private final Properties properties;
     private final int borrowtimeout;
 
+    // A connection used this recently is trusted without a round trip to check it.
+    private static final long VALIDATE_AFTER_NANOS = TimeUnit.SECONDS.toNanos(30);
+
     private final Semaphore permits;
-    private final ConcurrentLinkedQueue<Connection> idle = new ConcurrentLinkedQueue<>();
+    // Most recently used first, so the ones left idle longest age out at the tail.
+    private final ConcurrentLinkedDeque<Idle> idle = new ConcurrentLinkedDeque<>();
+
+    private record Idle(Connection connection, long since) {
+    }
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     ConnectionPool(String url, Properties properties, int size, int borrowtimeout) {
@@ -41,12 +48,12 @@ final class ConnectionPool {
         }
 
         try {
-            Connection pooled;
-            while ((pooled = idle.poll()) != null) {
-                if (usable(pooled)) {
-                    return pooled;
+            Idle pooled;
+            while ((pooled = idle.pollFirst()) != null) {
+                if (System.nanoTime() - pooled.since() < VALIDATE_AFTER_NANOS || usable(pooled.connection())) {
+                    return pooled.connection();
                 }
-                closeQuietly(pooled);
+                closeQuietly(pooled.connection());
             }
             return DriverManager.getConnection(url, properties);
         } catch (SQLException | RuntimeException err) {
@@ -64,7 +71,7 @@ final class ConnectionPool {
         if (closed.get()) {
             closeQuietly(connection);
         } else {
-            idle.add(connection);
+            idle.offerFirst(new Idle(connection, System.nanoTime()));
         }
         permits.release();
     }
@@ -78,9 +85,9 @@ final class ConnectionPool {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
-        Connection pooled;
-        while ((pooled = idle.poll()) != null) {
-            closeQuietly(pooled);
+        Idle pooled;
+        while ((pooled = idle.pollFirst()) != null) {
+            closeQuietly(pooled.connection());
         }
     }
 
