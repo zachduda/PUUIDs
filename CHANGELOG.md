@@ -54,7 +54,7 @@ Events are unchanged, but their Javadoc now says which thread they fire on. Note
 
 ### New
 - **Optional MySQL mirror** (`MySQL:` section). The `.yml` files stay the source of truth, and writes are copied to MySQL/MariaDB in the background. Includes import/export on start-up, `/puuids mysql export`, and an opt-in refresh on join for networks.
-  - `Sync-On-Join` runs during pre-login, so plugins never read or write the stale file. Whichever copy was saved last wins. Logins wait for it, up to `Connection-Timeout-Seconds` per query, and skip it while the database is unreachable.
+  - `Sync-On-Join` runs at the start of pre-login (`LOWEST`), before any other plugin's listener, so plugins never read or write the stale file. Whichever copy was saved last wins. Logins wait for it, up to `Connection-Timeout-Seconds` per query, and skip it while the database is unreachable.
   - Paths are case-sensitive, as YAML keys are, and the rows always match the file, so an import never brings back a removed value.
   - A table that can't be created only costs that plugin's rows, and plugin names that clean up to the same table name (`MY-PLUGIN`, `MY_PLUGIN`) get separate tables.
   - An import ignores player rows whose `uuid` isn't a valid file name, and registry entries with an invalid table name.
